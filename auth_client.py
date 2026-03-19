@@ -69,12 +69,14 @@ class RemoteClient:
     def _extract_hidden_verification_token(self, html: str) -> str | None:
         """
         Parse HTML bằng BeautifulSoup để tìm hidden input __RequestVerificationToken.
-        Trả về giá trị token hoặc None nếu không tìm thấy.
+        Trả về giá trị token hoặc None nếu không tìm thấy hoặc không có value.
         """
         soup = BeautifulSoup(html, "html.parser")
         token_input = soup.find("input", {"name": "__RequestVerificationToken"})
         if token_input:
-            return token_input.get("value")
+            value = token_input.get("value")
+            # Trả None nếu value rỗng để tránh gửi token trống
+            return value if value else None
         return None
 
     # -----------------------------------------------------------------------
@@ -122,12 +124,20 @@ class RemoteClient:
 
         # --- Bước 5: Chuẩn bị payload ---
         payload = {
-            "returnUrlHash": "",          # để trống nếu không redirect sau login
-            "tenancyName": "",            # tên tenant (ASP.NET Boilerplate multi-tenant)
+            # TODO: Nếu site redirect về một trang cụ thể sau login, điền hash vào đây
+            "returnUrlHash": "",
+            # TODO: Nếu site dùng multi-tenant (ABP), điền tên tenant vào SECRET ASPNET_TENANT
+            #       rồi đổi dòng dưới thành: os.environ.get("ASPNET_TENANT", "")
+            "tenancyName": "",
+            # TODO: Kiểm tra tên field thực tế trong form HTML của trang login.
+            #       ABP dùng "usernameOrEmailAddress", site khác có thể dùng "UserName" hoặc "Email"
             "usernameOrEmailAddress": self.username,
             "password": self.password,
-            "code": "",                   # 2FA code nếu có
-            "captchaText": "",            # captcha nếu có
+            # TODO: Nếu site bật 2FA, cần lấy code động và điền vào đây
+            "code": "",
+            # TODO: Nếu site bắt captcha, không thể tự động hoá trừ khi dùng captcha solver.
+            #       Để trống nếu site không bắt captcha ở lần đầu login.
+            "captchaText": "",
         }
         if verification_token:
             payload["__RequestVerificationToken"] = verification_token
@@ -146,12 +156,19 @@ class RemoteClient:
         # Nhiều ASP.NET app trả JSON: {"success": true/false, "unAuthorizedRequest": ...}
         try:
             result = resp.json()
-            if result.get("unAuthorizedRequest") is True:
-                raise RemoteAuthError("Server trả về unAuthorizedRequest=true. Kiểm tra credentials.")
-            if result.get("success") is False:
-                msg = result.get("error", {}).get("message", "Đăng nhập thất bại.")
-                raise RemoteAuthError(f"Đăng nhập thất bại: {msg}")
-        except (ValueError, AttributeError):
+
+            # FIX: kiểm tra result là dict trước khi gọi .get()
+            # Nếu API trả JSON array hoặc giá trị khác thì bỏ qua kiểm tra này
+            if isinstance(result, dict):
+                if result.get("unAuthorizedRequest") is True:
+                    raise RemoteAuthError(
+                        "Server trả về unAuthorizedRequest=true. Kiểm tra credentials."
+                    )
+                if result.get("success") is False:
+                    msg = result.get("error", {}).get("message", "Đăng nhập thất bại.")
+                    raise RemoteAuthError(f"Đăng nhập thất bại: {msg}")
+
+        except ValueError:
             # Response không phải JSON → có thể là redirect HTML bình thường
             # Kiểm tra heuristic: nếu vẫn ở URL login thì coi là thất bại
             if "login" in resp.url.lower():
@@ -163,13 +180,14 @@ class RemoteClient:
     # -----------------------------------------------------------------------
     # Bước 5: Gọi API dữ liệu dùng session đã đăng nhập
     # -----------------------------------------------------------------------
-    def fetch_data(self, url: str = None, params: dict = None) -> requests.Response:
+    def fetch_data(self, url: str | None = None, params: dict | None = None) -> requests.Response:
         """
         Gọi DATA_URL (hoặc url tuỳ chỉnh) bằng session đã xác thực.
         Tự động đính kèm x-xsrf-token nếu cookie còn tồn tại.
 
         Args:
             url:    URL cần gọi. Nếu None sẽ dùng DATA_URL từ env.
+                    TODO: Điền DATA_URL trong Secrets = URL API thực tế của site.
             params: Query parameters (optional).
 
         Returns:
@@ -177,7 +195,10 @@ class RemoteClient:
         """
         target_url = url or self.data_url
         if not target_url:
-            raise ValueError("Cần truyền url hoặc set DATA_URL trong environment.")
+            raise ValueError(
+                "Cần truyền url hoặc set DATA_URL trong environment. "
+                "Ví dụ: https://your-site.com/api/services/app/Order/GetAll"
+            )
 
         headers = {
             "User-Agent": (

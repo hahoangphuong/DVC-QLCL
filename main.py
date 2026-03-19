@@ -94,6 +94,10 @@ def sync():
     except RemoteAuthError as e:
         db.rollback()
         raise HTTPException(status_code=401, detail=str(e))
+    except EnvironmentError as e:
+        # Thiếu BASE_URL / REMOTE_USERNAME / REMOTE_PASSWORD / DATA_URL trong Secrets
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Thiếu cấu hình môi trường: {e}")
     except requests.HTTPError as e:
         db.rollback()
         raise HTTPException(status_code=502, detail=f"Lỗi HTTP từ server: {e}")

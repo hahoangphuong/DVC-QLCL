@@ -18,8 +18,8 @@ class RemoteFetchLog(Base):
     # Tên nguồn dữ liệu, ví dụ: "orders", "inventory", "customers"
     source = Column(String(100), nullable=False, index=True)
 
-    # URL endpoint đã được gọi
-    endpoint = Column(String(500), nullable=False)
+    # URL endpoint đã được gọi — dùng 2000 ký tự để chứa URL dài có query params
+    endpoint = Column(String(2000), nullable=False)
 
     # HTTP status code trả về (200, 401, 500, ...)
     status_code = Column(Integer, nullable=False)
