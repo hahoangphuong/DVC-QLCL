@@ -1,0 +1,21 @@
+curl ^"https://dichvucong.dav.gov.vn/Account/Login?returnUrl=/Application^" ^
+  -H ^"accept: application/json, text/javascript, */*; q=0.01^" ^
+  -H ^"accept-language: en-US,en;q=0.9,vi-VN;q=0.8,vi;q=0.7^" ^
+  -H ^"cache-control: no-cache^" ^
+  -H ^"content-type: application/x-www-form-urlencoded; charset=UTF-8^" ^
+  -b ^"_ga=GA1.4.1458312169.1648019840; _gid=GA1.4.450896287.1773634345; Abp.Localization.CultureName=en; ASP.NET_SessionId=3dwkuhiipqxovk4taubchqfe; __RequestVerificationToken=HPtXpl3W2anA-8FfP8mxL-j4YwGC3G_hipKls4yGqZawHCxRHLiej-P9rZ7OwJXeufTpqzdyQD2wUB5pefE1d8z3Fms1; SRV=2ddae073-c2f3-4e19-9e59-6156b85527d9; .AspNet.TwoFactorRememberBrowser=q4C9wgtGuxEsirdhmKe5J1Pe86Afgd8hVUr6GjCPEA4KitMxwbmp6_qFE3qE042sJudcQO8wOvdOxf1Bjdq7CHKHTBUDnb4Z8UKTJC5fuZjBtsYjPjrH_-8LDpImtU5SzgSQLQ1WiY-Ho2AoJzmZSQzmtFVUeDKJ6rdo0SpUThet1o8FGvyqSAog6JWEKdPbux8H9_t1vwjla4M3UXPk_lUpeY6U0AAT1BzGhs-z5vMlBXVs8tijZZAoBuzgHbu5W1NT3UEQn6nLWHG-PkljfgolcA1ZlzxaXaMLu3rsvuVjqjwb; XSRF-TOKEN=47Ixj1c5-XiMwMSSRax9XqOaq1IPOd6FtjZ9vcCPe8f7xCplZu0klrasK-VTA6z4XBcp0GrSyZ1aeunAho-B6pzdx7g1; _ga_7KDDLF8TZN=GS2.4.s1773897962^$o1038^$g1^$t1773899681^$j16^$l0^$h0^" ^
+  -H ^"expires: Sat, 01 Jan 2000 00:00:00 GMT^" ^
+  -H ^"origin: https://dichvucong.dav.gov.vn^" ^
+  -H ^"pragma: no-cache^" ^
+  -H ^"priority: u=1, i^" ^
+  -H ^"referer: https://dichvucong.dav.gov.vn/Account/Login?autosso=False^" ^
+  -H ^"sec-ch-ua: ^\^"Chromium^\^";v=^\^"146^\^", ^\^"Not-A.Brand^\^";v=^\^"24^\^", ^\^"Google Chrome^\^";v=^\^"146^\^"^" ^
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
+  -H ^"sec-fetch-dest: empty^" ^
+  -H ^"sec-fetch-mode: cors^" ^
+  -H ^"sec-fetch-site: same-origin^" ^
+  -H ^"user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36^" ^
+  -H ^"x-requested-with: XMLHttpRequest^" ^
+  -H ^"x-xsrf-token: 47Ixj1c5-XiMwMSSRax9XqOaq1IPOd6FtjZ9vcCPe8f7xCplZu0klrasK-VTA6z4XBcp0GrSyZ1aeunAho-B6pzdx7g1^" ^
+  --data-raw ^"returnUrlHash=^&tenancyName=^&usernameOrEmailAddress=Nguyenvanvien^%^40dav.gov.vn+^&password=^&code=^&captchaText=^"
