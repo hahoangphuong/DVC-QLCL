@@ -4,13 +4,13 @@ from fastapi import FastAPI, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from db import get_db, init_db
-from models import FetchedRecord
+from models import RemoteFetchLog
 from auth_client import create_authenticated_session, fetch_api_data
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Khởi tạo bảng DB khi server khởi động."""
+    """Tạo bảng DB khi server khởi động lần đầu."""
     init_db()
     yield
 
@@ -24,7 +24,7 @@ app = FastAPI(
 
 
 # ---------------------------------------------------------------------------
-# Endpoint 1: Kiểm tra health
+# Endpoint 1: Health check
 # ---------------------------------------------------------------------------
 @app.get("/health")
 def health_check():
@@ -37,17 +37,14 @@ def health_check():
 # ---------------------------------------------------------------------------
 @app.post("/auth/login-test")
 def test_login():
-    """
-    Thử đăng nhập vào website ASP.NET.
-    Trả về thông báo thành công hoặc lỗi chi tiết.
-    """
+    """Thử đăng nhập vào website ASP.NET, trả về danh sách cookie key nhận được."""
     try:
         session = create_authenticated_session()
-        cookies = {k: v for k, v in session.cookies.items()}
+        cookie_keys = list(session.cookies.keys())
         return {
             "success": True,
             "message": "Đăng nhập thành công",
-            "cookies_received": list(cookies.keys()),  # chỉ log tên key, không log giá trị
+            "cookies_received": cookie_keys,
         }
     except PermissionError as e:
         raise HTTPException(status_code=401, detail=str(e))
@@ -61,15 +58,11 @@ def test_login():
 @app.post("/data/fetch-and-save")
 def fetch_and_save(
     api_url: str = Query(..., description="URL đầy đủ của API cần gọi"),
-    source: str = Query("default", description="Nhãn nguồn dữ liệu (vd: orders, products)"),
+    source: str = Query("default", description="Nhãn nguồn dữ liệu, vd: orders, products"),
     db: Session = Depends(get_db),
 ):
     """
-    Đăng nhập ASP.NET → gọi api_url → lưu kết quả vào PostgreSQL.
-
-    Params:
-    - api_url: URL API muốn gọi (phải cùng domain với LOGIN_URL)
-    - source:  Tên nhãn để phân loại dữ liệu trong DB
+    Đăng nhập ASP.NET → gọi api_url → lưu kết quả vào bảng remote_fetch_logs.
     """
     # Bước 1: Đăng nhập lấy session
     try:
@@ -79,17 +72,29 @@ def fetch_and_save(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi đăng nhập: {e}")
 
-    # Bước 2: Gọi API
+    # Bước 2: Gọi API, ghi lại cả response thô
     try:
-        data = fetch_api_data(session, api_url)
+        resp = session.get(api_url, timeout=15)
+        status_code = resp.status_code
+        resp.raise_for_status()
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Lỗi gọi API: {e}")
 
+    # Thử parse JSON, nếu không được thì lưu raw text
+    try:
+        payload = resp.json()
+        raw_text = None
+    except Exception:
+        payload = None
+        raw_text = resp.text[:5000]  # giới hạn 5000 ký tự
+
     # Bước 3: Lưu vào PostgreSQL
-    record = FetchedRecord(
+    record = RemoteFetchLog(
         source=source,
-        payload=data,
-        summary=str(data)[:500],  # lưu tóm tắt 500 ký tự đầu
+        endpoint=api_url,
+        status_code=status_code,
+        payload=payload,
+        raw_text=raw_text,
     )
     db.add(record)
     db.commit()
@@ -99,8 +104,10 @@ def fetch_and_save(
         "success": True,
         "record_id": record.id,
         "source": record.source,
-        "fetched_at": record.fetched_at.isoformat(),
-        "data_preview": str(data)[:200],
+        "endpoint": record.endpoint,
+        "status_code": record.status_code,
+        "created_at": record.created_at.isoformat(),
+        "data_preview": str(payload or raw_text)[:200],
     }
 
 
@@ -113,43 +120,46 @@ def list_records(
     limit: int = Query(20, ge=1, le=200),
     db: Session = Depends(get_db),
 ):
-    """Xem các bản ghi dữ liệu đã lưu trong DB."""
-    query = db.query(FetchedRecord)
+    """Xem danh sách các lần fetch đã lưu trong DB."""
+    query = db.query(RemoteFetchLog)
     if source:
-        query = query.filter(FetchedRecord.source == source)
-    records = query.order_by(FetchedRecord.fetched_at.desc()).limit(limit).all()
+        query = query.filter(RemoteFetchLog.source == source)
+    records = query.order_by(RemoteFetchLog.created_at.desc()).limit(limit).all()
 
     return [
         {
             "id": r.id,
             "source": r.source,
-            "summary": r.summary,
-            "fetched_at": r.fetched_at.isoformat(),
+            "endpoint": r.endpoint,
+            "status_code": r.status_code,
+            "created_at": r.created_at.isoformat(),
         }
         for r in records
     ]
 
 
 # ---------------------------------------------------------------------------
-# Endpoint 5: Xem chi tiết 1 bản ghi (bao gồm payload đầy đủ)
+# Endpoint 5: Xem chi tiết 1 bản ghi (payload đầy đủ)
 # ---------------------------------------------------------------------------
 @app.get("/data/records/{record_id}")
 def get_record(record_id: int, db: Session = Depends(get_db)):
-    """Xem đầy đủ payload của một bản ghi."""
-    record = db.query(FetchedRecord).filter(FetchedRecord.id == record_id).first()
+    """Xem đầy đủ payload và raw text của một bản ghi."""
+    record = db.query(RemoteFetchLog).filter(RemoteFetchLog.id == record_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi")
     return {
         "id": record.id,
         "source": record.source,
+        "endpoint": record.endpoint,
+        "status_code": record.status_code,
         "payload": record.payload,
-        "summary": record.summary,
-        "fetched_at": record.fetched_at.isoformat(),
+        "raw_text": record.raw_text,
+        "created_at": record.created_at.isoformat(),
     }
 
 
 # ---------------------------------------------------------------------------
-# Chạy trực tiếp bằng: python main.py
+# Chạy trực tiếp: python main.py
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
