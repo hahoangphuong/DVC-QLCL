@@ -16,6 +16,34 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
 
+## Python FastAPI Backend (ASP.NET Scraper)
+
+A standalone Python FastAPI service at the root level. Logs into an ASP.NET website, fetches API data, and stores it in PostgreSQL.
+
+### Files
+- `main.py` — FastAPI app, all endpoints
+- `db.py` — SQLAlchemy engine + session + init_db()
+- `models.py` — ORM model: `FetchedRecord`
+- `auth_client.py` — Login + XSRF token extraction + API fetch
+- `requirements.txt` — Python dependencies
+
+### Required Secrets
+- `ASPNET_LOGIN_URL` — URL of the ASP.NET login page
+- `ASPNET_USERNAME` — Login username
+- `ASPNET_PASSWORD` — Login password
+
+### Endpoints
+- `GET /health` — Health check
+- `POST /auth/login-test` — Test ASP.NET login
+- `POST /data/fetch-and-save?api_url=...&source=...` — Fetch + save to DB
+- `GET /data/records` — List saved records
+- `GET /data/records/{id}` — View full payload
+
+### Workflow
+- `FastAPI Python Server` — runs `python main.py` on port 8000
+
+---
+
 ## Structure
 
 ```text
