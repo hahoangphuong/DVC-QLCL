@@ -3,72 +3,208 @@ import requests
 from bs4 import BeautifulSoup
 
 
-# Đọc thông tin đăng nhập từ biến môi trường / Secrets
-LOGIN_URL = os.environ["ASPNET_LOGIN_URL"]
-USERNAME = os.environ["ASPNET_USERNAME"]
-PASSWORD = os.environ["ASPNET_PASSWORD"]
+# ---------------------------------------------------------------------------
+# Exception riêng cho lỗi xác thực
+# ---------------------------------------------------------------------------
+class RemoteAuthError(Exception):
+    """Raise khi đăng nhập thất bại hoặc server từ chối xác thực."""
+    pass
 
 
-def create_authenticated_session() -> requests.Session:
+# ---------------------------------------------------------------------------
+# Client chính
+# ---------------------------------------------------------------------------
+class RemoteClient:
     """
-    Đăng nhập vào website ASP.NET và trả về requests.Session đã xác thực.
+    Quản lý phiên đăng nhập tới website ASP.NET.
 
-    Quy trình:
-    1. GET trang login để lấy __RequestVerificationToken (XSRF token)
-    2. POST form đăng nhập kèm token + credentials
-    3. Trả về session đang giữ cookie xác thực
+    Luồng sử dụng:
+        client = RemoteClient()
+        client.login()
+        data = client.fetch_data()
     """
-    session = requests.Session()
 
-    # --- Bước 1: GET trang login để lấy XSRF token ---
-    resp = session.get(LOGIN_URL, timeout=15)
-    resp.raise_for_status()
+    def __init__(self):
+        # Đọc cấu hình từ environment variables — không hardcode
+        base_url = os.environ.get("BASE_URL", "").rstrip("/")
+        login_path = os.environ.get("LOGIN_PATH", "").lstrip("/")
+        if not base_url:
+            raise EnvironmentError("BASE_URL chưa được set trong environment.")
 
-    # Dùng BeautifulSoup để đọc hidden input __RequestVerificationToken
-    soup = BeautifulSoup(resp.text, "html.parser")
-    token_input = soup.find("input", {"name": "__RequestVerificationToken"})
+        self.login_url = f"{base_url}/{login_path}"
+        self.data_url = os.environ.get("DATA_URL", "")
+        self.username = os.environ.get("REMOTE_USERNAME", "")
+        self.password = os.environ.get("REMOTE_PASSWORD", "")
+        self.base_url = base_url
 
-    if token_input is None:
-        raise ValueError(
-            "Không tìm thấy __RequestVerificationToken trên trang login. "
-            "Kiểm tra lại LOGIN_URL hoặc cấu trúc HTML của trang."
+        if not self.username or not self.password:
+            raise EnvironmentError("REMOTE_USERNAME hoặc REMOTE_PASSWORD chưa được set.")
+
+        # Session dùng xuyên suốt: giữ cookie tự động giữa các request
+        self.session = requests.Session()
+
+    # -----------------------------------------------------------------------
+    # Bước 1: GET trang login — lấy cookie và HTML
+    # -----------------------------------------------------------------------
+    def _get_login_page(self) -> requests.Response:
+        """GET trang login, lưu cookie vào session, trả về Response."""
+        resp = self.session.get(
+            self.login_url,
+            timeout=15,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/124.0.0.0 Safari/537.36"
+                ),
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            },
         )
+        resp.raise_for_status()
+        return resp
 
-    xsrf_token = token_input.get("value", "")
+    # -----------------------------------------------------------------------
+    # Bước 2: Đọc __RequestVerificationToken từ HTML (hidden input)
+    # -----------------------------------------------------------------------
+    def _extract_hidden_verification_token(self, html: str) -> str | None:
+        """
+        Parse HTML bằng BeautifulSoup để tìm hidden input __RequestVerificationToken.
+        Trả về giá trị token hoặc None nếu không tìm thấy.
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        token_input = soup.find("input", {"name": "__RequestVerificationToken"})
+        if token_input:
+            return token_input.get("value")
+        return None
 
-    # --- Bước 2: POST form đăng nhập ---
-    login_payload = {
-        "__RequestVerificationToken": xsrf_token,
-        "UserName": USERNAME,   # Tên field có thể khác tuỳ website
-        "Password": PASSWORD,   # Tên field có thể khác tuỳ website
-    }
+    # -----------------------------------------------------------------------
+    # Bước 3 & 4: Lấy XSRF token từ cookie, POST form login
+    # -----------------------------------------------------------------------
+    def login(self) -> None:
+        """
+        Thực hiện toàn bộ luồng đăng nhập:
+          1. GET trang login → lấy cookie + HTML
+          2. Tìm __RequestVerificationToken trong HTML (nếu có)
+          3. Tìm XSRF-TOKEN và __RequestVerificationToken trong cookie (nếu có)
+          4. POST form đăng nhập với đủ headers và payload
+          5. Kiểm tra kết quả JSON hoặc redirect
+        """
+        # --- Bước 1: GET trang login ---
+        login_page = self._get_login_page()
 
-    post_resp = session.post(LOGIN_URL, data=login_payload, timeout=15)
-    post_resp.raise_for_status()
+        # --- Bước 2: Đọc token từ HTML ---
+        html_verification_token = self._extract_hidden_verification_token(login_page.text)
 
-    # Kiểm tra đăng nhập thành công (heuristic: URL thay đổi hoặc không còn form login)
-    if "login" in post_resp.url.lower() and post_resp.status_code == 200:
-        # Vẫn ở trang login → có thể sai credentials
-        raise PermissionError(
-            "Đăng nhập thất bại. Kiểm tra ASPNET_USERNAME / ASPNET_PASSWORD."
+        # --- Bước 3: Đọc token từ cookie ---
+        # ASP.NET Boilerplate / ABP thường set XSRF-TOKEN và __RequestVerificationToken trong cookie
+        xsrf_token_cookie = self.session.cookies.get("XSRF-TOKEN")
+        cookie_verification_token = self.session.cookies.get("__RequestVerificationToken")
+
+        # Ưu tiên lấy từ HTML, fallback sang cookie
+        verification_token = html_verification_token or cookie_verification_token
+
+        # --- Bước 4: Chuẩn bị headers ---
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json, text/plain, */*",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "Origin": self.base_url,
+            "Referer": self.login_url,
+            "X-Requested-With": "XMLHttpRequest",
+        }
+        # Thêm x-xsrf-token nếu tìm được từ cookie
+        if xsrf_token_cookie:
+            headers["x-xsrf-token"] = xsrf_token_cookie
+
+        # --- Bước 5: Chuẩn bị payload ---
+        payload = {
+            "returnUrlHash": "",          # để trống nếu không redirect sau login
+            "tenancyName": "",            # tên tenant (ASP.NET Boilerplate multi-tenant)
+            "usernameOrEmailAddress": self.username,
+            "password": self.password,
+            "code": "",                   # 2FA code nếu có
+            "captchaText": "",            # captcha nếu có
+        }
+        if verification_token:
+            payload["__RequestVerificationToken"] = verification_token
+
+        # --- Bước 6: POST đăng nhập ---
+        resp = self.session.post(
+            self.login_url,
+            data=payload,
+            headers=headers,
+            timeout=15,
+            allow_redirects=True,
         )
+        resp.raise_for_status()
 
-    # Session đã giữ cookie xác thực, dùng để gọi API tiếp theo
-    return session
+        # --- Bước 7: Kiểm tra kết quả ---
+        # Nhiều ASP.NET app trả JSON: {"success": true/false, "unAuthorizedRequest": ...}
+        try:
+            result = resp.json()
+            if result.get("unAuthorizedRequest") is True:
+                raise RemoteAuthError("Server trả về unAuthorizedRequest=true. Kiểm tra credentials.")
+            if result.get("success") is False:
+                msg = result.get("error", {}).get("message", "Đăng nhập thất bại.")
+                raise RemoteAuthError(f"Đăng nhập thất bại: {msg}")
+        except (ValueError, AttributeError):
+            # Response không phải JSON → có thể là redirect HTML bình thường
+            # Kiểm tra heuristic: nếu vẫn ở URL login thì coi là thất bại
+            if "login" in resp.url.lower():
+                raise RemoteAuthError(
+                    "Đăng nhập thất bại (vẫn ở trang login). "
+                    "Kiểm tra REMOTE_USERNAME / REMOTE_PASSWORD."
+                )
 
+    # -----------------------------------------------------------------------
+    # Bước 5: Gọi API dữ liệu dùng session đã đăng nhập
+    # -----------------------------------------------------------------------
+    def fetch_data(self, url: str = None, params: dict = None) -> requests.Response:
+        """
+        Gọi DATA_URL (hoặc url tuỳ chỉnh) bằng session đã xác thực.
+        Tự động đính kèm x-xsrf-token nếu cookie còn tồn tại.
 
-def fetch_api_data(session: requests.Session, api_url: str, params: dict = None) -> dict:
-    """
-    Gọi một API endpoint sau khi đã xác thực.
+        Args:
+            url:    URL cần gọi. Nếu None sẽ dùng DATA_URL từ env.
+            params: Query parameters (optional).
 
-    Args:
-        session:  requests.Session đã đăng nhập (từ create_authenticated_session)
-        api_url:  URL đầy đủ của API cần gọi
-        params:   Query parameters (optional)
+        Returns:
+            requests.Response — caller tự parse JSON hay text tuỳ ý.
+        """
+        target_url = url or self.data_url
+        if not target_url:
+            raise ValueError("Cần truyền url hoặc set DATA_URL trong environment.")
 
-    Returns:
-        Dict JSON trả về từ API
-    """
-    resp = session.get(api_url, params=params, timeout=15)
-    resp.raise_for_status()
-    return resp.json()
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json, text/plain, */*",
+            "X-Requested-With": "XMLHttpRequest",
+            "Referer": self.base_url,
+        }
+
+        # Gửi lại x-xsrf-token nếu cookie vẫn còn (bắt buộc với nhiều ASP.NET API)
+        xsrf = self.session.cookies.get("XSRF-TOKEN")
+        if xsrf:
+            headers["x-xsrf-token"] = xsrf
+
+        resp = self.session.get(target_url, headers=headers, params=params, timeout=15)
+        resp.raise_for_status()
+        return resp
+
+    # -----------------------------------------------------------------------
+    # Debug helper
+    # -----------------------------------------------------------------------
+    def debug_cookies(self) -> dict:
+        """
+        Trả về dict tên cookie → giá trị để debug.
+        Dùng khi cần kiểm tra session đã nhận đủ cookie chưa.
+        """
+        return {name: value for name, value in self.session.cookies.items()}

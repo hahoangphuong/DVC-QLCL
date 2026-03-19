@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from db import get_db, init_db
 from models import RemoteFetchLog
-from auth_client import create_authenticated_session, fetch_api_data
+from auth_client import RemoteClient, RemoteAuthError
 
 
 @asynccontextmanager
@@ -37,17 +37,23 @@ def health_check():
 # ---------------------------------------------------------------------------
 @app.post("/auth/login-test")
 def test_login():
-    """Thử đăng nhập vào website ASP.NET, trả về danh sách cookie key nhận được."""
+    """
+    Thử đăng nhập vào website ASP.NET.
+    Trả về danh sách tên cookie nhận được (không trả giá trị).
+    """
     try:
-        session = create_authenticated_session()
-        cookie_keys = list(session.cookies.keys())
+        client = RemoteClient()
+        client.login()
+        cookies = client.debug_cookies()
         return {
             "success": True,
             "message": "Đăng nhập thành công",
-            "cookies_received": cookie_keys,
+            "cookies_received": list(cookies.keys()),
         }
-    except PermissionError as e:
+    except RemoteAuthError as e:
         raise HTTPException(status_code=401, detail=str(e))
+    except EnvironmentError as e:
+        raise HTTPException(status_code=500, detail=f"Thiếu cấu hình: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -57,41 +63,47 @@ def test_login():
 # ---------------------------------------------------------------------------
 @app.post("/data/fetch-and-save")
 def fetch_and_save(
-    api_url: str = Query(..., description="URL đầy đủ của API cần gọi"),
+    api_url: str = Query(None, description="URL API cần gọi (bỏ trống = dùng DATA_URL từ env)"),
     source: str = Query("default", description="Nhãn nguồn dữ liệu, vd: orders, products"),
     db: Session = Depends(get_db),
 ):
     """
     Đăng nhập ASP.NET → gọi api_url → lưu kết quả vào bảng remote_fetch_logs.
     """
-    # Bước 1: Đăng nhập lấy session
+    # Bước 1: Tạo client và đăng nhập
     try:
-        session = create_authenticated_session()
-    except PermissionError as e:
+        client = RemoteClient()
+        client.login()
+    except RemoteAuthError as e:
         raise HTTPException(status_code=401, detail=str(e))
+    except EnvironmentError as e:
+        raise HTTPException(status_code=500, detail=f"Thiếu cấu hình: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi đăng nhập: {e}")
 
-    # Bước 2: Gọi API, ghi lại cả response thô
+    # Bước 2: Gọi API, ghi lại response thô
+    target_url = api_url or os.environ.get("DATA_URL", "")
+    if not target_url:
+        raise HTTPException(status_code=400, detail="Cần truyền api_url hoặc set DATA_URL trong env.")
+
     try:
-        resp = session.get(api_url, timeout=15)
+        resp = client.fetch_data(url=target_url)
         status_code = resp.status_code
-        resp.raise_for_status()
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Lỗi gọi API: {e}")
 
-    # Thử parse JSON, nếu không được thì lưu raw text
+    # Thử parse JSON, fallback sang raw text
     try:
         payload = resp.json()
         raw_text = None
     except Exception:
         payload = None
-        raw_text = resp.text[:5000]  # giới hạn 5000 ký tự
+        raw_text = resp.text[:5000]
 
     # Bước 3: Lưu vào PostgreSQL
     record = RemoteFetchLog(
         source=source,
-        endpoint=api_url,
+        endpoint=target_url,
         status_code=status_code,
         payload=payload,
         raw_text=raw_text,
