@@ -773,6 +773,110 @@ def stats_earliest_date(
 
 
 # ---------------------------------------------------------------------------
+# Stats: Bảng chi tiết theo chuyên viên
+# ---------------------------------------------------------------------------
+@app.get("/stats/chuyen-vien")
+def stats_chuyen_vien(
+    thu_tuc:   int = Query(..., description="Phân loại: 46, 47, hoặc 48"),
+    from_date: str = Query(..., description="Từ ngày YYYY-MM-DD"),
+    to_date:   str = Query(..., description="Đến ngày YYYY-MM-DD"),
+):
+    """
+    Thống kê Tồn trước / Đã nhận theo từng chuyên viên.
+    Logic kq: self-match only (t.id = da_xu_ly.id).
+    """
+    if thu_tuc not in (46, 47, 48):
+        raise HTTPException(status_code=400, detail="thu_tuc phải là 46, 47, hoặc 48")
+
+    # Thứ tự ưu tiên hiển thị (tên sau prefix "CV thụ lý : ")
+    PRIORITY: list[str] = [
+        "CV thụ lý : Đỗ Thị Ngọc Lan",
+        "CV thụ lý : Hà Hoàng Phương",
+        "CV thụ lý : Hà Thị Minh Châu",
+        "CV thụ lý : Lê Thị Cẩm Hương",
+        "CV thụ lý : Lê Thị Quỳnh Nga",
+        "CV thụ lý : Lương Hoàng Việt",
+        "CV thụ lý : Nguyễn Đức Toàn",
+        "CV thụ lý : Nguyễn Thị Huyền",
+        "CV thụ lý : Nguyễn Thị Lan Hương",
+        "CV thụ lý : Nguyễn Trung Hiếu",
+        "CV thụ lý : Nguyễn Vũ Hùng",
+        "CV thụ lý : Trần Thị Phương Thanh",
+        "CV thụ lý : Vũ Đức Cảnh",
+    ]
+    priority_index = {name: i for i, name in enumerate(PRIORITY)}
+
+    db = SessionLocal()
+    try:
+        from_dt = f"{from_date}T00:00:00+07:00"
+        to_dt   = f"{to_date}T23:59:59+07:00"
+
+        rows = db.execute(text("""
+            WITH joined AS (
+                SELECT
+                    TRIM(t.data->>'chuyenVienThuLyName') AS ten_cv,
+                    t.data AS tcc,
+                    NULLIF(d.data->>'ngayTraKetQua', '') AS kq
+                FROM tra_cuu_chung t
+                LEFT JOIN da_xu_ly d
+                    ON t.data->>'id' = d.data->>'id'
+                   AND d.thu_tuc = :thu_tuc
+                WHERE (t.data->>'thuTucId')::int = :thu_tuc
+                  AND TRIM(t.data->>'chuyenVienThuLyName') IS NOT NULL
+                  AND TRIM(t.data->>'chuyenVienThuLyName') != ''
+            )
+            SELECT
+                ten_cv,
+                COUNT(*) FILTER (
+                    WHERE (tcc->>'ngayTiepNhan')::timestamptz < :from_dt
+                      AND (kq IS NULL OR kq::timestamptz >= :from_dt)
+                ) AS ton_truoc,
+                COUNT(*) FILTER (
+                    WHERE (tcc->>'ngayTiepNhan')::timestamptz >= :from_dt
+                      AND (tcc->>'ngayTiepNhan')::timestamptz <= :to_dt
+                ) AS da_nhan
+            FROM joined
+            GROUP BY ten_cv
+        """), {"thu_tuc": thu_tuc, "from_dt": from_dt, "to_dt": to_dt}).fetchall()
+
+        data: list[dict] = []
+        extras: list[dict] = []
+        known_set = set(priority_index.keys())
+
+        # Chia thành nhóm ưu tiên và nhóm mới
+        result_map: dict[str, dict] = {}
+        for r in rows:
+            ten_cv   = r[0]
+            ton_truoc = int(r[1])
+            da_nhan   = int(r[2])
+            result_map[ten_cv] = {"ten_cv": ten_cv, "ton_truoc": ton_truoc, "da_nhan": da_nhan}
+
+        # Thêm theo thứ tự ưu tiên (kể cả CV không có hồ sơ trong kỳ)
+        for name in PRIORITY:
+            if name in result_map:
+                data.append(result_map[name])
+            # Bỏ qua CV không có hồ sơ nào trong kỳ này
+
+        # Thêm CV mới (chưa có trong danh sách ưu tiên) vào cuối
+        for name, rec in result_map.items():
+            if name not in known_set:
+                extras.append(rec)
+        extras.sort(key=lambda x: x["ten_cv"])
+        data.extend(extras)
+
+        return {
+            "thu_tuc":   thu_tuc,
+            "from_date": from_date,
+            "to_date":   to_date,
+            "rows":      data,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
 # Stats: JOIN với bảng gộp da_xu_ly (thu_tuc để lọc)
 # ---------------------------------------------------------------------------
 @app.get("/stats/ton-sau")

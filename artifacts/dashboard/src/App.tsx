@@ -140,6 +140,26 @@ async function fetchTonSau(thuTuc: number, toDate: string): Promise<TonSauData> 
   return res.json();
 }
 
+interface ChuyenVienRow {
+  ten_cv:    string;
+  ton_truoc: number;
+  da_nhan:   number;
+}
+
+interface ChuyenVienData {
+  thu_tuc:   number;
+  from_date: string;
+  to_date:   string;
+  rows:      ChuyenVienRow[];
+}
+
+async function fetchChuyenVien(thuTuc: number, fromDate: string, toDate: string): Promise<ChuyenVienData> {
+  const url = `${BASE}/api/stats/chuyen-vien?thu_tuc=${thuTuc}&from_date=${fromDate}&to_date=${toDate}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 // ---------------------------------------------------------------------------
 // Bar chart component
 // ---------------------------------------------------------------------------
@@ -318,6 +338,117 @@ function DonutChart({ title, segments, total, isLoading, isError, emptyMessage, 
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Bảng chi tiết theo chuyên viên
+// ---------------------------------------------------------------------------
+const CV_PREFIX = "CV thụ lý : ";
+
+function cleanCvName(raw: string): string {
+  return raw.startsWith(CV_PREFIX) ? raw.slice(CV_PREFIX.length).trim() : raw.trim();
+}
+
+interface ChuyenVienTableProps {
+  thuTuc:    48 | 47 | 46;
+  fromDate:  string;
+  toDate:    string;
+}
+
+function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["chuyen-vien", thuTuc, fromDate, toDate],
+    queryFn:  () => fetchChuyenVien(thuTuc, fromDate, toDate),
+    enabled:  !!fromDate && !!toDate,
+    retry: 2,
+  });
+
+  const rows = data?.rows ?? [];
+  const totTonTruoc = rows.reduce((s, r) => s + r.ton_truoc, 0);
+  const totDaNhan   = rows.reduce((s, r) => s + r.da_nhan,   0);
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+          Chi tiết theo chuyên viên — TT{thuTuc}
+        </h3>
+        {isLoading && <span className="text-xs text-blue-500 animate-pulse font-medium">Đang tải...</span>}
+        {isError   && <span className="text-xs text-red-500 font-medium">Lỗi tải dữ liệu</span>}
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-200">
+              <th className="px-4 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide w-10">STT</th>
+              <th className="px-4 py-3 text-left   text-xs font-bold text-slate-500 uppercase tracking-wide">Tên chuyên viên</th>
+              <th className="px-4 py-3 text-center  text-xs font-bold uppercase tracking-wide" style={{ color: COLORS.ton_truoc.text }}>Tồn trước</th>
+              <th className="px-4 py-3 text-center  text-xs font-bold uppercase tracking-wide" style={{ color: COLORS.da_nhan.text }}>Đã nhận</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr>
+                <td colSpan={4} className="px-4 py-8 text-center text-slate-400 text-xs">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-5 h-5 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                    <span>Đang tải...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : rows.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-4 py-8 text-center text-slate-400 text-sm">
+                  Không có dữ liệu
+                </td>
+              </tr>
+            ) : (
+              rows.map((row, idx) => (
+                <tr
+                  key={row.ten_cv}
+                  className={[
+                    "border-b border-slate-100 transition-colors",
+                    idx % 2 === 0 ? "bg-white" : "bg-slate-50/50",
+                    "hover:bg-blue-50/40",
+                  ].join(" ")}
+                >
+                  <td className="px-4 py-3 text-center text-xs text-slate-400 font-medium">{idx + 1}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-slate-800">{cleanCvName(row.ten_cv)}</td>
+                  <td className="px-4 py-3 text-center">
+                    <span className="text-sm font-bold" style={{ color: row.ton_truoc > 0 ? COLORS.ton_truoc.text : "#94a3b8" }}>
+                      {row.ton_truoc.toLocaleString("vi-VN")}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className="text-sm font-bold" style={{ color: row.da_nhan > 0 ? COLORS.da_nhan.text : "#94a3b8" }}>
+                      {row.da_nhan.toLocaleString("vi-VN")}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+          {rows.length > 0 && (
+            <tfoot>
+              <tr className="bg-slate-100 border-t-2 border-slate-300">
+                <td className="px-4 py-3" />
+                <td className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wide">Tổng cộng</td>
+                <td className="px-4 py-3 text-center text-sm font-bold" style={{ color: COLORS.ton_truoc.text }}>
+                  {totTonTruoc.toLocaleString("vi-VN")}
+                </td>
+                <td className="px-4 py-3 text-center text-sm font-bold" style={{ color: COLORS.da_nhan.text }}>
+                  {totDaNhan.toLocaleString("vi-VN")}
+                </td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
     </div>
   );
 }
@@ -561,6 +692,9 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
           spinnerColor="#60a5fa"
         />
       </div>
+
+      {/* Bảng chi tiết theo chuyên viên */}
+      <ChuyenVienTable thuTuc={thuTuc} fromDate={fromDate} toDate={toDate} />
     </div>
   );
 }
