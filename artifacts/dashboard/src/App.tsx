@@ -13,7 +13,7 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, ""); // e.g. "/dashboard"
 
 // Màu cho 4 chỉ số
 const COLORS = {
-  ton_truoc:     { bar: "#94a3b8", label: "TỒN TRƯỚC",     text: "#475569" },
+  ton_truoc:     { bar: "#f472b6", label: "TỒN TRƯỚC",     text: "#be185d" },
   da_nhan:       { bar: "#3b82f6", label: "ĐÃ NHẬN",        text: "#1d4ed8" },
   da_giai_quyet: { bar: "#22c55e", label: "ĐÃ GIẢI QUYẾT", text: "#15803d" },
   ton_sau:       { bar: "#f59e0b", label: "TỒN SAU",        text: "#b45309" },
@@ -101,6 +101,14 @@ async function fetchSummary(thuTuc: number, fromDate: string, toDate: string): P
   return res.json();
 }
 
+async function fetchEarliestDate(thuTuc: number): Promise<string> {
+  const url = `${BASE}/api/stats/earliest-date?thu_tuc=${thuTuc}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return data.earliest_date as string;
+}
+
 // ---------------------------------------------------------------------------
 // Bar chart component
 // ---------------------------------------------------------------------------
@@ -183,6 +191,7 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
   const [fromInput, setFromInput] = useState(toDMY(init.from));
   const [toInput,   setToInput]   = useState(toDMY(init.to));
   const [activePreset, setActivePreset] = useState<string>("nam_nay");
+  const [loadingAll, setLoadingAll]     = useState(false);
 
   const applyDates = useCallback((from: string, to: string, preset?: string) => {
     setFromDate(from);
@@ -191,6 +200,17 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
     setToInput(toDMY(to));
     setActivePreset(preset ?? "");
   }, []);
+
+  const handleTatCa = useCallback(async () => {
+    setLoadingAll(true);
+    try {
+      const earliest = await fetchEarliestDate(thuTuc);
+      const today = toYMD(new Date());
+      applyDates(earliest, today, "tat_ca");
+    } finally {
+      setLoadingAll(false);
+    }
+  }, [thuTuc, applyDates]);
 
   const handleFromBlur = () => {
     const parsed = parseDMY(fromInput);
@@ -268,6 +288,19 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                 {label}
               </button>
             ))}
+            <button
+              onClick={handleTatCa}
+              disabled={loadingAll}
+              className={[
+                "rounded-lg px-3 py-2 text-xs font-semibold transition-all border",
+                activePreset === "tat_ca"
+                  ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                  : "bg-white text-slate-600 border-slate-300 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700",
+                loadingAll ? "opacity-60 cursor-wait" : "",
+              ].join(" ")}
+            >
+              {loadingAll ? "..." : "Tất cả"}
+            </button>
           </div>
 
           {/* Kỳ thống kê hiển thị */}
@@ -320,7 +353,7 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
             label="Tồn trước"
             value={data?.ton_truoc ?? 0}
             color={COLORS.ton_truoc.text}
-            bgColor="#f1f5f9"
+            bgColor="#fdf2f8"
           />
           <KpiCard
             label="Đã nhận"

@@ -571,6 +571,36 @@ def status():
 # THỐNG KÊ — endpoints cho React Dashboard
 # ===========================================================================
 
+@app.get("/stats/earliest-date")
+def stats_earliest_date(
+    thu_tuc: int = Query(..., description="Phân loại: 46, 47, hoặc 48"),
+):
+    """Trả về ngày tiếp nhận sớm nhất (YYYY-MM-DD) của hồ sơ theo phân loại."""
+    db = SessionLocal()
+    try:
+        row = db.execute(text("""
+            SELECT MIN((data->>'ngayTiepNhan')::timestamptz)
+            FROM tra_cuu_chung
+            WHERE (data->>'thuTucId')::int = :thu_tuc
+              AND data->>'ngayTiepNhan' IS NOT NULL
+        """), {"thu_tuc": thu_tuc}).fetchone()
+
+        earliest = row[0]
+        if earliest is None:
+            raise HTTPException(status_code=404, detail="Không có dữ liệu")
+        # Chuyển sang múi giờ +07 và lấy phần ngày
+        from datetime import timezone, timedelta
+        vn_tz = timezone(timedelta(hours=7))
+        date_str = earliest.astimezone(vn_tz).strftime("%Y-%m-%d")
+        return {"thu_tuc": thu_tuc, "earliest_date": date_str}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
 @app.get("/stats/summary")
 def stats_summary(
     thu_tuc: int = Query(..., description="Phân loại: 46, 47, hoặc 48"),
