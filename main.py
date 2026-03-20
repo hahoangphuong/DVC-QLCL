@@ -9,6 +9,8 @@ from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from db import Base, engine, SessionLocal
 from models import (
@@ -78,6 +80,14 @@ app = FastAPI(
     description="Đăng nhập dichvucong.dav.gov.vn, lấy 7 bộ dữ liệu hồ sơ, lưu vào PostgreSQL",
     version="2.0.0",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -553,6 +563,76 @@ def status():
                 "tt46_dang_xu_ly": db.query(TT46DangXuLy).count(),
             },
         }
+    finally:
+        db.close()
+
+
+# ===========================================================================
+# THỐNG KÊ — endpoints cho React Dashboard
+# ===========================================================================
+
+@app.get("/stats/summary")
+def stats_summary(
+    thu_tuc: int = Query(..., description="Phân loại: 46, 47, hoặc 48"),
+    from_date: str = Query(..., description="Từ ngày YYYY-MM-DD"),
+    to_date: str = Query(..., description="Đến ngày YYYY-MM-DD"),
+):
+    """
+    Trả về 4 chỉ số tổng hợp từ tra_cuu_chung:
+    - ton_truoc: ngayTiepNhan < from_date AND (ngayTraKetQua >= to_date OR null)
+    - da_nhan: from_date <= ngayTiepNhan <= to_date
+    - da_giai_quyet: from_date <= ngayTraKetQua <= to_date
+    - ton_sau: ngayTiepNhan <= to_date AND (ngayTraKetQua > to_date OR null)
+    Hồ sơ chưa có ngày trả kết quả được coi là vô cùng lớn.
+    """
+    db = SessionLocal()
+    try:
+        from_dt = f"{from_date}T00:00:00+07:00"
+        to_dt   = f"{to_date}T23:59:59+07:00"
+
+        row = db.execute(text("""
+            SELECT
+                COUNT(*) FILTER (
+                    WHERE (data->>'ngayTiepNhan')::timestamptz < :from_dt
+                      AND (
+                            data->>'ngayTraKetQua' IS NULL
+                         OR (data->>'ngayTraKetQua')::timestamptz >= :to_dt
+                          )
+                ) AS ton_truoc,
+
+                COUNT(*) FILTER (
+                    WHERE (data->>'ngayTiepNhan')::timestamptz >= :from_dt
+                      AND (data->>'ngayTiepNhan')::timestamptz <= :to_dt
+                ) AS da_nhan,
+
+                COUNT(*) FILTER (
+                    WHERE data->>'ngayTraKetQua' IS NOT NULL
+                      AND (data->>'ngayTraKetQua')::timestamptz >= :from_dt
+                      AND (data->>'ngayTraKetQua')::timestamptz <= :to_dt
+                ) AS da_giai_quyet,
+
+                COUNT(*) FILTER (
+                    WHERE (data->>'ngayTiepNhan')::timestamptz <= :to_dt
+                      AND (
+                            data->>'ngayTraKetQua' IS NULL
+                         OR (data->>'ngayTraKetQua')::timestamptz > :to_dt
+                          )
+                ) AS ton_sau
+            FROM tra_cuu_chung
+            WHERE (data->>'thuTucId')::int = :thu_tuc
+        """), {"thu_tuc": thu_tuc, "from_dt": from_dt, "to_dt": to_dt}).fetchone()
+
+        return {
+            "thu_tuc": thu_tuc,
+            "from_date": from_date,
+            "to_date": to_date,
+            "ton_truoc":      int(row[0]),
+            "da_nhan":        int(row[1]),
+            "da_giai_quyet":  int(row[2]),
+            "ton_sau":        int(row[3]),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
 
