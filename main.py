@@ -601,6 +601,67 @@ def stats_earliest_date(
         db.close()
 
 
+@app.get("/stats/giai-quyet")
+def stats_giai_quyet(
+    thu_tuc: int = Query(..., description="Phân loại: 46, 47, hoặc 48"),
+    from_date: str = Query(..., description="Từ ngày YYYY-MM-DD"),
+    to_date: str = Query(..., description="Đến ngày YYYY-MM-DD"),
+):
+    """
+    Phân tích hồ sơ ĐÃ GIẢI QUYẾT trong kỳ thành Đúng hạn / Quá hạn:
+    - Đúng hạn: ngayTraKetQua trong kỳ VÀ ngayTraKetQua <= ngayHenTra
+    - Quá hạn:  ngayTraKetQua trong kỳ VÀ (ngayHenTra IS NULL HOẶC ngayTraKetQua > ngayHenTra)
+    null ngayTraKetQua coi là vô cùng lớn → không nằm trong kỳ.
+    """
+    db = SessionLocal()
+    try:
+        from_dt = f"{from_date}T00:00:00+07:00"
+        to_dt   = f"{to_date}T23:59:59+07:00"
+
+        row = db.execute(text("""
+            SELECT
+                COUNT(*) FILTER (
+                    WHERE data->>'ngayTraKetQua' IS NOT NULL
+                      AND (data->>'ngayTraKetQua')::timestamptz >= :from_dt
+                      AND (data->>'ngayTraKetQua')::timestamptz <= :to_dt
+                      AND data->>'ngayHenTra' IS NOT NULL
+                      AND (data->>'ngayTraKetQua')::timestamptz
+                              <= (data->>'ngayHenTra')::timestamptz
+                ) AS dung_han,
+
+                COUNT(*) FILTER (
+                    WHERE data->>'ngayTraKetQua' IS NOT NULL
+                      AND (data->>'ngayTraKetQua')::timestamptz >= :from_dt
+                      AND (data->>'ngayTraKetQua')::timestamptz <= :to_dt
+                      AND (
+                            data->>'ngayHenTra' IS NULL
+                         OR (data->>'ngayTraKetQua')::timestamptz
+                                > (data->>'ngayHenTra')::timestamptz
+                          )
+                ) AS qua_han
+            FROM tra_cuu_chung
+            WHERE (data->>'thuTucId')::int = :thu_tuc
+        """), {"thu_tuc": thu_tuc, "from_dt": from_dt, "to_dt": to_dt}).fetchone()
+
+        dung_han = int(row[0])
+        qua_han  = int(row[1])
+        total    = dung_han + qua_han
+        return {
+            "thu_tuc":    thu_tuc,
+            "from_date":  from_date,
+            "to_date":    to_date,
+            "dung_han":   dung_han,
+            "qua_han":    qua_han,
+            "total":      total,
+            "pct_dung_han": round(dung_han / total * 100, 1) if total > 0 else 0,
+            "pct_qua_han":  round(qua_han  / total * 100, 1) if total > 0 else 0,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
 @app.get("/stats/summary")
 def stats_summary(
     thu_tuc: int = Query(..., description="Phân loại: 46, 47, hoặc 48"),

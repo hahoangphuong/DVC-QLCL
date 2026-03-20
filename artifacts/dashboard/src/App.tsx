@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, LabelList,
+  PieChart, Pie, Legend,
 } from "recharts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Router as WouterRouter } from "wouter";
@@ -109,6 +110,21 @@ async function fetchEarliestDate(thuTuc: number): Promise<string> {
   return data.earliest_date as string;
 }
 
+interface GiaiQuyetData {
+  dung_han: number;
+  qua_han:  number;
+  total:    number;
+  pct_dung_han: number;
+  pct_qua_han:  number;
+}
+
+async function fetchGiaiQuyet(thuTuc: number, fromDate: string, toDate: string): Promise<GiaiQuyetData> {
+  const url = `${BASE}/api/stats/giai-quyet?thu_tuc=${thuTuc}&from_date=${fromDate}&to_date=${toDate}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 // ---------------------------------------------------------------------------
 // Bar chart component
 // ---------------------------------------------------------------------------
@@ -182,6 +198,119 @@ function KpiCard({ label, value, color, bgColor }: {
 }
 
 // ---------------------------------------------------------------------------
+// Donut chart — ĐÃ GIẢI QUYẾT: Đúng hạn / Quá hạn
+// ---------------------------------------------------------------------------
+const DONUT_COLORS = { dung_han: "#22c55e", qua_han: "#ef4444" };
+
+interface DonutProps { data: GiaiQuyetData | undefined; isLoading: boolean; isError: boolean; }
+
+function GiaiQuyetDonut({ data, isLoading, isError }: DonutProps) {
+  const pieData = [
+    { name: "Đúng hạn", value: data?.dung_han ?? 0, color: DONUT_COLORS.dung_han },
+    { name: "Quá hạn",  value: data?.qua_han  ?? 0, color: DONUT_COLORS.qua_han  },
+  ];
+
+  const total = data?.total ?? 0;
+
+  const CustomLabel = ({ cx, cy }: any) => (
+    <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
+      <tspan x={cx} dy="-0.4em" fontSize={26} fontWeight={700} fill="#1e293b">
+        {total.toLocaleString("vi-VN")}
+      </tspan>
+      <tspan x={cx} dy="1.5em" fontSize={11} fill="#64748b" fontWeight={500}>
+        hồ sơ
+      </tspan>
+    </text>
+  );
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload?.length) {
+      const item = payload[0];
+      const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0.0";
+      return (
+        <div className="bg-white border border-slate-200 rounded-lg shadow-md px-3 py-2 text-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full" style={{ background: item.payload.color }} />
+            <span className="font-semibold text-slate-700">{item.name}</span>
+          </div>
+          <div className="mt-1 font-bold text-slate-900">{item.value.toLocaleString("vi-VN")} hồ sơ</div>
+          <div className="text-slate-500">{pct}%</div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const renderLegend = () => (
+    <div className="flex flex-col gap-3 justify-center ml-4">
+      {pieData.map((entry) => {
+        const pct = total > 0 ? ((entry.value / total) * 100).toFixed(1) : "0.0";
+        return (
+          <div key={entry.name} className="flex items-start gap-2">
+            <div className="mt-1 w-3 h-3 rounded-full flex-shrink-0" style={{ background: entry.color }} />
+            <div>
+              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{entry.name}</div>
+              <div className="text-lg font-bold" style={{ color: entry.color }}>
+                {entry.value.toLocaleString("vi-VN")}
+              </div>
+              <div className="text-xs text-slate-400">{pct}%</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+          Đã giải quyết — Đúng hạn / Quá hạn
+        </h3>
+        {isLoading && <span className="text-xs text-blue-500 animate-pulse font-medium">Đang tải...</span>}
+        {isError   && <span className="text-xs text-red-500 font-medium">Lỗi tải dữ liệu</span>}
+      </div>
+
+      {isLoading ? (
+        <div className="h-48 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full border-4 border-green-500 border-t-transparent animate-spin" />
+        </div>
+      ) : total === 0 ? (
+        <div className="h-48 flex flex-col items-center justify-center text-slate-400 text-sm">
+          <div className="text-3xl mb-2">—</div>
+          <div>Không có hồ sơ đã giải quyết trong kỳ</div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-center gap-2">
+          <ResponsiveContainer width={200} height={200}>
+            <PieChart>
+              <Pie
+                data={pieData}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={90}
+                dataKey="value"
+                startAngle={90}
+                endAngle={-270}
+                labelLine={false}
+                label={CustomLabel}
+              >
+                {pieData.map((entry, i) => (
+                  <Cell key={i} fill={entry.color} stroke="none" />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+          {renderLegend()}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Tab: THỐNG KÊ (tab 1, 3, 5 — TT48 / TT47 / TT46)
 // ---------------------------------------------------------------------------
 function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
@@ -227,6 +356,13 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["summary", thuTuc, fromDate, toDate],
     queryFn: () => fetchSummary(thuTuc, fromDate, toDate),
+    enabled: !!fromDate && !!toDate,
+    retry: 2,
+  });
+
+  const { data: gqData, isLoading: gqLoading, isError: gqError } = useQuery({
+    queryKey: ["giai-quyet", thuTuc, fromDate, toDate],
+    queryFn: () => fetchGiaiQuyet(thuTuc, fromDate, toDate),
     enabled: !!fromDate && !!toDate,
     retry: 2,
   });
@@ -374,6 +510,13 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
             bgColor="#fffbeb"
           />
         </div>
+      </div>
+
+      {/* Hàng biểu đồ tròn */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        <GiaiQuyetDonut data={gqData} isLoading={gqLoading} isError={gqError} />
+        {/* Vị trí cho biểu đồ tròn thứ hai (sẽ bổ sung sau) */}
+        <div />
       </div>
     </div>
   );
