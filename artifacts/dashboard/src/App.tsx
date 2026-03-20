@@ -125,6 +125,21 @@ async function fetchGiaiQuyet(thuTuc: number, fromDate: string, toDate: string):
   return res.json();
 }
 
+interface TonSauData {
+  con_han:     number;
+  qua_han:     number;
+  total:       number;
+  pct_con_han: number;
+  pct_qua_han: number;
+}
+
+async function fetchTonSau(thuTuc: number, toDate: string): Promise<TonSauData> {
+  const url = `${BASE}/api/stats/ton-sau?thu_tuc=${thuTuc}&to_date=${toDate}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 // ---------------------------------------------------------------------------
 // Bar chart component
 // ---------------------------------------------------------------------------
@@ -198,21 +213,21 @@ function KpiCard({ label, value, color, bgColor }: {
 }
 
 // ---------------------------------------------------------------------------
-// Donut chart — ĐÃ GIẢI QUYẾT: Đúng hạn / Quá hạn
+// Generic DonutChart — tái sử dụng cho mọi biểu đồ tròn
 // ---------------------------------------------------------------------------
-const DONUT_COLORS = { dung_han: "#22c55e", qua_han: "#ef4444" };
+interface DonutSegment { name: string; value: number; color: string; }
+interface DonutChartProps {
+  title:        string;
+  segments:     DonutSegment[];
+  total:        number;
+  isLoading:    boolean;
+  isError:      boolean;
+  emptyMessage?: string;
+  spinnerColor?: string;
+}
 
-interface DonutProps { data: GiaiQuyetData | undefined; isLoading: boolean; isError: boolean; }
-
-function GiaiQuyetDonut({ data, isLoading, isError }: DonutProps) {
-  const pieData = [
-    { name: "Đúng hạn", value: data?.dung_han ?? 0, color: DONUT_COLORS.dung_han },
-    { name: "Quá hạn",  value: data?.qua_han  ?? 0, color: DONUT_COLORS.qua_han  },
-  ];
-
-  const total = data?.total ?? 0;
-
-  const CustomLabel = ({ cx, cy }: any) => (
+function DonutChart({ title, segments, total, isLoading, isError, emptyMessage, spinnerColor = "#22c55e" }: DonutChartProps) {
+  const CenterLabel = ({ cx, cy }: any) => (
     <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
       <tspan x={cx} dy="-0.4em" fontSize={26} fontWeight={700} fill="#1e293b">
         {total.toLocaleString("vi-VN")}
@@ -241,51 +256,30 @@ function GiaiQuyetDonut({ data, isLoading, isError }: DonutProps) {
     return null;
   };
 
-  const renderLegend = () => (
-    <div className="flex flex-col gap-3 justify-center ml-4">
-      {pieData.map((entry) => {
-        const pct = total > 0 ? ((entry.value / total) * 100).toFixed(1) : "0.0";
-        return (
-          <div key={entry.name} className="flex items-start gap-2">
-            <div className="mt-1 w-3 h-3 rounded-full flex-shrink-0" style={{ background: entry.color }} />
-            <div>
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{entry.name}</div>
-              <div className="text-lg font-bold" style={{ color: entry.color }}>
-                {entry.value.toLocaleString("vi-VN")}
-              </div>
-              <div className="text-xs text-slate-400">{pct}%</div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-          Đã giải quyết — Đúng hạn / Quá hạn
-        </h3>
+        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">{title}</h3>
         {isLoading && <span className="text-xs text-blue-500 animate-pulse font-medium">Đang tải...</span>}
         {isError   && <span className="text-xs text-red-500 font-medium">Lỗi tải dữ liệu</span>}
       </div>
 
       {isLoading ? (
-        <div className="h-48 flex items-center justify-center">
-          <div className="w-8 h-8 rounded-full border-4 border-green-500 border-t-transparent animate-spin" />
+        <div className="h-52 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full border-4 border-t-transparent animate-spin"
+               style={{ borderColor: `${spinnerColor} transparent transparent transparent` }} />
         </div>
       ) : total === 0 ? (
-        <div className="h-48 flex flex-col items-center justify-center text-slate-400 text-sm">
+        <div className="h-52 flex flex-col items-center justify-center text-slate-400 text-sm">
           <div className="text-3xl mb-2">—</div>
-          <div>Không có hồ sơ đã giải quyết trong kỳ</div>
+          <div>{emptyMessage ?? "Không có dữ liệu"}</div>
         </div>
       ) : (
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-4">
           <ResponsiveContainer width={200} height={200}>
             <PieChart>
               <Pie
-                data={pieData}
+                data={segments}
                 cx="50%"
                 cy="50%"
                 innerRadius={60}
@@ -294,16 +288,34 @@ function GiaiQuyetDonut({ data, isLoading, isError }: DonutProps) {
                 startAngle={90}
                 endAngle={-270}
                 labelLine={false}
-                label={CustomLabel}
+                label={CenterLabel}
               >
-                {pieData.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} stroke="none" />
+                {segments.map((s, i) => (
+                  <Cell key={i} fill={s.color} stroke="none" />
                 ))}
               </Pie>
               <Tooltip content={<CustomTooltip />} />
             </PieChart>
           </ResponsiveContainer>
-          {renderLegend()}
+
+          {/* Legend */}
+          <div className="flex flex-col gap-3 justify-center">
+            {segments.map((s) => {
+              const pct = total > 0 ? ((s.value / total) * 100).toFixed(1) : "0.0";
+              return (
+                <div key={s.name} className="flex items-start gap-2">
+                  <div className="mt-1 w-3 h-3 rounded-full flex-shrink-0" style={{ background: s.color }} />
+                  <div>
+                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{s.name}</div>
+                    <div className="text-lg font-bold" style={{ color: s.color }}>
+                      {s.value.toLocaleString("vi-VN")}
+                    </div>
+                    <div className="text-xs text-slate-400">{pct}%</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -364,6 +376,13 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
     queryKey: ["giai-quyet", thuTuc, fromDate, toDate],
     queryFn: () => fetchGiaiQuyet(thuTuc, fromDate, toDate),
     enabled: !!fromDate && !!toDate,
+    retry: 2,
+  });
+
+  const { data: tsData, isLoading: tsLoading, isError: tsError } = useQuery({
+    queryKey: ["ton-sau", thuTuc, toDate],
+    queryFn: () => fetchTonSau(thuTuc, toDate),
+    enabled: !!toDate,
     retry: 2,
   });
 
@@ -514,9 +533,33 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 
       {/* Hàng biểu đồ tròn */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-        <GiaiQuyetDonut data={gqData} isLoading={gqLoading} isError={gqError} />
-        {/* Vị trí cho biểu đồ tròn thứ hai (sẽ bổ sung sau) */}
-        <div />
+        {/* Biểu đồ 1: Đã giải quyết — Đúng hạn / Quá hạn */}
+        <DonutChart
+          title="Đã giải quyết — Đúng hạn / Quá hạn"
+          total={gqData?.total ?? 0}
+          segments={[
+            { name: "Đúng hạn", value: gqData?.dung_han ?? 0, color: "#22c55e" },
+            { name: "Quá hạn",  value: gqData?.qua_han  ?? 0, color: "#ef4444" },
+          ]}
+          isLoading={gqLoading}
+          isError={gqError}
+          emptyMessage="Không có hồ sơ đã giải quyết trong kỳ"
+          spinnerColor="#22c55e"
+        />
+
+        {/* Biểu đồ 2: Tồn sau — Còn hạn / Quá hạn */}
+        <DonutChart
+          title="Tồn sau — Còn hạn / Quá hạn"
+          total={tsData?.total ?? 0}
+          segments={[
+            { name: "Còn hạn", value: tsData?.con_han ?? 0, color: "#60a5fa" },
+            { name: "Quá hạn", value: tsData?.qua_han ?? 0, color: "#f97316" },
+          ]}
+          isLoading={tsLoading}
+          isError={tsError}
+          emptyMessage="Không có hồ sơ tồn sau trong kỳ"
+          spinnerColor="#60a5fa"
+        />
       </div>
     </div>
   );

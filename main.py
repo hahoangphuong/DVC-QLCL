@@ -601,6 +601,66 @@ def stats_earliest_date(
         db.close()
 
 
+@app.get("/stats/ton-sau")
+def stats_ton_sau(
+    thu_tuc: int = Query(..., description="Phân loại: 46, 47, hoặc 48"),
+    to_date: str = Query(..., description="Đến ngày YYYY-MM-DD"),
+):
+    """
+    Phân tích hồ sơ TỒN SAU (ngayTiepNhan <= to_date, ngayTraKetQua > to_date hoặc null):
+    - Còn hạn: ngayHenTra > to_date (chưa đến hạn)
+    - Quá hạn: ngayHenTra IS NULL hoặc ngayHenTra <= to_date (đã quá hạn)
+    null ngayTraKetQua coi là vô cùng lớn → thỏa mãn > to_date.
+    """
+    db = SessionLocal()
+    try:
+        to_dt = f"{to_date}T23:59:59+07:00"
+
+        row = db.execute(text("""
+            SELECT
+                COUNT(*) FILTER (
+                    WHERE (data->>'ngayTiepNhan')::timestamptz <= :to_dt
+                      AND (
+                            data->>'ngayTraKetQua' IS NULL
+                         OR (data->>'ngayTraKetQua')::timestamptz > :to_dt
+                          )
+                      AND data->>'ngayHenTra' IS NOT NULL
+                      AND (data->>'ngayHenTra')::timestamptz > :to_dt
+                ) AS con_han,
+
+                COUNT(*) FILTER (
+                    WHERE (data->>'ngayTiepNhan')::timestamptz <= :to_dt
+                      AND (
+                            data->>'ngayTraKetQua' IS NULL
+                         OR (data->>'ngayTraKetQua')::timestamptz > :to_dt
+                          )
+                      AND (
+                            data->>'ngayHenTra' IS NULL
+                         OR (data->>'ngayHenTra')::timestamptz <= :to_dt
+                          )
+                ) AS qua_han
+            FROM tra_cuu_chung
+            WHERE (data->>'thuTucId')::int = :thu_tuc
+        """), {"thu_tuc": thu_tuc, "to_dt": to_dt}).fetchone()
+
+        con_han = int(row[0])
+        qua_han = int(row[1])
+        total   = con_han + qua_han
+        return {
+            "thu_tuc":      thu_tuc,
+            "to_date":      to_date,
+            "con_han":      con_han,
+            "qua_han":      qua_han,
+            "total":        total,
+            "pct_con_han":  round(con_han / total * 100, 1) if total > 0 else 0,
+            "pct_qua_han":  round(qua_han  / total * 100, 1) if total > 0 else 0,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
 @app.get("/stats/giai-quyet")
 def stats_giai_quyet(
     thu_tuc: int = Query(..., description="Phân loại: 46, 47, hoặc 48"),
