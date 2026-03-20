@@ -798,11 +798,17 @@ def stats_ton_sau(
             WITH joined AS (
                 SELECT
                     t.data AS tcc,
-                    NULLIF(d.data->>'ngayTraKetQua', '') AS kq
+                    COALESCE(
+                        NULLIF(d_active.data->>'ngayTraKetQua', ''),
+                        NULLIF(d_self.data->>'ngayTraKetQua',   '')
+                    ) AS kq
                 FROM tra_cuu_chung t
-                LEFT JOIN da_xu_ly d
-                    ON t.data->>'hoSoXuLyId_Active' = d.data->>'id'
-                   AND d.thu_tuc = :thu_tuc
+                LEFT JOIN da_xu_ly d_active
+                    ON t.data->>'hoSoXuLyId_Active' = d_active.data->>'id'
+                   AND d_active.thu_tuc = :thu_tuc
+                LEFT JOIN da_xu_ly d_self
+                    ON t.data->>'id' = d_self.data->>'id'
+                   AND d_self.thu_tuc = :thu_tuc
                 WHERE (t.data->>'thuTucId')::int = :thu_tuc
             )
             SELECT
@@ -866,11 +872,17 @@ def stats_giai_quyet(
             WITH joined AS (
                 SELECT
                     t.data AS tcc,
-                    NULLIF(d.data->>'ngayTraKetQua', '') AS kq
+                    COALESCE(
+                        NULLIF(d_active.data->>'ngayTraKetQua', ''),
+                        NULLIF(d_self.data->>'ngayTraKetQua',   '')
+                    ) AS kq
                 FROM tra_cuu_chung t
-                LEFT JOIN da_xu_ly d
-                    ON t.data->>'hoSoXuLyId_Active' = d.data->>'id'
-                   AND d.thu_tuc = :thu_tuc
+                LEFT JOIN da_xu_ly d_active
+                    ON t.data->>'hoSoXuLyId_Active' = d_active.data->>'id'
+                   AND d_active.thu_tuc = :thu_tuc
+                LEFT JOIN da_xu_ly d_self
+                    ON t.data->>'id' = d_self.data->>'id'
+                   AND d_self.thu_tuc = :thu_tuc
                 WHERE (t.data->>'thuTucId')::int = :thu_tuc
             )
             SELECT
@@ -937,11 +949,17 @@ def stats_summary(
             WITH joined AS (
                 SELECT
                     t.data AS tcc,
-                    NULLIF(d.data->>'ngayTraKetQua', '') AS kq
+                    COALESCE(
+                        NULLIF(d_active.data->>'ngayTraKetQua', ''),
+                        NULLIF(d_self.data->>'ngayTraKetQua',   '')
+                    ) AS kq
                 FROM tra_cuu_chung t
-                LEFT JOIN da_xu_ly d
-                    ON t.data->>'hoSoXuLyId_Active' = d.data->>'id'
-                   AND d.thu_tuc = :thu_tuc
+                LEFT JOIN da_xu_ly d_active
+                    ON t.data->>'hoSoXuLyId_Active' = d_active.data->>'id'
+                   AND d_active.thu_tuc = :thu_tuc
+                LEFT JOIN da_xu_ly d_self
+                    ON t.data->>'id' = d_self.data->>'id'
+                   AND d_self.thu_tuc = :thu_tuc
                 WHERE (t.data->>'thuTucId')::int = :thu_tuc
             )
             SELECT
