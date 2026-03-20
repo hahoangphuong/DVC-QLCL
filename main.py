@@ -62,16 +62,19 @@ _scheduler = BackgroundScheduler(timezone="UTC")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    # next_run_time=now → chạy sync ngay lập tức khi server khởi động,
+    # sau đó lặp lại mỗi 3 giờ tự động
     _scheduler.add_job(
         _run_sync_all_job,
         trigger="interval",
         hours=3,
         id="sync_all_3h",
         replace_existing=True,
+        next_run_time=datetime.now(timezone.utc),
     )
     _scheduler.start()
     _sync_log.info("=" * 70)
-    _sync_log.info("SERVER KHỞI ĐỘNG — scheduler sync/all mỗi 3h đã được kích hoạt")
+    _sync_log.info("SERVER KHỞI ĐỘNG — sync ngay lập tức + scheduler mỗi 3h")
     _sync_log.info("=" * 70)
     yield
     _scheduler.shutdown(wait=False)
