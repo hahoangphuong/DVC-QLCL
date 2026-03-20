@@ -1,6 +1,5 @@
 import app from "./app";
 import { spawn } from "child_process";
-import path from "path";
 
 const rawPort = process.env["PORT"];
 
@@ -25,29 +24,39 @@ if (process.env["NODE_ENV"] === "production") {
   // process.cwd() trong production = thư mục gốc repo (nơi main.py tồn tại)
   const repoRoot = process.cwd();
 
-  async function triggerInitialSync(
-    retries = 8,
-    delayMs = 10000
-  ): Promise<void> {
-    for (let i = 0; i < retries; i++) {
-      await new Promise((r) => setTimeout(r, delayMs));
+  // Kiểm tra Python sẵn sàng, rồi trigger sync/all
+  // Retry mãi mỗi 15s cho đến khi thành công (tối đa 20 phút)
+  async function waitAndSync(): Promise<void> {
+    const MAX_WAIT_MS = 20 * 60 * 1000; // 20 phút
+    const INTERVAL_MS = 15_000;
+    const started = Date.now();
+
+    while (Date.now() - started < MAX_WAIT_MS) {
+      await new Promise((r) => setTimeout(r, INTERVAL_MS));
       try {
-        const res = await fetch("http://127.0.0.1:8001/sync/all");
-        if (res.ok) {
-          const body = (await res.json()) as { ok?: boolean };
-          console.log(`[sync] Initial sync triggered (ok=${String(body.ok)})`);
-          return;
+        const probe = await fetch("http://127.0.0.1:8001/");
+        if (!probe.ok) {
+          console.log("[sync] Python alive but returned non-200, retrying...");
+          continue;
         }
-        console.warn(
-          `[sync] Attempt ${i + 1}: Python returned ${res.status}, retrying...`
+        // Python ready — trigger sync
+        console.log("[sync] Python is ready! Triggering initial sync/all...");
+        const res = await fetch("http://127.0.0.1:8001/sync/all", {
+          method: "POST",
+        });
+        const body = (await res.json()) as { ok?: boolean; results?: unknown[] };
+        console.log(
+          `[sync] sync/all completed — ok=${String(body.ok)}, datasets=${(body.results ?? []).length}`
         );
+        return; // done
       } catch {
-        console.warn(
-          `[sync] Attempt ${i + 1}: Python not ready yet, retrying in ${delayMs / 1000}s...`
+        const elapsed = Math.round((Date.now() - started) / 1000);
+        console.log(
+          `[sync] Python not ready yet (${elapsed}s elapsed), retrying in ${INTERVAL_MS / 1000}s...`
         );
       }
     }
-    console.error("[sync] Could not trigger initial sync after all retries");
+    console.error("[sync] Python did not start within 20 minutes. Giving up.");
   }
 
   function startPythonServer() {
@@ -68,13 +77,12 @@ if (process.env["NODE_ENV"] === "production") {
 
     proc.on("exit", (code, signal) => {
       console.warn(
-        `[python] uvicorn exited (code=${code}, signal=${signal}), restarting in 5s...`
+        `[python] uvicorn exited (code=${code}, signal=${signal}), restarting in 10s...`
       );
-      setTimeout(startPythonServer, 5000);
+      setTimeout(startPythonServer, 10_000);
     });
 
-    // Sau khi spawn, đợi Python sẵn sàng rồi trigger sync ngay
-    void triggerInitialSync();
+    void waitAndSync();
   }
 
   startPythonServer();
