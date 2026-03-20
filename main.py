@@ -1,6 +1,7 @@
 import logging
 import logging.handlers
 import os
+import re
 import time as _time
 import requests
 from contextlib import asynccontextmanager
@@ -103,8 +104,11 @@ def _den_ngay_now() -> str:
 
 # ---------------------------------------------------------------------------
 # Helper: làm sạch giá trị ngày từ API nguồn
-# Xử lý trường hợp ngày bị ghi lặp (VD: "23/05/2025\n23/05/2025")
-# và chuyển đổi DD/MM/YYYY sang ISO 8601 nếu cần.
+# Xử lý các trường hợp:
+#   1. Lặp có ký tự ngắt: "23/05/2025\n23/05/2025"
+#   2. Lặp không có ký tự ngắt (ghép liền): "23/05/202523/05/2025"
+#   3. ISO timestamp ghép liền: "2025-05-23T10:00:00+07:002025-05-23T10:00:00+07:00"
+#   4. Chuyển đổi DD/MM/YYYY → ISO 8601
 # ---------------------------------------------------------------------------
 _DATE_FIELDS = {
     "ngayTraKetQua", "ngayTiepNhan", "ngayHenTra",
@@ -113,27 +117,48 @@ _DATE_FIELDS = {
     "ngayMotCuaChuyen", "ngayThanhToan", "ngayXacNhanThanhToan",
 }
 
+# Regex trích xuất phần đầu hợp lệ của một date string
+# - ISO timestamp: YYYY-MM-DDTHH:MM:SS[.sss]+HH:MM
+# - DD/MM/YYYY
+_RE_ISO_TS   = re.compile(
+    r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[+-]\d{2}:\d{2}|Z))'
+)
+_RE_DDMMYYYY = re.compile(r'(\d{2}/\d{2}/\d{4})')
+
+
 def _clean_date_value(val: str) -> str | None:
     """
-    Làm sạch một chuỗi ngày:
-    1. Bỏ ký tự thừa (newline, carriage return, khoảng trắng đầu/cuối)
-    2. Nếu bị lặp (VD: "23/05/2025\n23/05/2025"), lấy phần đầu
-    3. Chuyển định dạng DD/MM/YYYY → YYYY-MM-DDT00:00:00+07:00
-    Trả None nếu không thể xử lý.
+    Làm sạch một chuỗi ngày trả về từ API:
+    1. Strip khoảng trắng, newline, carriage return
+    2. Nếu bị lặp qua ký tự ngắt (\n, \r): lấy phần trước ký tự đầu tiên
+    3. Nếu bắt đầu bằng DD/MM/YYYY (kể cả bị ghép liền): trích regex → ISO 8601
+    4. Nếu bắt đầu bằng ISO timestamp (kể cả bị ghép liền): trích regex → lấy match đầu
+    Trả None nếu rỗng; trả nguyên giá trị nếu không nhận dạng được.
     """
     if not val or not isinstance(val, str):
         return val
-    # Lấy phần đầu trước ký tự xuống dòng / khoảng trắng thừa
+
+    # Bước 1: strip + tách tại ký tự ngắt dòng / CR
     cleaned = val.strip().split("\n")[0].split("\r")[0].strip()
     if not cleaned:
         return None
-    # Chuyển DD/MM/YYYY → ISO 8601
-    if len(cleaned) == 10 and cleaned[2] == "/" and cleaned[5] == "/":
+
+    # Bước 2: DD/MM/YYYY (đơn hoặc ghép liền "23/05/202523/05/2025")
+    if _RE_DDMMYYYY.match(cleaned):
+        m = _RE_DDMMYYYY.match(cleaned)
+        date_part = m.group(1)  # luôn lấy đúng 10 ký tự DD/MM/YYYY đầu tiên
         try:
-            day, month, year = cleaned.split("/")
-            cleaned = f"{year}-{month}-{day}T00:00:00+07:00"
+            day, month, year = date_part.split("/")
+            return f"{year}-{month}-{day}T00:00:00+07:00"
         except ValueError:
             return None
+
+    # Bước 3: ISO timestamp (đơn hoặc ghép liền)
+    m = _RE_ISO_TS.match(cleaned)
+    if m:
+        return m.group(1)  # lấy timestamp đầu tiên hợp lệ
+
+    # Fallback: trả nguyên giá trị (đã strip)
     return cleaned
 
 
@@ -391,7 +416,10 @@ def _sync_unified(
         db.query(unified_model).filter(unified_model.thu_tuc == thu_tuc).delete()
         db.query(legacy_model).delete()
 
-        cleaned = 0
+        cleaned  = 0
+        skipped  = 0   # số record bị lọc ra (pId≠null cho da_xu_ly)
+        inserted = 0
+
         for item in items:
             # Làm sạch date fields ngay khi nhận về — đếm số record có thay đổi
             before = str({k: item.get(k) for k in _DATE_FIELDS if item.get(k)})
@@ -403,19 +431,32 @@ def _sync_unified(
             # Đảm bảo thuTucId có trong JSONB
             item["thuTucId"] = thu_tuc
 
-            db.add(unified_model(synced_at=synced_at, thu_tuc=thu_tuc, data=item))
+            # Bảng legacy luôn nhận đầy đủ dữ liệu gốc (bao gồm cả bước trung gian)
             db.add(legacy_model(synced_at=synced_at, data=item))
+
+            # Bảng gộp đã xử lý: chỉ nhận records TOP-LEVEL (pId = null/rỗng)
+            # Records có pId≠null là bước trung gian — không phải "đã xử lý" thực sự
+            if is_done:
+                pid = item.get("pId")
+                if pid is not None and str(pid).strip():
+                    skipped += 1
+                    continue   # bỏ qua record trung gian
+
+            db.add(unified_model(synced_at=synced_at, thu_tuc=thu_tuc, data=item))
+            inserted += 1
 
         db.commit()
         _sync_log.info(
             f"[{label}] {trang_thai} xử lý: "
-            f"{len(items)}/{total} records | {cleaned} record có ngày được làm sạch"
+            f"{inserted}/{total} records ghi vào bảng gộp | "
+            f"{skipped} bỏ qua (trung gian) | {cleaned} ngày làm sạch"
         )
         return {
             "ok":             True,
             "dataset":        label,
-            "inserted":       len(items),
+            "inserted":       inserted,
             "total_from_api": total,
+            "skipped_intermediate": skipped,
             "dates_cleaned":  cleaned,
             "synced_at":      synced_at.isoformat(),
         }
