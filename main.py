@@ -186,27 +186,6 @@ def sync():
 
 
 # ---------------------------------------------------------------------------
-# DEBUG (tạm thời) — xem XSRF token sau login để kiểm tra
-# ---------------------------------------------------------------------------
-@app.get("/debug-xsrf")
-def debug_xsrf():
-    from urllib.parse import unquote as _unquote
-    client = RemoteClient()
-    client.login()
-    all_cookies = dict(client.session.cookies)
-    xsrf_raw = client.session.cookies.get("XSRF-TOKEN")
-    xsrf_decoded = _unquote(xsrf_raw) if xsrf_raw else None
-    return {
-        "cookie_names": list(all_cookies.keys()),
-        "xsrf_raw_len": len(xsrf_raw) if xsrf_raw else 0,
-        "xsrf_raw_prefix": xsrf_raw[:20] if xsrf_raw else None,
-        "xsrf_decoded_len": len(xsrf_decoded) if xsrf_decoded else 0,
-        "xsrf_decoded_prefix": xsrf_decoded[:20] if xsrf_decoded else None,
-        "xsrf_same": xsrf_raw == xsrf_decoded,
-    }
-
-
-# ---------------------------------------------------------------------------
 # 4. POST /sync/tra-cuu-chung
 #    Tra cứu chung TT46 + TT47 + TT48 — lưu vào bảng tra_cuu_chung
 #    DenNgay tự động = ngày hiện tại
