@@ -163,10 +163,20 @@ def _clean_date_value(val: str) -> str | None:
 
 
 def _clean_record(item: dict) -> dict:
-    """Áp dụng _clean_date_value cho tất cả trường ngày trong một record."""
+    """Áp dụng _clean_date_value cho tất cả trường ngày trong một record.
+
+    Fallback: nếu ngayTraKetQua bị null/rỗng mà vanThuNgayDongDau có giá trị
+    thì dùng vanThuNgayDongDau làm ngày trả kết quả (đây là ngày văn thư
+    đóng dấu — chính là ngày website hiển thị cho người dùng).
+    """
     for field in _DATE_FIELDS:
         if field in item and isinstance(item[field], str):
             item[field] = _clean_date_value(item[field])
+
+    # Fallback: vanThuNgayDongDau → ngayTraKetQua
+    if not item.get("ngayTraKetQua") and item.get("vanThuNgayDongDau"):
+        item["ngayTraKetQua"] = item["vanThuNgayDongDau"]
+
     return item
 
 
@@ -431,32 +441,20 @@ def _sync_unified(
             # Đảm bảo thuTucId có trong JSONB
             item["thuTucId"] = thu_tuc
 
-            # Bảng legacy luôn nhận đầy đủ dữ liệu gốc (bao gồm cả bước trung gian)
             db.add(legacy_model(synced_at=synced_at, data=item))
-
-            # Bảng gộp đã xử lý: chỉ nhận records TOP-LEVEL (pId = null/rỗng)
-            # Records có pId≠null là bước trung gian — không phải "đã xử lý" thực sự
-            if is_done:
-                pid = item.get("pId")
-                if pid is not None and str(pid).strip():
-                    skipped += 1
-                    continue   # bỏ qua record trung gian
-
             db.add(unified_model(synced_at=synced_at, thu_tuc=thu_tuc, data=item))
             inserted += 1
 
         db.commit()
         _sync_log.info(
             f"[{label}] {trang_thai} xử lý: "
-            f"{inserted}/{total} records ghi vào bảng gộp | "
-            f"{skipped} bỏ qua (trung gian) | {cleaned} ngày làm sạch"
+            f"{inserted}/{total} records | {cleaned} ngày làm sạch / fallback"
         )
         return {
             "ok":             True,
             "dataset":        label,
             "inserted":       inserted,
             "total_from_api": total,
-            "skipped_intermediate": skipped,
             "dates_cleaned":  cleaned,
             "synced_at":      synced_at.isoformat(),
         }
