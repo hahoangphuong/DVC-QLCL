@@ -47,7 +47,7 @@ def _den_ngay_now() -> str:
 # body        : JSON body sẽ gửi lên (DenNgay đã được set trước khi truyền vào)
 # label       : tên hiển thị trong response (ví dụ: "tra_cuu_chung")
 # ---------------------------------------------------------------------------
-def _do_sync(model_class, api_url: str, body: dict, label: str) -> dict:
+def _do_sync(model_class, api_url: str, body: dict, label: str, referer: str | None = None) -> dict:
     db = SessionLocal()
     try:
         # Bước 1: đăng nhập
@@ -55,7 +55,7 @@ def _do_sync(model_class, api_url: str, body: dict, label: str) -> dict:
         client.login()
 
         # Bước 2: POST JSON tới API dữ liệu
-        resp = client.post_json(api_url, body)
+        resp = client.post_json(api_url, body, referer=referer)
         payload = resp.json()
 
         # Bước 3: trích xuất danh sách records từ response ABP
@@ -218,53 +218,103 @@ def sync_tra_cuu_chung():
 
 
 # ---------------------------------------------------------------------------
-# 5. POST /sync/tt48-da-xu-ly  → bảng tt48_da_xu_ly
-# [Sẽ bổ sung sau khi nhận cURL thứ 2]
+# Helper: URL và body dùng chung cho 6 endpoint dashboard
+# URL:  /api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc
+# Body: strTuNgay cố định, strDenNgay = hôm nay (DD/MM/YYYY), ThuTucEnum, isDone
+# Referer: /lanhdaocuc/index (khác với tra_cuu_chung dùng /Application)
 # ---------------------------------------------------------------------------
+def _dashboard_body(thu_tuc: int, is_done: bool) -> dict:
+    """Tạo body cho dashboard API với ngày hiện tại."""
+    today = datetime.now(timezone.utc).strftime("%d/%m/%Y")
+    return {
+        "strTuNgay": "01/01/2018",
+        "strDenNgay": today,           # ← cập nhật tự động mỗi lần gọi
+        "ThuTucEnum": [thu_tuc],
+        "isDone": is_done,
+    }
+
+
+def _sync_dashboard(model_class, thu_tuc: int, is_done: bool, label: str) -> dict:
+    """Wrapper gọi _do_sync cho 6 endpoint dashboard."""
+    base_url = os.environ.get("BASE_URL", "").rstrip("/")
+    api_url = (
+        f"{base_url}/api/services/app/dashBoard"
+        "/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
+    )
+    referer = f"{base_url}/lanhdaocuc/index"
+    body = _dashboard_body(thu_tuc, is_done)
+    return _do_sync(model_class, api_url, body, label, referer=referer)
+
+
+# ---------------------------------------------------------------------------
+# 5. POST /sync/tt48-da-xu-ly  → bảng tt48_da_xu_ly
+# ---------------------------------------------------------------------------
+@app.post("/sync/tt48-da-xu-ly")
+def sync_tt48_da_xu_ly():
+    return _sync_dashboard(TT48DaXuLy, thu_tuc=48, is_done=True, label="tt48_da_xu_ly")
 
 
 # ---------------------------------------------------------------------------
 # 6. POST /sync/tt48-dang-xu-ly  → bảng tt48_dang_xu_ly
-# [Sẽ bổ sung sau khi nhận cURL thứ 3]
 # ---------------------------------------------------------------------------
+@app.post("/sync/tt48-dang-xu-ly")
+def sync_tt48_dang_xu_ly():
+    return _sync_dashboard(TT48DangXuLy, thu_tuc=48, is_done=False, label="tt48_dang_xu_ly")
 
 
 # ---------------------------------------------------------------------------
 # 7. POST /sync/tt47-da-xu-ly  → bảng tt47_da_xu_ly
-# [Sẽ bổ sung sau khi nhận cURL thứ 4]
 # ---------------------------------------------------------------------------
+@app.post("/sync/tt47-da-xu-ly")
+def sync_tt47_da_xu_ly():
+    return _sync_dashboard(TT47DaXuLy, thu_tuc=47, is_done=True, label="tt47_da_xu_ly")
 
 
 # ---------------------------------------------------------------------------
 # 8. POST /sync/tt47-dang-xu-ly  → bảng tt47_dang_xu_ly
-# [Sẽ bổ sung sau khi nhận cURL thứ 5]
 # ---------------------------------------------------------------------------
+@app.post("/sync/tt47-dang-xu-ly")
+def sync_tt47_dang_xu_ly():
+    return _sync_dashboard(TT47DangXuLy, thu_tuc=47, is_done=False, label="tt47_dang_xu_ly")
 
 
 # ---------------------------------------------------------------------------
 # 9. POST /sync/tt46-da-xu-ly  → bảng tt46_da_xu_ly
-# [Sẽ bổ sung sau khi nhận cURL thứ 6]
 # ---------------------------------------------------------------------------
+@app.post("/sync/tt46-da-xu-ly")
+def sync_tt46_da_xu_ly():
+    return _sync_dashboard(TT46DaXuLy, thu_tuc=46, is_done=True, label="tt46_da_xu_ly")
 
 
 # ---------------------------------------------------------------------------
 # 10. POST /sync/tt46-dang-xu-ly  → bảng tt46_dang_xu_ly
-# [Sẽ bổ sung sau khi nhận cURL thứ 7]
 # ---------------------------------------------------------------------------
+@app.post("/sync/tt46-dang-xu-ly")
+def sync_tt46_dang_xu_ly():
+    return _sync_dashboard(TT46DangXuLy, thu_tuc=46, is_done=False, label="tt46_dang_xu_ly")
 
 
 # ---------------------------------------------------------------------------
-# 11. POST /sync/all — chạy tất cả dataset một lần (sẽ đầy đủ sau khi có đủ 7 cURL)
+# 11. POST /sync/all — chạy cả 7 dataset trong một lần gọi
 # ---------------------------------------------------------------------------
 @app.post("/sync/all")
 def sync_all():
     results = []
     errors = []
 
-    try:
-        results.append(sync_tra_cuu_chung())
-    except HTTPException as e:
-        errors.append({"dataset": "tra_cuu_chung", "error": e.detail})
+    for fn, label in [
+        (sync_tra_cuu_chung,    "tra_cuu_chung"),
+        (sync_tt48_da_xu_ly,    "tt48_da_xu_ly"),
+        (sync_tt48_dang_xu_ly,  "tt48_dang_xu_ly"),
+        (sync_tt47_da_xu_ly,    "tt47_da_xu_ly"),
+        (sync_tt47_dang_xu_ly,  "tt47_dang_xu_ly"),
+        (sync_tt46_da_xu_ly,    "tt46_da_xu_ly"),
+        (sync_tt46_dang_xu_ly,  "tt46_dang_xu_ly"),
+    ]:
+        try:
+            results.append(fn())
+        except HTTPException as e:
+            errors.append({"dataset": label, "error": e.detail})
 
     return {
         "ok": len(errors) == 0,
