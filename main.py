@@ -782,29 +782,30 @@ def stats_chuyen_vien(
     to_date:   str = Query(..., description="Đến ngày YYYY-MM-DD"),
 ):
     """
-    Thống kê Tồn trước / Đã nhận theo từng chuyên viên.
-    Logic kq: self-match only (t.id = da_xu_ly.id).
+    Thống kê đầy đủ theo chuyên viên:
+    Tồn trước / Đã nhận / GQ (tổng + phân loại + đúng/quá hạn + TBTG) / Tồn sau.
+    Thứ tự hiển thị theo hình Excel của người dùng.
     """
     if thu_tuc not in (46, 47, 48):
         raise HTTPException(status_code=400, detail="thu_tuc phải là 46, 47, hoặc 48")
 
-    # Thứ tự ưu tiên hiển thị (tên sau prefix "CV thụ lý : ")
+    # Thứ tự ưu tiên hiển thị — khớp với hình Excel người dùng cung cấp
     PRIORITY: list[str] = [
-        "CV thụ lý : Đỗ Thị Ngọc Lan",
-        "CV thụ lý : Hà Hoàng Phương",
-        "CV thụ lý : Hà Thị Minh Châu",
         "CV thụ lý : Lê Thị Cẩm Hương",
+        "CV thụ lý : Vũ Đức Cảnh",
+        "CV thụ lý : Hà Hoàng Phương",
+        "CV thụ lý : Nguyễn Vũ Hùng",
+        "CV thụ lý : Nguyễn Trung Hiếu",
+        "CV thụ lý : Nguyễn Thị Lan Hương",
+        "CV thụ lý : Hà Thị Minh Châu",
+        "CV thụ lý : Nguyễn Thị Huyền",
+        "CV thụ lý : Đỗ Thị Ngọc Lan",
         "CV thụ lý : Lê Thị Quỳnh Nga",
         "CV thụ lý : Lương Hoàng Việt",
         "CV thụ lý : Nguyễn Đức Toàn",
-        "CV thụ lý : Nguyễn Thị Huyền",
-        "CV thụ lý : Nguyễn Thị Lan Hương",
-        "CV thụ lý : Nguyễn Trung Hiếu",
-        "CV thụ lý : Nguyễn Vũ Hùng",
         "CV thụ lý : Trần Thị Phương Thanh",
-        "CV thụ lý : Vũ Đức Cảnh",
     ]
-    priority_index = {name: i for i, name in enumerate(PRIORITY)}
+    known_set = set(PRIORITY)
 
     db = SessionLocal()
     try:
@@ -812,52 +813,127 @@ def stats_chuyen_vien(
         to_dt   = f"{to_date}T23:59:59+07:00"
 
         rows = db.execute(text("""
-            WITH joined AS (
+            WITH base AS (
                 SELECT
-                    TRIM(t.data->>'chuyenVienThuLyName') AS ten_cv,
-                    t.data AS tcc,
-                    NULLIF(d.data->>'ngayTraKetQua', '') AS kq
+                    COALESCE(NULLIF(TRIM(t.data->>'chuyenVienThuLyName'), ''), '__CHUA_PHAN__') AS cv_name,
+                    (t.data->>'ngayTiepNhan')::timestamptz                                      AS ngay_nhan,
+                    (t.data->>'ngayHenTra')::timestamptz                                        AS nhan_hen_tra,
+                    CASE WHEN NULLIF(d.data->>'ngayTraKetQua','') IS NOT NULL
+                         THEN (d.data->>'ngayTraKetQua')::timestamptz ELSE NULL END             AS ngay_tra,
+                    CASE WHEN NULLIF(d.data->>'ngayHenTra','') IS NOT NULL
+                         THEN (d.data->>'ngayHenTra')::timestamptz ELSE NULL END                AS kq_hen_tra,
+                    d.data->>'trangThaiHoSo'                                                    AS trang_thai
                 FROM tra_cuu_chung t
                 LEFT JOIN da_xu_ly d
                     ON t.data->>'id' = d.data->>'id'
                    AND d.thu_tuc = :thu_tuc
                 WHERE (t.data->>'thuTucId')::int = :thu_tuc
-                  AND TRIM(t.data->>'chuyenVienThuLyName') IS NOT NULL
-                  AND TRIM(t.data->>'chuyenVienThuLyName') != ''
             )
             SELECT
-                ten_cv,
+                cv_name,
+                -- Tồn trước: nhận trước kỳ + chưa có KQ hoặc KQ trong/sau kỳ
                 COUNT(*) FILTER (
-                    WHERE (tcc->>'ngayTiepNhan')::timestamptz < :from_dt
-                      AND (kq IS NULL OR kq::timestamptz >= :from_dt)
+                    WHERE ngay_nhan < :from_dt
+                      AND (ngay_tra IS NULL OR ngay_tra >= :from_dt)
                 ) AS ton_truoc,
+                -- Đã nhận: tiếp nhận trong kỳ
                 COUNT(*) FILTER (
-                    WHERE (tcc->>'ngayTiepNhan')::timestamptz >= :from_dt
-                      AND (tcc->>'ngayTiepNhan')::timestamptz <= :to_dt
-                ) AS da_nhan
-            FROM joined
-            GROUP BY ten_cv
+                    WHERE ngay_nhan >= :from_dt AND ngay_nhan <= :to_dt
+                ) AS da_nhan,
+                -- GQ tổng: trả KQ trong kỳ
+                COUNT(*) FILTER (
+                    WHERE ngay_tra >= :from_dt AND ngay_tra <= :to_dt
+                ) AS gq_tong,
+                -- Cần bổ sung (trangThaiHoSo=4)
+                COUNT(*) FILTER (
+                    WHERE ngay_tra >= :from_dt AND ngay_tra <= :to_dt AND trang_thai = '4'
+                ) AS can_bo_sung,
+                -- Không đạt (trangThaiHoSo=7)
+                COUNT(*) FILTER (
+                    WHERE ngay_tra >= :from_dt AND ngay_tra <= :to_dt AND trang_thai = '7'
+                ) AS khong_dat,
+                -- Hoàn thành (trangThaiHoSo=6)
+                COUNT(*) FILTER (
+                    WHERE ngay_tra >= :from_dt AND ngay_tra <= :to_dt AND trang_thai = '6'
+                ) AS hoan_thanh,
+                -- Đúng hạn: trả KQ <= ngayHenTra
+                COUNT(*) FILTER (
+                    WHERE ngay_tra >= :from_dt AND ngay_tra <= :to_dt
+                      AND kq_hen_tra IS NOT NULL AND ngay_tra <= kq_hen_tra
+                ) AS dung_han,
+                -- Quá hạn: trả KQ > ngayHenTra hoặc không có ngayHenTra
+                COUNT(*) FILTER (
+                    WHERE ngay_tra >= :from_dt AND ngay_tra <= :to_dt
+                      AND (kq_hen_tra IS NULL OR ngay_tra > kq_hen_tra)
+                ) AS qua_han,
+                -- Thời gian TB (ngày)
+                ROUND(AVG(
+                    EXTRACT(EPOCH FROM (ngay_tra - ngay_nhan)) / 86400.0
+                ) FILTER (
+                    WHERE ngay_tra >= :from_dt AND ngay_tra <= :to_dt
+                ))::int AS tg_tb,
+                -- Tồn sau tổng
+                COUNT(*) FILTER (
+                    WHERE ngay_nhan <= :to_dt
+                      AND (ngay_tra IS NULL OR ngay_tra > :to_dt)
+                ) AS ton_sau_tong,
+                -- Tồn sau còn hạn: ngayHenTra > to_date
+                COUNT(*) FILTER (
+                    WHERE ngay_nhan <= :to_dt
+                      AND (ngay_tra IS NULL OR ngay_tra > :to_dt)
+                      AND nhan_hen_tra IS NOT NULL AND nhan_hen_tra > :to_dt
+                ) AS ton_sau_con_han,
+                -- Tồn sau quá hạn: ngayHenTra IS NULL hoặc ngayHenTra <= to_date
+                COUNT(*) FILTER (
+                    WHERE ngay_nhan <= :to_dt
+                      AND (ngay_tra IS NULL OR ngay_tra > :to_dt)
+                      AND (nhan_hen_tra IS NULL OR nhan_hen_tra <= :to_dt)
+                ) AS ton_sau_qua_han
+            FROM base
+            GROUP BY cv_name
         """), {"thu_tuc": thu_tuc, "from_dt": from_dt, "to_dt": to_dt}).fetchall()
+
+        result_map: dict[str, dict] = {}
+        cho_phan_cong: dict | None = None
+
+        for r in rows:
+            cv, tt, dn, gq, cbs, kd, ht, dh, qh, tg, tst, tsc, tsq = (
+                r[0], int(r[1]), int(r[2]), int(r[3]), int(r[4]),
+                int(r[5]), int(r[6]), int(r[7]), int(r[8]),
+                int(r[9]) if r[9] is not None else None,
+                int(r[10]), int(r[11]), int(r[12]),
+            )
+            rec = {
+                "ten_cv":          cv,
+                "ton_truoc":       tt,
+                "da_nhan":         dn,
+                "gq_tong":         gq,
+                "can_bo_sung":     cbs,
+                "khong_dat":       kd,
+                "hoan_thanh":      ht,
+                "dung_han":        dh,
+                "qua_han":         qh,
+                "tg_tb":           tg,
+                "pct_gq_dung_han": round(dh / gq * 100) if gq > 0 else 0,
+                "pct_da_gq":       round(gq / (tt + dn) * 100) if (tt + dn) > 0 else 0,
+                "ton_sau_tong":    tst,
+                "ton_sau_con_han": tsc,
+                "ton_sau_qua_han": tsq,
+            }
+            if cv == "__CHUA_PHAN__":
+                cho_phan_cong = rec
+            else:
+                result_map[cv] = rec
 
         data: list[dict] = []
         extras: list[dict] = []
-        known_set = set(priority_index.keys())
 
-        # Chia thành nhóm ưu tiên và nhóm mới
-        result_map: dict[str, dict] = {}
-        for r in rows:
-            ten_cv   = r[0]
-            ton_truoc = int(r[1])
-            da_nhan   = int(r[2])
-            result_map[ten_cv] = {"ten_cv": ten_cv, "ton_truoc": ton_truoc, "da_nhan": da_nhan}
-
-        # Thêm theo thứ tự ưu tiên (kể cả CV không có hồ sơ trong kỳ)
+        # Thứ tự ưu tiên
         for name in PRIORITY:
             if name in result_map:
                 data.append(result_map[name])
-            # Bỏ qua CV không có hồ sơ nào trong kỳ này
 
-        # Thêm CV mới (chưa có trong danh sách ưu tiên) vào cuối
+        # CV mới chưa trong danh sách ưu tiên → thêm cuối
         for name, rec in result_map.items():
             if name not in known_set:
                 extras.append(rec)
@@ -865,11 +941,85 @@ def stats_chuyen_vien(
         data.extend(extras)
 
         return {
-            "thu_tuc":   thu_tuc,
-            "from_date": from_date,
-            "to_date":   to_date,
-            "rows":      data,
+            "thu_tuc":        thu_tuc,
+            "from_date":      from_date,
+            "to_date":        to_date,
+            "cho_phan_cong":  cho_phan_cong,
+            "rows":           data,
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Stats: Biểu đồ xu hướng theo tháng
+# ---------------------------------------------------------------------------
+@app.get("/stats/monthly")
+def stats_monthly(
+    thu_tuc: int = Query(..., description="Phân loại: 46, 47, hoặc 48"),
+):
+    """
+    Trả về dữ liệu theo tháng cho biểu đồ xu hướng:
+    - da_nhan (tiếp nhận theo tháng)
+    - da_giai_quyet (giải quyết theo tháng)
+    - ton_sau (tồn lũy kế cuối tháng = cumsum da_nhan - cumsum da_gq)
+    """
+    if thu_tuc not in (46, 47, 48):
+        raise HTTPException(status_code=400, detail="thu_tuc phải là 46, 47, hoặc 48")
+    db = SessionLocal()
+    try:
+        # Hồ sơ tiếp nhận theo tháng
+        nhan_rows = db.execute(text("""
+            SELECT
+                EXTRACT(YEAR  FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
+                EXTRACT(MONTH FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS mo,
+                COUNT(*) AS cnt
+            FROM tra_cuu_chung
+            WHERE (data->>'thuTucId')::int = :thu_tuc
+              AND data->>'ngayTiepNhan' IS NOT NULL
+            GROUP BY 1, 2
+            ORDER BY 1, 2
+        """), {"thu_tuc": thu_tuc}).fetchall()
+
+        # Hồ sơ giải quyết theo tháng
+        gq_rows = db.execute(text("""
+            SELECT
+                EXTRACT(YEAR  FROM (data->>'ngayTraKetQua')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
+                EXTRACT(MONTH FROM (data->>'ngayTraKetQua')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS mo,
+                COUNT(*) AS cnt
+            FROM da_xu_ly
+            WHERE thu_tuc = :thu_tuc
+              AND data->>'ngayTraKetQua' IS NOT NULL
+            GROUP BY 1, 2
+            ORDER BY 1, 2
+        """), {"thu_tuc": thu_tuc}).fetchall()
+
+        # Gộp theo tháng
+        nhan_map: dict[tuple, int] = {(r[0], r[1]): int(r[2]) for r in nhan_rows}
+        gq_map:   dict[tuple, int] = {(r[0], r[1]): int(r[2]) for r in gq_rows}
+
+        all_keys = sorted(set(nhan_map.keys()) | set(gq_map.keys()))
+
+        cum_nhan = 0
+        cum_gq   = 0
+        months = []
+        for yr, mo in all_keys:
+            dn = nhan_map.get((yr, mo), 0)
+            gq = gq_map.get((yr, mo), 0)
+            cum_nhan += dn
+            cum_gq   += gq
+            months.append({
+                "label":           f"T{mo}-{yr}",
+                "year":            yr,
+                "month":           mo,
+                "da_nhan":         dn,
+                "da_giai_quyet":   gq,
+                "ton_sau":         cum_nhan - cum_gq,
+            })
+
+        return {"thu_tuc": thu_tuc, "months": months}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:

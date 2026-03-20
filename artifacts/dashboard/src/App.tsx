@@ -4,6 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, LabelList,
   PieChart, Pie, Legend,
+  ComposedChart, Line,
 } from "recharts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Router as WouterRouter } from "wouter";
@@ -56,31 +57,28 @@ function getPreset(key: string): { from: string; to: string } {
   if (key === "thang_nay") {
     return { from: toYMD(new Date(y, m, 1)), to: toYMD(new Date(y, m + 1, 0)) };
   }
-  if (key === "thang_truoc") {
-    return { from: toYMD(new Date(y, m - 1, 1)), to: toYMD(new Date(y, m, 0)) };
-  }
-  if (key === "quy_nay") {
-    const q = Math.floor(m / 3);
-    return { from: toYMD(new Date(y, q * 3, 1)), to: toYMD(new Date(y, q * 3 + 3, 0)) };
-  }
-  if (key === "quy_truoc") {
-    const q = Math.floor(m / 3) - 1;
-    const qy = q < 0 ? y - 1 : y;
-    const qn = q < 0 ? 3 : q;
-    return { from: toYMD(new Date(qy, qn * 3, 1)), to: toYMD(new Date(qy, qn * 3 + 3, 0)) };
-  }
   if (key === "nam_nay") {
     return { from: toYMD(new Date(y, 0, 1)), to: toYMD(new Date(y, 11, 31)) };
+  }
+  if (key === "6_thang") {
+    const d = new Date(now);
+    d.setMonth(d.getMonth() - 5);
+    return { from: toYMD(new Date(d.getFullYear(), d.getMonth(), 1)), to: toYMD(new Date(y, m + 1, 0)) };
+  }
+  if (key === "3_thang") {
+    const d = new Date(now);
+    d.setMonth(d.getMonth() - 2);
+    return { from: toYMD(new Date(d.getFullYear(), d.getMonth(), 1)), to: toYMD(new Date(y, m + 1, 0)) };
   }
   return { from: toYMD(new Date(y, 0, 1)), to: toYMD(now) };
 }
 
+// Thứ tự nút lọc khớp với thiết kế Excel (Cộng dồn xử lý riêng vì cần API)
 const QUICK_FILTERS = [
-  { key: "thang_nay",   label: "Tháng này" },
-  { key: "thang_truoc", label: "Tháng trước" },
-  { key: "quy_nay",     label: "Quý này" },
-  { key: "quy_truoc",   label: "Quý trước" },
-  { key: "nam_nay",     label: "Năm nay" },
+  { key: "nam_nay",   label: "Năm nay" },
+  { key: "6_thang",   label: "6 tháng gần nhất" },
+  { key: "3_thang",   label: "3 tháng gần nhất" },
+  { key: "thang_nay", label: "Tháng này" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -141,20 +139,54 @@ async function fetchTonSau(thuTuc: number, toDate: string): Promise<TonSauData> 
 }
 
 interface ChuyenVienRow {
-  ten_cv:    string;
-  ton_truoc: number;
-  da_nhan:   number;
+  ten_cv:          string;
+  ton_truoc:       number;
+  da_nhan:         number;
+  gq_tong:         number;
+  can_bo_sung:     number;
+  khong_dat:       number;
+  hoan_thanh:      number;
+  dung_han:        number;
+  qua_han:         number;
+  tg_tb:           number | null;
+  pct_gq_dung_han: number;
+  pct_da_gq:       number;
+  ton_sau_tong:    number;
+  ton_sau_con_han: number;
+  ton_sau_qua_han: number;
 }
 
 interface ChuyenVienData {
-  thu_tuc:   number;
-  from_date: string;
-  to_date:   string;
-  rows:      ChuyenVienRow[];
+  thu_tuc:         number;
+  from_date:       string;
+  to_date:         string;
+  cho_phan_cong:   ChuyenVienRow | null;
+  rows:            ChuyenVienRow[];
 }
 
 async function fetchChuyenVien(thuTuc: number, fromDate: string, toDate: string): Promise<ChuyenVienData> {
   const url = `${BASE}/api/stats/chuyen-vien?thu_tuc=${thuTuc}&from_date=${fromDate}&to_date=${toDate}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+interface MonthData {
+  label:          string;
+  year:           number;
+  month:          number;
+  da_nhan:        number;
+  da_giai_quyet:  number;
+  ton_sau:        number;
+}
+
+interface MonthlyData {
+  thu_tuc: number;
+  months:  MonthData[];
+}
+
+async function fetchMonthly(thuTuc: number): Promise<MonthlyData> {
+  const url = `${BASE}/api/stats/monthly?thu_tuc=${thuTuc}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
@@ -343,18 +375,35 @@ function DonutChart({ title, segments, total, isLoading, isError, emptyMessage, 
 }
 
 // ---------------------------------------------------------------------------
-// Bảng chi tiết theo chuyên viên
+// Bảng chi tiết theo chuyên viên (đầy đủ cột theo thiết kế Excel)
 // ---------------------------------------------------------------------------
 const CV_PREFIX = "CV thụ lý : ";
-
 function cleanCvName(raw: string): string {
   return raw.startsWith(CV_PREFIX) ? raw.slice(CV_PREFIX.length).trim() : raw.trim();
 }
 
+function Num({ v, color, bold }: { v: number | null | undefined; color?: string; bold?: boolean }) {
+  if (v === null || v === undefined) return <span className="text-slate-300">—</span>;
+  return (
+    <span className={bold ? "font-bold" : "font-medium"} style={{ color: color ?? "#374151" }}>
+      {v.toLocaleString("vi-VN")}
+    </span>
+  );
+}
+
+function Pct({ v, warnBelow }: { v: number; warnBelow?: number }) {
+  const color = warnBelow !== undefined && v < warnBelow ? "#ef4444" : "#15803d";
+  return <span className="font-bold text-xs" style={{ color }}>{v}%</span>;
+}
+
+function cvSum(rows: ChuyenVienRow[], key: keyof ChuyenVienRow): number {
+  return rows.reduce((s, r) => s + (typeof r[key] === "number" ? (r[key] as number) : 0), 0);
+}
+
 interface ChuyenVienTableProps {
-  thuTuc:    48 | 47 | 46;
-  fromDate:  string;
-  toDate:    string;
+  thuTuc:   48 | 47 | 46;
+  fromDate: string;
+  toDate:   string;
 }
 
 function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
@@ -366,13 +415,60 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
   });
 
   const rows = data?.rows ?? [];
-  const totTonTruoc = rows.reduce((s, r) => s + r.ton_truoc, 0);
-  const totDaNhan   = rows.reduce((s, r) => s + r.da_nhan,   0);
+  const cpc  = data?.cho_phan_cong ?? null;
+
+  const thC  = "px-2 py-2 text-center text-xs font-bold uppercase tracking-wide border border-slate-300";
+  const thL  = "px-2 py-2 text-left   text-xs font-bold uppercase tracking-wide border border-slate-300";
+  const tdC  = "px-2 py-2 text-center text-xs border border-slate-200";
+  const tdL  = "px-2 py-2 text-left   text-xs border border-slate-200";
+  const totRow = "bg-slate-200 font-bold border-t-2 border-slate-400";
+
+  const totals: Record<string, number> = {
+    ton_truoc:       cvSum(rows, "ton_truoc"),
+    da_nhan:         cvSum(rows, "da_nhan"),
+    gq_tong:         cvSum(rows, "gq_tong"),
+    can_bo_sung:     cvSum(rows, "can_bo_sung"),
+    khong_dat:       cvSum(rows, "khong_dat"),
+    hoan_thanh:      cvSum(rows, "hoan_thanh"),
+    dung_han:        cvSum(rows, "dung_han"),
+    qua_han:         cvSum(rows, "qua_han"),
+    ton_sau_tong:    cvSum(rows, "ton_sau_tong"),
+    ton_sau_con_han: cvSum(rows, "ton_sau_con_han"),
+    ton_sau_qua_han: cvSum(rows, "ton_sau_qua_han"),
+  };
+  const tot_pct_dh = totals.gq_tong > 0 ? Math.round(totals.dung_han / totals.gq_tong * 100) : 0;
+  const tot_pct_gq = (totals.ton_truoc + totals.da_nhan) > 0
+    ? Math.round(totals.gq_tong / (totals.ton_truoc + totals.da_nhan) * 100) : 0;
+
+  function CvRow({ row, idx }: { row: ChuyenVienRow; idx: number }) {
+    const bg = idx % 2 === 0 ? "bg-white" : "bg-slate-50";
+    return (
+      <tr className={`${bg} hover:bg-blue-50/40 transition-colors`}>
+        <td className={`${tdC} text-slate-400 w-8`}>{idx + 1}</td>
+        <td className={`${tdL} font-semibold text-slate-800 min-w-[160px]`}>{cleanCvName(row.ten_cv)}</td>
+        <td className={tdC}><Num v={row.ton_truoc} color="#be185d" bold /></td>
+        <td className={tdC}><Num v={row.da_nhan}   color="#1d4ed8" bold /></td>
+        <td className={`${tdC} font-bold text-slate-700`}><Num v={row.gq_tong} /></td>
+        <td className={tdC}><Num v={row.can_bo_sung} color="#b45309" /></td>
+        <td className={tdC}><Num v={row.khong_dat}   color="#dc2626" /></td>
+        <td className={tdC}><Num v={row.hoan_thanh}  color="#15803d" /></td>
+        <td className={tdC}><Num v={row.dung_han}    color="#15803d" /></td>
+        <td className={tdC}><Num v={row.qua_han}     color="#dc2626" /></td>
+        <td className={tdC}><Num v={row.tg_tb} color="#6b7280" /></td>
+        <td className={tdC}><Pct v={row.pct_gq_dung_han} warnBelow={30} /></td>
+        <td className={tdC}><Pct v={row.pct_da_gq} /></td>
+        <td className={`${tdC} font-bold text-slate-700`}><Num v={row.ton_sau_tong} /></td>
+        <td className={tdC}><Num v={row.ton_sau_con_han} color="#2563eb" /></td>
+        <td className={tdC}><Num v={row.ton_sau_qua_han} color="#dc2626" /></td>
+      </tr>
+    );
+  }
+
+  const colSpan = 16;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
         <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
           Chi tiết theo chuyên viên — TT{thuTuc}
         </h3>
@@ -380,75 +476,170 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
         {isError   && <span className="text-xs text-red-500 font-medium">Lỗi tải dữ liệu</span>}
       </div>
 
-      {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-xs border-collapse" style={{ minWidth: 1100 }}>
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="px-4 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide w-10">STT</th>
-              <th className="px-4 py-3 text-left   text-xs font-bold text-slate-500 uppercase tracking-wide">Tên chuyên viên</th>
-              <th className="px-4 py-3 text-center  text-xs font-bold uppercase tracking-wide" style={{ color: COLORS.ton_truoc.text }}>Tồn trước</th>
-              <th className="px-4 py-3 text-center  text-xs font-bold uppercase tracking-wide" style={{ color: COLORS.da_nhan.text }}>Đã nhận</th>
+            {/* Hàng 1: nhóm cột */}
+            <tr className="bg-slate-700 text-white">
+              <th className={`${thC} bg-slate-700 text-white`} rowSpan={2}>STT</th>
+              <th className={`${thL} bg-slate-700 text-white`} rowSpan={2}>Chuyên viên</th>
+              <th className={`${thC} bg-pink-700 text-white`} rowSpan={2}>Tồn<br />trước</th>
+              <th className={`${thC} bg-blue-700 text-white`} rowSpan={2}>Đã<br />nhận</th>
+              <th className={`${thC} bg-green-700 text-white`} colSpan={7}>Đã giải quyết</th>
+              <th className={`${thC} bg-green-800 text-white`} rowSpan={2}>%&nbsp;GQ<br />đúng hạn</th>
+              <th className={`${thC} bg-green-800 text-white`} rowSpan={2}>%&nbsp;đã<br />GQ</th>
+              <th className={`${thC} bg-amber-700 text-white`} colSpan={3}>Tồn sau</th>
+            </tr>
+            <tr className="bg-slate-100">
+              <th className={`${thC} bg-green-50`}>Tổng</th>
+              <th className={`${thC} bg-amber-50`}>Cần bổ sung</th>
+              <th className={`${thC} bg-red-50`}>Không đạt</th>
+              <th className={`${thC} bg-green-50`}>Hoàn thành</th>
+              <th className={`${thC} bg-green-50 text-green-700`}>Đúng hạn</th>
+              <th className={`${thC} bg-red-50 text-red-700`}>Quá hạn</th>
+              <th className={`${thC} bg-slate-50`}>TG TB</th>
+              <th className={`${thC} bg-amber-50`}>Tổng</th>
+              <th className={`${thC} bg-blue-50 text-blue-700`}>Còn hạn</th>
+              <th className={`${thC} bg-red-50 text-red-700`}>Quá hạn</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-400 text-xs">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-5 h-5 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
-                    <span>Đang tải...</span>
-                  </div>
-                </td>
-              </tr>
+              <tr><td colSpan={colSpan} className="py-10 text-center text-slate-400">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-5 h-5 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                  <span>Đang tải...</span>
+                </div>
+              </td></tr>
             ) : rows.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-400 text-sm">
-                  Không có dữ liệu
-                </td>
-              </tr>
+              <tr><td colSpan={colSpan} className="py-10 text-center text-slate-400">Không có dữ liệu</td></tr>
             ) : (
-              rows.map((row, idx) => (
-                <tr
-                  key={row.ten_cv}
-                  className={[
-                    "border-b border-slate-100 transition-colors",
-                    idx % 2 === 0 ? "bg-white" : "bg-slate-50/50",
-                    "hover:bg-blue-50/40",
-                  ].join(" ")}
-                >
-                  <td className="px-4 py-3 text-center text-xs text-slate-400 font-medium">{idx + 1}</td>
-                  <td className="px-4 py-3 text-sm font-medium text-slate-800">{cleanCvName(row.ten_cv)}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className="text-sm font-bold" style={{ color: row.ton_truoc > 0 ? COLORS.ton_truoc.text : "#94a3b8" }}>
-                      {row.ton_truoc.toLocaleString("vi-VN")}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className="text-sm font-bold" style={{ color: row.da_nhan > 0 ? COLORS.da_nhan.text : "#94a3b8" }}>
-                      {row.da_nhan.toLocaleString("vi-VN")}
-                    </span>
-                  </td>
-                </tr>
-              ))
+              <>
+                {/* Hàng "Chờ phân công" nếu có */}
+                {cpc && cpc.ton_sau_tong > 0 && (
+                  <tr className="bg-yellow-50 border-b-2 border-yellow-200">
+                    <td className={`${tdC} text-slate-400`}>—</td>
+                    <td className={`${tdL} text-amber-700 font-semibold`}>Chờ phân công...</td>
+                    <td className={tdC}></td>
+                    <td className={tdC}></td>
+                    <td className={tdC}></td>
+                    <td className={tdC}></td>
+                    <td className={tdC}></td>
+                    <td className={tdC}></td>
+                    <td className={tdC}></td>
+                    <td className={tdC}></td>
+                    <td className={tdC}></td>
+                    <td className={tdC}></td>
+                    <td className={tdC}></td>
+                    <td className={tdC}><Num v={cpc.ton_sau_tong} color="#b45309" bold /></td>
+                    <td className={tdC}><Num v={cpc.ton_sau_con_han} color="#2563eb" /></td>
+                    <td className={tdC}><Num v={cpc.ton_sau_qua_han} color="#dc2626" /></td>
+                  </tr>
+                )}
+                {rows.map((row, idx) => <CvRow key={row.ten_cv} row={row} idx={idx} />)}
+              </>
             )}
           </tbody>
           {rows.length > 0 && (
             <tfoot>
-              <tr className="bg-slate-100 border-t-2 border-slate-300">
-                <td className="px-4 py-3" />
-                <td className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wide">Tổng cộng</td>
-                <td className="px-4 py-3 text-center text-sm font-bold" style={{ color: COLORS.ton_truoc.text }}>
-                  {totTonTruoc.toLocaleString("vi-VN")}
-                </td>
-                <td className="px-4 py-3 text-center text-sm font-bold" style={{ color: COLORS.da_nhan.text }}>
-                  {totDaNhan.toLocaleString("vi-VN")}
-                </td>
+              <tr className={totRow}>
+                <td className={tdC} />
+                <td className={`${tdL} text-slate-700 font-bold`}>TỔNG</td>
+                <td className={tdC}><Num v={totals.ton_truoc}       color="#be185d" bold /></td>
+                <td className={tdC}><Num v={totals.da_nhan}         color="#1d4ed8" bold /></td>
+                <td className={tdC}><Num v={totals.gq_tong}         bold /></td>
+                <td className={tdC}><Num v={totals.can_bo_sung}     color="#b45309" bold /></td>
+                <td className={tdC}><Num v={totals.khong_dat}       color="#dc2626" bold /></td>
+                <td className={tdC}><Num v={totals.hoan_thanh}      color="#15803d" bold /></td>
+                <td className={tdC}><Num v={totals.dung_han}        color="#15803d" bold /></td>
+                <td className={tdC}><Num v={totals.qua_han}         color="#dc2626" bold /></td>
+                <td className={tdC} />
+                <td className={tdC}><Pct v={tot_pct_dh} warnBelow={30} /></td>
+                <td className={tdC}><Pct v={tot_pct_gq} /></td>
+                <td className={tdC}><Num v={totals.ton_sau_tong}    bold /></td>
+                <td className={tdC}><Num v={totals.ton_sau_con_han} color="#2563eb" bold /></td>
+                <td className={tdC}><Num v={totals.ton_sau_qua_han} color="#dc2626" bold /></td>
               </tr>
             </tfoot>
           )}
         </table>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Biểu đồ xu hướng theo tháng (bar + line, giống thiết kế Excel)
+// ---------------------------------------------------------------------------
+function MonthlyTrendChart({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["monthly", thuTuc],
+    queryFn:  () => fetchMonthly(thuTuc),
+    retry: 2,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const months = data?.months ?? [];
+
+  if (isLoading) return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+      <div className="h-64 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
+      </div>
+    </div>
+  );
+
+  if (isError || months.length === 0) return null;
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+          Xu hướng theo tháng — TT{thuTuc}
+        </h3>
+        <div className="flex items-center gap-4 text-xs text-slate-500 font-medium">
+          <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-[#60a5fa]" /> Tiếp nhận</span>
+          <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-[#34d399]" /> Giải quyết</span>
+          <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm" style={{ background: "#f59e0b" }} /> Hồ sơ tồn</span>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={280}>
+        <ComposedChart data={months} margin={{ top: 20, right: 30, bottom: 5, left: 10 }} barGap={2}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+          <XAxis
+            dataKey="label"
+            tick={{ fontSize: 10, fill: "#64748b" }}
+            interval={months.length > 24 ? Math.floor(months.length / 24) : 0}
+            angle={-35}
+            textAnchor="end"
+            height={50}
+          />
+          <YAxis yAxisId="left"  tick={{ fontSize: 10, fill: "#64748b" }} width={45} />
+          <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: "#f59e0b" }} width={55} />
+          <Tooltip
+            contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
+            formatter={(value: number, name: string) => {
+              const labels: Record<string, string> = {
+                da_nhan:       "Tiếp nhận",
+                da_giai_quyet: "Giải quyết",
+                ton_sau:       "Hồ sơ tồn",
+              };
+              return [value.toLocaleString("vi-VN"), labels[name] ?? name];
+            }}
+          />
+          <Bar yAxisId="left" dataKey="da_nhan"       fill="#60a5fa" name="da_nhan"       radius={[2, 2, 0, 0]} />
+          <Bar yAxisId="left" dataKey="da_giai_quyet" fill="#34d399" name="da_giai_quyet" radius={[2, 2, 0, 0]} />
+          <Line
+            yAxisId="right"
+            type="monotone"
+            dataKey="ton_sau"
+            stroke="#f59e0b"
+            strokeWidth={2}
+            dot={months.length <= 24}
+            name="ton_sau"
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
     </div>
   );
 }
@@ -558,8 +749,21 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
             </div>
           </div>
 
-          {/* Nút lọc nhanh */}
+          {/* Nút lọc nhanh — thứ tự: Cộng dồn | Năm nay | 6 tháng | 3 tháng | Tháng này */}
           <div className="flex flex-wrap gap-2">
+            <button
+              onClick={handleTatCa}
+              disabled={loadingAll}
+              className={[
+                "rounded-lg px-3 py-2 text-xs font-semibold transition-all border",
+                activePreset === "tat_ca"
+                  ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                  : "bg-white text-slate-600 border-slate-300 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700",
+                loadingAll ? "opacity-60 cursor-wait" : "",
+              ].join(" ")}
+            >
+              {loadingAll ? "..." : "Cộng dồn"}
+            </button>
             {QUICK_FILTERS.map(({ key, label }) => (
               <button
                 key={key}
@@ -574,19 +778,6 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                 {label}
               </button>
             ))}
-            <button
-              onClick={handleTatCa}
-              disabled={loadingAll}
-              className={[
-                "rounded-lg px-3 py-2 text-xs font-semibold transition-all border",
-                activePreset === "tat_ca"
-                  ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                  : "bg-white text-slate-600 border-slate-300 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700",
-                loadingAll ? "opacity-60 cursor-wait" : "",
-              ].join(" ")}
-            >
-              {loadingAll ? "..." : "Tất cả"}
-            </button>
           </div>
 
           {/* Kỳ thống kê hiển thị */}
@@ -695,6 +886,9 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 
       {/* Bảng chi tiết theo chuyên viên */}
       <ChuyenVienTable thuTuc={thuTuc} fromDate={fromDate} toDate={toDate} />
+
+      {/* Biểu đồ xu hướng theo tháng */}
+      <MonthlyTrendChart thuTuc={thuTuc} />
     </div>
   );
 }
