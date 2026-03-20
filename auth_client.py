@@ -1,5 +1,6 @@
 import os
 import requests
+from urllib.parse import unquote
 from bs4 import BeautifulSoup
 
 
@@ -184,6 +185,7 @@ class RemoteClient:
         # --- Bước 7: Kiểm tra JSON response từ ABP ---
         # ABP trả: {"targetUrl": "...", "success": true}
         # hoặc:    {"unAuthorizedRequest": true, "success": false, "error": {...}}
+        target_url_after_login = None
         try:
             result = resp.json()
             if isinstance(result, dict):
@@ -196,6 +198,8 @@ class RemoteClient:
                     error_obj = result.get("error") or {}
                     msg = error_obj.get("message", "Đăng nhập thất bại.")
                     raise RemoteAuthError(f"Đăng nhập thất bại: {msg}")
+                # Lấy targetUrl để navigate sau (thường là "/Application")
+                target_url_after_login = result.get("targetUrl")
         except ValueError:
             # Response là HTML (redirect) — kiểm tra có bị đẩy về login không
             if "login" in resp.url.lower():
@@ -203,6 +207,27 @@ class RemoteClient:
                     "Đăng nhập thất bại (redirect về trang login). "
                     "Kiểm tra credentials hoặc XSRF token."
                 )
+
+        # --- Bước 8: GET /Application sau login ---
+        # Trong browser, ABP JavaScript đọc targetUrl từ JSON và navigate tới đó.
+        # requests không có JS nên ta phải tự GET — server dùng bước này để
+        # hoàn tất session và có thể rotate XSRF-TOKEN sang giá trị mới hợp lệ.
+        if target_url_after_login:
+            nav_url = target_url_after_login if target_url_after_login.startswith("http") \
+                else f"{self.base_url}{target_url_after_login}"
+        else:
+            nav_url = f"{self.base_url}/Application"
+
+        self.session.get(
+            nav_url,
+            headers={
+                "User-Agent": _USER_AGENT,
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Referer": self.login_post_url,
+            },
+            timeout=15,
+            allow_redirects=True,
+        )
 
     # -----------------------------------------------------------------------
     # Gọi API dữ liệu sau khi đăng nhập
@@ -243,6 +268,55 @@ class RemoteClient:
             headers["x-xsrf-token"] = xsrf
 
         resp = self.session.get(target_url, headers=headers, params=params, timeout=15)
+        resp.raise_for_status()
+        return resp
+
+    # -----------------------------------------------------------------------
+    # POST JSON — dùng cho các API dữ liệu (khác login dùng form)
+    # -----------------------------------------------------------------------
+    def post_json(
+        self,
+        url: str,
+        body: dict,
+        referer: str | None = None,
+    ) -> requests.Response:
+        """
+        POST JSON body tới url bằng session đã xác thực.
+        Dùng cho các API dữ liệu (content-type: application/json).
+
+        Args:
+            url:     URL đầy đủ cần gọi.
+            body:    Dict sẽ được serialize thành JSON body.
+            referer: Referer header. Mặc định là /Application (trang sau login).
+        """
+        # Lấy XSRF-TOKEN từ session và URL-decode trước khi dùng trong header.
+        # Sau login, ABP rotate sang token mới (thường URL-encoded, ví dụ có %3D).
+        # Header x-xsrf-token cần giá trị đã decode, không phải encoded.
+        xsrf_raw = self.session.cookies.get("XSRF-TOKEN")
+        xsrf = unquote(xsrf_raw) if xsrf_raw else None
+
+        headers = {
+            "User-Agent": _USER_AGENT,
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "en-US,en;q=0.9,vi-VN;q=0.8,vi;q=0.7",
+            "Cache-Control": "no-cache",
+            # Khác login: content-type là JSON, không phải form
+            "Content-Type": "application/json;charset=UTF-8",
+            "Origin": self.base_url,
+            "Pragma": "no-cache",
+            "Priority": "u=1, i",
+            "Referer": referer or f"{self.base_url}/Application",
+            "Sec-CH-UA": _SEC_CH_UA,
+            "Sec-CH-UA-Mobile": "?0",
+            "Sec-CH-UA-Platform": '"Windows"',
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
+        }
+        if xsrf:
+            headers["x-xsrf-token"] = xsrf
+
+        resp = self.session.post(url, json=body, headers=headers, timeout=60)
         resp.raise_for_status()
         return resp
 
