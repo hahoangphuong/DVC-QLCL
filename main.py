@@ -601,59 +601,71 @@ def stats_earliest_date(
         db.close()
 
 
+# ---------------------------------------------------------------------------
+# Helper: tên bảng da_xu_ly theo thuTucId
+# ---------------------------------------------------------------------------
+DXL_TABLE = {46: "tt46_da_xu_ly", 47: "tt47_da_xu_ly", 48: "tt48_da_xu_ly"}
+
+
 @app.get("/stats/ton-sau")
 def stats_ton_sau(
     thu_tuc: int = Query(..., description="Phân loại: 46, 47, hoặc 48"),
     to_date: str = Query(..., description="Đến ngày YYYY-MM-DD"),
 ):
     """
-    Phân tích hồ sơ TỒN SAU (ngayTiepNhan <= to_date, ngayTraKetQua > to_date hoặc null):
-    - Còn hạn: ngayHenTra > to_date (chưa đến hạn)
-    - Quá hạn: ngayHenTra IS NULL hoặc ngayHenTra <= to_date (đã quá hạn)
-    null ngayTraKetQua coi là vô cùng lớn → thỏa mãn > to_date.
+    Phân tích hồ sơ TỒN SAU:
+      - ngayTiepNhan (từ tra_cuu_chung) <= to_date
+      - ngayTraKetQua (từ ttXX_da_xu_ly) > to_date HOẶC không có kết quả (null/empty)
+    Chia thành:
+      - Còn hạn: ngayHenTra (từ tra_cuu_chung) > to_date
+      - Quá hạn: ngayHenTra IS NULL hoặc ngayHenTra <= to_date
     """
+    if thu_tuc not in DXL_TABLE:
+        raise HTTPException(status_code=400, detail="thu_tuc phải là 46, 47, hoặc 48")
+    dxl = DXL_TABLE[thu_tuc]
     db = SessionLocal()
     try:
         to_dt = f"{to_date}T23:59:59+07:00"
 
-        row = db.execute(text("""
+        row = db.execute(text(f"""
+            WITH joined AS (
+                SELECT
+                    t.data AS tcc,
+                    NULLIF(d.data->>'ngayTraKetQua', '') AS kq
+                FROM tra_cuu_chung t
+                LEFT JOIN {dxl} d ON t.data->>'hoSoXuLyId_Active' = d.data->>'id'
+                WHERE (t.data->>'thuTucId')::int = :thu_tuc
+            )
             SELECT
                 COUNT(*) FILTER (
-                    WHERE (data->>'ngayTiepNhan')::timestamptz <= :to_dt
-                      AND (
-                            data->>'ngayTraKetQua' IS NULL
-                         OR (data->>'ngayTraKetQua')::timestamptz > :to_dt
-                          )
-                      AND data->>'ngayHenTra' IS NOT NULL
-                      AND (data->>'ngayHenTra')::timestamptz > :to_dt
+                    WHERE (tcc->>'ngayTiepNhan')::timestamptz <= :to_dt
+                      AND (kq IS NULL OR kq::timestamptz > :to_dt)
+                      AND tcc->>'ngayHenTra' IS NOT NULL
+                      AND (tcc->>'ngayHenTra')::timestamptz > :to_dt
                 ) AS con_han,
 
                 COUNT(*) FILTER (
-                    WHERE (data->>'ngayTiepNhan')::timestamptz <= :to_dt
+                    WHERE (tcc->>'ngayTiepNhan')::timestamptz <= :to_dt
+                      AND (kq IS NULL OR kq::timestamptz > :to_dt)
                       AND (
-                            data->>'ngayTraKetQua' IS NULL
-                         OR (data->>'ngayTraKetQua')::timestamptz > :to_dt
-                          )
-                      AND (
-                            data->>'ngayHenTra' IS NULL
-                         OR (data->>'ngayHenTra')::timestamptz <= :to_dt
+                            tcc->>'ngayHenTra' IS NULL
+                         OR (tcc->>'ngayHenTra')::timestamptz <= :to_dt
                           )
                 ) AS qua_han
-            FROM tra_cuu_chung
-            WHERE (data->>'thuTucId')::int = :thu_tuc
+            FROM joined
         """), {"thu_tuc": thu_tuc, "to_dt": to_dt}).fetchone()
 
         con_han = int(row[0])
         qua_han = int(row[1])
         total   = con_han + qua_han
         return {
-            "thu_tuc":      thu_tuc,
-            "to_date":      to_date,
-            "con_han":      con_han,
-            "qua_han":      qua_han,
-            "total":        total,
-            "pct_con_han":  round(con_han / total * 100, 1) if total > 0 else 0,
-            "pct_qua_han":  round(qua_han  / total * 100, 1) if total > 0 else 0,
+            "thu_tuc":     thu_tuc,
+            "to_date":     to_date,
+            "con_han":     con_han,
+            "qua_han":     qua_han,
+            "total":       total,
+            "pct_con_han": round(con_han / total * 100, 1) if total > 0 else 0,
+            "pct_qua_han": round(qua_han  / total * 100, 1) if total > 0 else 0,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -668,51 +680,60 @@ def stats_giai_quyet(
     to_date: str = Query(..., description="Đến ngày YYYY-MM-DD"),
 ):
     """
-    Phân tích hồ sơ ĐÃ GIẢI QUYẾT trong kỳ thành Đúng hạn / Quá hạn:
+    Phân tích hồ sơ ĐÃ GIẢI QUYẾT trong kỳ thành Đúng hạn / Quá hạn.
+    ngayTraKetQua lấy từ ttXX_da_xu_ly qua JOIN pId.
+    ngayHenTra lấy từ tra_cuu_chung.
     - Đúng hạn: ngayTraKetQua trong kỳ VÀ ngayTraKetQua <= ngayHenTra
     - Quá hạn:  ngayTraKetQua trong kỳ VÀ (ngayHenTra IS NULL HOẶC ngayTraKetQua > ngayHenTra)
-    null ngayTraKetQua coi là vô cùng lớn → không nằm trong kỳ.
     """
+    if thu_tuc not in DXL_TABLE:
+        raise HTTPException(status_code=400, detail="thu_tuc phải là 46, 47, hoặc 48")
+    dxl = DXL_TABLE[thu_tuc]
     db = SessionLocal()
     try:
         from_dt = f"{from_date}T00:00:00+07:00"
         to_dt   = f"{to_date}T23:59:59+07:00"
 
-        row = db.execute(text("""
+        row = db.execute(text(f"""
+            WITH joined AS (
+                SELECT
+                    t.data AS tcc,
+                    NULLIF(d.data->>'ngayTraKetQua', '') AS kq
+                FROM tra_cuu_chung t
+                LEFT JOIN {dxl} d ON t.data->>'hoSoXuLyId_Active' = d.data->>'id'
+                WHERE (t.data->>'thuTucId')::int = :thu_tuc
+            )
             SELECT
                 COUNT(*) FILTER (
-                    WHERE data->>'ngayTraKetQua' IS NOT NULL
-                      AND (data->>'ngayTraKetQua')::timestamptz >= :from_dt
-                      AND (data->>'ngayTraKetQua')::timestamptz <= :to_dt
-                      AND data->>'ngayHenTra' IS NOT NULL
-                      AND (data->>'ngayTraKetQua')::timestamptz
-                              <= (data->>'ngayHenTra')::timestamptz
+                    WHERE kq IS NOT NULL
+                      AND kq::timestamptz >= :from_dt
+                      AND kq::timestamptz <= :to_dt
+                      AND tcc->>'ngayHenTra' IS NOT NULL
+                      AND kq::timestamptz <= (tcc->>'ngayHenTra')::timestamptz
                 ) AS dung_han,
 
                 COUNT(*) FILTER (
-                    WHERE data->>'ngayTraKetQua' IS NOT NULL
-                      AND (data->>'ngayTraKetQua')::timestamptz >= :from_dt
-                      AND (data->>'ngayTraKetQua')::timestamptz <= :to_dt
+                    WHERE kq IS NOT NULL
+                      AND kq::timestamptz >= :from_dt
+                      AND kq::timestamptz <= :to_dt
                       AND (
-                            data->>'ngayHenTra' IS NULL
-                         OR (data->>'ngayTraKetQua')::timestamptz
-                                > (data->>'ngayHenTra')::timestamptz
+                            tcc->>'ngayHenTra' IS NULL
+                         OR kq::timestamptz > (tcc->>'ngayHenTra')::timestamptz
                           )
                 ) AS qua_han
-            FROM tra_cuu_chung
-            WHERE (data->>'thuTucId')::int = :thu_tuc
+            FROM joined
         """), {"thu_tuc": thu_tuc, "from_dt": from_dt, "to_dt": to_dt}).fetchone()
 
         dung_han = int(row[0])
         qua_han  = int(row[1])
         total    = dung_han + qua_han
         return {
-            "thu_tuc":    thu_tuc,
-            "from_date":  from_date,
-            "to_date":    to_date,
-            "dung_han":   dung_han,
-            "qua_han":    qua_han,
-            "total":      total,
+            "thu_tuc":      thu_tuc,
+            "from_date":    from_date,
+            "to_date":      to_date,
+            "dung_han":     dung_han,
+            "qua_han":      qua_han,
+            "total":        total,
             "pct_dung_han": round(dung_han / total * 100, 1) if total > 0 else 0,
             "pct_qua_han":  round(qua_han  / total * 100, 1) if total > 0 else 0,
         }
@@ -729,58 +750,61 @@ def stats_summary(
     to_date: str = Query(..., description="Đến ngày YYYY-MM-DD"),
 ):
     """
-    Trả về 4 chỉ số tổng hợp từ tra_cuu_chung:
-    - ton_truoc: ngayTiepNhan < from_date AND (ngayTraKetQua >= to_date OR null)
-    - da_nhan: from_date <= ngayTiepNhan <= to_date
-    - da_giai_quyet: from_date <= ngayTraKetQua <= to_date
-    - ton_sau: ngayTiepNhan <= to_date AND (ngayTraKetQua > to_date OR null)
-    Hồ sơ chưa có ngày trả kết quả được coi là vô cùng lớn.
+    4 chỉ số tổng hợp. ngayTraKetQua lấy từ ttXX_da_xu_ly qua JOIN pId.
+    - ton_truoc: ngayTiepNhan < from_date AND (kq >= from_date OR kq IS NULL)
+    - da_nhan:   from_date <= ngayTiepNhan <= to_date
+    - da_giai_quyet: kq trong kỳ [from_date, to_date]
+    - ton_sau:   ngayTiepNhan <= to_date AND (kq > to_date OR kq IS NULL)
     """
+    if thu_tuc not in DXL_TABLE:
+        raise HTTPException(status_code=400, detail="thu_tuc phải là 46, 47, hoặc 48")
+    dxl = DXL_TABLE[thu_tuc]
     db = SessionLocal()
     try:
         from_dt = f"{from_date}T00:00:00+07:00"
         to_dt   = f"{to_date}T23:59:59+07:00"
 
-        row = db.execute(text("""
+        row = db.execute(text(f"""
+            WITH joined AS (
+                SELECT
+                    t.data AS tcc,
+                    NULLIF(d.data->>'ngayTraKetQua', '') AS kq
+                FROM tra_cuu_chung t
+                LEFT JOIN {dxl} d ON t.data->>'hoSoXuLyId_Active' = d.data->>'id'
+                WHERE (t.data->>'thuTucId')::int = :thu_tuc
+            )
             SELECT
                 COUNT(*) FILTER (
-                    WHERE (data->>'ngayTiepNhan')::timestamptz < :from_dt
-                      AND (
-                            data->>'ngayTraKetQua' IS NULL
-                         OR (data->>'ngayTraKetQua')::timestamptz >= :to_dt
-                          )
+                    WHERE (tcc->>'ngayTiepNhan')::timestamptz < :from_dt
+                      AND (kq IS NULL OR kq::timestamptz >= :from_dt)
                 ) AS ton_truoc,
 
                 COUNT(*) FILTER (
-                    WHERE (data->>'ngayTiepNhan')::timestamptz >= :from_dt
-                      AND (data->>'ngayTiepNhan')::timestamptz <= :to_dt
+                    WHERE (tcc->>'ngayTiepNhan')::timestamptz >= :from_dt
+                      AND (tcc->>'ngayTiepNhan')::timestamptz <= :to_dt
                 ) AS da_nhan,
 
                 COUNT(*) FILTER (
-                    WHERE data->>'ngayTraKetQua' IS NOT NULL
-                      AND (data->>'ngayTraKetQua')::timestamptz >= :from_dt
-                      AND (data->>'ngayTraKetQua')::timestamptz <= :to_dt
+                    WHERE kq IS NOT NULL
+                      AND kq::timestamptz >= :from_dt
+                      AND kq::timestamptz <= :to_dt
                 ) AS da_giai_quyet,
 
                 COUNT(*) FILTER (
-                    WHERE (data->>'ngayTiepNhan')::timestamptz <= :to_dt
-                      AND (
-                            data->>'ngayTraKetQua' IS NULL
-                         OR (data->>'ngayTraKetQua')::timestamptz > :to_dt
-                          )
+                    WHERE (tcc->>'ngayTiepNhan')::timestamptz <= :to_dt
+                      AND (kq IS NULL OR kq::timestamptz > :to_dt)
                 ) AS ton_sau
-            FROM tra_cuu_chung
-            WHERE (data->>'thuTucId')::int = :thu_tuc
+            FROM joined
         """), {"thu_tuc": thu_tuc, "from_dt": from_dt, "to_dt": to_dt}).fetchone()
 
         return {
-            "thu_tuc": thu_tuc,
-            "from_date": from_date,
-            "to_date": to_date,
-            "ton_truoc":      int(row[0]),
-            "da_nhan":        int(row[1]),
-            "da_giai_quyet":  int(row[2]),
-            "ton_sau":        int(row[3]),
+            "thu_tuc":       thu_tuc,
+            "from_date":     from_date,
+            "to_date":       to_date,
+            "ton_truoc":     int(row[0]),
+            "da_nhan":       int(row[1]),
+            "da_giai_quyet": int(row[2]),
+            "ton_sau":       int(row[3]),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
