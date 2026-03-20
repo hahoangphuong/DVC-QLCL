@@ -1,8 +1,14 @@
+import logging
+import logging.handlers
 import os
+import time as _time
 import requests
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from fastapi import FastAPI, HTTPException
+from pathlib import Path
+
+from apscheduler.schedulers.background import BackgroundScheduler
+from fastapi import FastAPI, HTTPException, Query
 
 from db import Base, engine, SessionLocal
 from models import (
@@ -15,11 +21,56 @@ from models import (
 from auth_client import RemoteClient, RemoteAuthError
 
 
-# Tạo tất cả bảng khi server khởi động (nếu chưa tồn tại)
+# ===========================================================================
+# FILE LOGGER — ghi chi tiết mỗi lần sync vào logs/sync.log
+# Rotating: tối đa 5 file × 10 MB = 50 MB, sau đó ghi đè file cũ nhất
+# ===========================================================================
+_LOG_DIR = Path("logs")
+_LOG_DIR.mkdir(exist_ok=True)
+
+_sync_log = logging.getLogger("sync_job")
+_sync_log.setLevel(logging.INFO)
+_sync_log.propagate = False  # không đẩy lên root logger của uvicorn
+
+_fh = logging.handlers.RotatingFileHandler(
+    _LOG_DIR / "sync.log",
+    maxBytes=10 * 1024 * 1024,
+    backupCount=5,
+    encoding="utf-8",
+)
+_fh.setFormatter(logging.Formatter(
+    "%(asctime)s | %(levelname)-5s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+))
+_sync_log.addHandler(_fh)
+
+# Bộ đếm thứ tự mỗi lần chạy job (dễ theo dõi trong log)
+_job_run_counter = 0
+
+
+# ===========================================================================
+# SCHEDULER — APScheduler chạy job mỗi 3 giờ
+# ===========================================================================
+_scheduler = BackgroundScheduler(timezone="UTC")
+
+
+# Tạo tất cả bảng + khởi động scheduler khi server start
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    _scheduler.add_job(
+        _run_sync_all_job,
+        trigger="interval",
+        hours=3,
+        id="sync_all_3h",
+        replace_existing=True,
+    )
+    _scheduler.start()
+    _sync_log.info("=" * 70)
+    _sync_log.info("SERVER KHỞI ĐỘNG — scheduler sync/all mỗi 3h đã được kích hoạt")
+    _sync_log.info("=" * 70)
     yield
+    _scheduler.shutdown(wait=False)
 
 
 app = FastAPI(
@@ -295,31 +346,132 @@ def sync_tt46_dang_xu_ly():
 
 
 # ---------------------------------------------------------------------------
-# 11. POST /sync/all — chạy cả 7 dataset trong một lần gọi
+# _run_sync_all_job — hàm core: chạy 7 dataset, log từng bước
+# Dùng chung cho cả scheduler (tự động) và endpoint /sync/all (thủ công)
+#
+# triggered_by : "scheduler" | "manual" — hiển thị trong log để phân biệt
+# Trả về dict {"ok", "results", "errors", "run_id"}
 # ---------------------------------------------------------------------------
-@app.post("/sync/all")
-def sync_all():
+def _run_sync_all_job(triggered_by: str = "scheduler") -> dict:
+    global _job_run_counter
+    _job_run_counter += 1
+    run_id = _job_run_counter
+
+    base_url = os.environ.get("BASE_URL", "").rstrip("/")
+
+    # Danh sách 7 task: (label hiển thị, hàm sync, path API để ghi log)
+    _TASKS = [
+        (
+            "tra_cuu_chung",
+            sync_tra_cuu_chung,
+            f"{base_url}/api/services/app/traCuu_PQLCL/TraCuu",
+        ),
+        (
+            "tt48_da_xu_ly",
+            sync_tt48_da_xu_ly,
+            f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
+            " [ThuTucEnum=48, isDone=True]",
+        ),
+        (
+            "tt48_dang_xu_ly",
+            sync_tt48_dang_xu_ly,
+            f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
+            " [ThuTucEnum=48, isDone=False]",
+        ),
+        (
+            "tt47_da_xu_ly",
+            sync_tt47_da_xu_ly,
+            f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
+            " [ThuTucEnum=47, isDone=True]",
+        ),
+        (
+            "tt47_dang_xu_ly",
+            sync_tt47_dang_xu_ly,
+            f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
+            " [ThuTucEnum=47, isDone=False]",
+        ),
+        (
+            "tt46_da_xu_ly",
+            sync_tt46_da_xu_ly,
+            f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
+            " [ThuTucEnum=46, isDone=True]",
+        ),
+        (
+            "tt46_dang_xu_ly",
+            sync_tt46_dang_xu_ly,
+            f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
+            " [ThuTucEnum=46, isDone=False]",
+        ),
+    ]
+
+    _sync_log.info("─" * 70)
+    _sync_log.info(f"[run #{run_id}] SYNC/ALL BẮT ĐẦU | triggered_by={triggered_by}")
+
     results = []
     errors = []
 
-    for fn, label in [
-        (sync_tra_cuu_chung,    "tra_cuu_chung"),
-        (sync_tt48_da_xu_ly,    "tt48_da_xu_ly"),
-        (sync_tt48_dang_xu_ly,  "tt48_dang_xu_ly"),
-        (sync_tt47_da_xu_ly,    "tt47_da_xu_ly"),
-        (sync_tt47_dang_xu_ly,  "tt47_dang_xu_ly"),
-        (sync_tt46_da_xu_ly,    "tt46_da_xu_ly"),
-        (sync_tt46_dang_xu_ly,  "tt46_dang_xu_ly"),
-    ]:
+    for label, fn, api_info in _TASKS:
+        t0 = _time.monotonic()
         try:
-            results.append(fn())
+            result = fn()
+            elapsed = _time.monotonic() - t0
+            inserted = result.get("inserted", "?")
+            total    = result.get("total_from_api", "?")
+            _sync_log.info(
+                f"[run #{run_id}] [{label}] POST {api_info}"
+                f" → OK | {inserted}/{total} records | {elapsed:.1f}s"
+            )
+            results.append(result)
         except HTTPException as e:
-            errors.append({"dataset": label, "error": e.detail})
+            elapsed = _time.monotonic() - t0
+            _sync_log.error(
+                f"[run #{run_id}] [{label}] POST {api_info}"
+                f" → HTTP {e.status_code} | {e.detail} | {elapsed:.1f}s"
+            )
+            errors.append({"dataset": label, "http_status": e.status_code, "error": e.detail})
+        except Exception as e:
+            elapsed = _time.monotonic() - t0
+            _sync_log.error(
+                f"[run #{run_id}] [{label}] POST {api_info}"
+                f" → EXCEPTION {type(e).__name__} | {e} | {elapsed:.1f}s"
+            )
+            errors.append({"dataset": label, "error": f"{type(e).__name__}: {e}"})
 
+    status_str = f"{len(results)} OK, {len(errors)} lỗi"
+    if errors:
+        _sync_log.warning(f"[run #{run_id}] SYNC/ALL HOÀN THÀNH (có lỗi) | {status_str}")
+    else:
+        _sync_log.info(f"[run #{run_id}] SYNC/ALL HOÀN THÀNH | {status_str}")
+
+    return {"ok": len(errors) == 0, "run_id": run_id, "results": results, "errors": errors}
+
+
+# ---------------------------------------------------------------------------
+# 11. POST /sync/all — gọi thủ công, cũng ghi vào file log
+# ---------------------------------------------------------------------------
+@app.post("/sync/all")
+def sync_all():
+    return _run_sync_all_job(triggered_by="manual")
+
+
+# ---------------------------------------------------------------------------
+# GET /logs/sync — xem N dòng cuối của file log sync (mặc định 100)
+# Query param: lines=200 để xem nhiều hơn
+# ---------------------------------------------------------------------------
+@app.get("/logs/sync")
+def logs_sync(lines: int = Query(default=100, ge=1, le=5000)):
+    log_file = _LOG_DIR / "sync.log"
+    if not log_file.exists():
+        return {"ok": True, "lines": [], "message": "File log chưa có (chưa chạy sync nào)."}
+
+    all_lines = log_file.read_text(encoding="utf-8").splitlines()
+    tail = all_lines[-lines:]
     return {
-        "ok": len(errors) == 0,
-        "results": results,
-        "errors": errors,
+        "ok": True,
+        "file": str(log_file),
+        "total_lines": len(all_lines),
+        "showing_last": len(tail),
+        "lines": tail,
     }
 
 
