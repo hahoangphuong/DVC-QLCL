@@ -869,41 +869,28 @@ def stats_giai_quyet(
         to_dt   = f"{to_date}T23:59:59+07:00"
 
         row = db.execute(text("""
-            WITH joined AS (
-                SELECT
-                    t.data AS tcc,
-                    COALESCE(
-                        NULLIF(d_active.data->>'ngayTraKetQua', ''),
-                        NULLIF(d_self.data->>'ngayTraKetQua',   '')
-                    ) AS kq
-                FROM tra_cuu_chung t
-                LEFT JOIN da_xu_ly d_active
-                    ON t.data->>'hoSoXuLyId_Active' = d_active.data->>'id'
-                   AND d_active.thu_tuc = :thu_tuc
-                LEFT JOIN da_xu_ly d_self
-                    ON t.data->>'id' = d_self.data->>'id'
-                   AND d_self.thu_tuc = :thu_tuc
-                WHERE (t.data->>'thuTucId')::int = :thu_tuc
-            )
             SELECT
                 COUNT(*) FILTER (
-                    WHERE kq IS NOT NULL
-                      AND kq::timestamptz >= :from_dt
-                      AND kq::timestamptz <= :to_dt
-                      AND tcc->>'ngayHenTra' IS NOT NULL
-                      AND kq::timestamptz <= (tcc->>'ngayHenTra')::timestamptz
+                    WHERE NULLIF(data->>'ngayTraKetQua', '') IS NOT NULL
+                      AND (data->>'ngayTraKetQua')::timestamptz >= :from_dt
+                      AND (data->>'ngayTraKetQua')::timestamptz <= :to_dt
+                      AND NULLIF(data->>'ngayHenTra', '') IS NOT NULL
+                      AND (data->>'ngayTraKetQua')::timestamptz
+                              <= (data->>'ngayHenTra')::timestamptz
                 ) AS dung_han,
 
                 COUNT(*) FILTER (
-                    WHERE kq IS NOT NULL
-                      AND kq::timestamptz >= :from_dt
-                      AND kq::timestamptz <= :to_dt
+                    WHERE NULLIF(data->>'ngayTraKetQua', '') IS NOT NULL
+                      AND (data->>'ngayTraKetQua')::timestamptz >= :from_dt
+                      AND (data->>'ngayTraKetQua')::timestamptz <= :to_dt
                       AND (
-                            tcc->>'ngayHenTra' IS NULL
-                         OR kq::timestamptz > (tcc->>'ngayHenTra')::timestamptz
+                            NULLIF(data->>'ngayHenTra', '') IS NULL
+                         OR (data->>'ngayTraKetQua')::timestamptz
+                                > (data->>'ngayHenTra')::timestamptz
                           )
                 ) AS qua_han
-            FROM joined
+            FROM da_xu_ly
+            WHERE thu_tuc = :thu_tuc
         """), {"thu_tuc": thu_tuc, "from_dt": from_dt, "to_dt": to_dt}).fetchone()
 
         dung_han = int(row[0])
@@ -961,6 +948,14 @@ def stats_summary(
                     ON t.data->>'id' = d_self.data->>'id'
                    AND d_self.thu_tuc = :thu_tuc
                 WHERE (t.data->>'thuTucId')::int = :thu_tuc
+            ),
+            gq AS (
+                SELECT COUNT(*) AS cnt
+                FROM da_xu_ly
+                WHERE thu_tuc = :thu_tuc
+                  AND NULLIF(data->>'ngayTraKetQua', '') IS NOT NULL
+                  AND (data->>'ngayTraKetQua')::timestamptz >= :from_dt
+                  AND (data->>'ngayTraKetQua')::timestamptz <= :to_dt
             )
             SELECT
                 COUNT(*) FILTER (
@@ -973,11 +968,7 @@ def stats_summary(
                       AND (tcc->>'ngayTiepNhan')::timestamptz <= :to_dt
                 ) AS da_nhan,
 
-                COUNT(*) FILTER (
-                    WHERE kq IS NOT NULL
-                      AND kq::timestamptz >= :from_dt
-                      AND kq::timestamptz <= :to_dt
-                ) AS da_giai_quyet,
+                (SELECT cnt FROM gq) AS da_giai_quyet,
 
                 COUNT(*) FILTER (
                     WHERE (tcc->>'ngayTiepNhan')::timestamptz <= :to_dt
