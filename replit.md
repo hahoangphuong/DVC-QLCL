@@ -27,11 +27,16 @@ A standalone Python FastAPI service at the root level. Logs into dichvucong.dav.
 - `auth_client.py` — Login + XSRF token extraction + remote API calls
 - `requirements.txt` — Python dependencies
 
-### Database Tables
+### Database Tables (unified)
 - `tra_cuu_chung` — main lookup table (all 3 thủ tục, thuTucId in JSONB)
-- `da_xu_ly` — **unified** đã xử lý table, `thu_tuc` integer column (46/47/48) + JSONB data
-- `tt48_da_xu_ly`, `tt47_da_xu_ly`, `tt46_da_xu_ly` — legacy per-thủ-tục tables (kept for backward-compat)
-- `tt48_dang_xu_ly`, `tt47_dang_xu_ly`, `tt46_dang_xu_ly` — đang xử lý tables
+- `da_xu_ly` — **unified** đã xử lý, `thu_tuc` integer column (46/47/48) + JSONB data
+- `dang_xu_ly` — **unified** đang xử lý, `thu_tuc` integer column (46/47/48) + JSONB data
+- `tt48_da_xu_ly`, `tt47_da_xu_ly`, `tt46_da_xu_ly` — legacy (backward-compat, always synced alongside unified)
+- `tt48_dang_xu_ly`, `tt47_dang_xu_ly`, `tt46_dang_xu_ly` — legacy (backward-compat)
+
+### Notes on null ngayTraKetQua in da_xu_ly
+- TT48: ~1,209 records có `trangThaiHoSo=4` + `pId≠null` → **bình thường**, là hồ sơ trung gian (chưa giải quyết xong)
+- TT46/TT47: ~13 records có `trangThaiHoSo=6` (đã giải quyết) nhưng không có `ngayTraKetQua` → **lỗi dữ liệu nguồn** (không phải lỗi code)
 
 ### JOIN Key (critical)
 `tra_cuu_chung.data->>'hoSoXuLyId_Active'` = `da_xu_ly.data->>'id'` AND `da_xu_ly.thu_tuc = :thu_tuc`

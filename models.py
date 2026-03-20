@@ -59,6 +59,15 @@ class DaXuLy(_HoSoBase, Base):
     thu_tuc = Column(Integer, nullable=False, index=True)
 
 
+class DangXuLy(_HoSoBase, Base):
+    """
+    Hồ sơ ĐANG xử lý — gộp chung TT46 + TT47 + TT48.
+    Cột thu_tuc (46/47/48) dùng để phân loại, JSONB data cũng có thuTucId.
+    """
+    __tablename__ = "dang_xu_ly"
+    thu_tuc = Column(Integer, nullable=False, index=True)
+
+
 class TT48DaXuLy(_HoSoBase, Base):
     """Hồ sơ TT48 đã được xử lý (giữ để backward-compat)."""
     __tablename__ = "tt48_da_xu_ly"

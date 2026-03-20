@@ -16,7 +16,7 @@ from db import Base, engine, SessionLocal
 from models import (
     RemoteFetchLog,
     TraCuuChung,
-    DaXuLy,
+    DaXuLy, DangXuLy,
     TT48DaXuLy, TT48DangXuLy,
     TT47DaXuLy, TT47DangXuLy,
     TT46DaXuLy, TT46DangXuLy,
@@ -341,33 +341,29 @@ def _dashboard_body(thu_tuc: int, is_done: bool) -> dict:
     }
 
 
-def _sync_dashboard(model_class, thu_tuc: int, is_done: bool, label: str) -> dict:
-    """Wrapper gọi _do_sync cho 6 endpoint dashboard."""
+def _sync_unified(
+    unified_model,
+    legacy_model,
+    thu_tuc: int,
+    is_done: bool,
+) -> dict:
+    """
+    Hàm sync tổng quát cho cả đã xử lý và đang xử lý:
+    - Fetch dữ liệu từ API remote
+    - Làm sạch date fields ngay khi nhận về (_clean_record)
+    - Ghi vào bảng gộp (da_xu_ly / dang_xu_ly) với cột thu_tuc
+    - Ghi đồng thời vào bảng legacy (tt48/47/46_da/dang_xu_ly) để backward-compat
+    """
+    trang_thai = "đã" if is_done else "đang"
+    label = f"{'da' if is_done else 'dang'}_xu_ly (TT{thu_tuc})"
+
     base_url = os.environ.get("BASE_URL", "").rstrip("/")
     api_url = (
         f"{base_url}/api/services/app/dashBoard"
         "/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
     )
     referer = f"{base_url}/lanhdaocuc/index"
-    body = _dashboard_body(thu_tuc, is_done)
-    return _do_sync(model_class, api_url, body, label, referer=referer)
-
-
-def _sync_da_xu_ly(thu_tuc: int, legacy_model) -> dict:
-    """
-    Sync bảng đã xử lý:
-    - Ghi vào bảng gộp da_xu_ly (với cột thu_tuc + thuTucId trong JSONB)
-    - Đồng thời ghi vào bảng riêng legacy (tt48/47/46_da_xu_ly) để backward-compat
-    - Áp dụng _clean_record để làm sạch date fields
-    """
-    base_url = os.environ.get("BASE_URL", "").rstrip("/")
-    api_url = (
-        f"{base_url}/api/services/app/dashBoard"
-        "/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
-    )
-    referer = f"{base_url}/lanhdaocuc/index"
-    body = _dashboard_body(thu_tuc, is_done=True)
-    label = f"da_xu_ly (TT{thu_tuc})"
+    body = _dashboard_body(thu_tuc, is_done=is_done)
 
     db = SessionLocal()
     try:
@@ -391,31 +387,29 @@ def _sync_da_xu_ly(thu_tuc: int, legacy_model) -> dict:
 
         synced_at = datetime.now(timezone.utc)
 
-        # Xóa dữ liệu cũ (cả hai bảng)
-        db.query(DaXuLy).filter(DaXuLy.thu_tuc == thu_tuc).delete()
+        # Xóa dữ liệu cũ trong cả bảng gộp (theo thu_tuc) và bảng legacy
+        db.query(unified_model).filter(unified_model.thu_tuc == thu_tuc).delete()
         db.query(legacy_model).delete()
 
         cleaned = 0
         for item in items:
-            # Đếm bao nhiêu ngày được làm sạch
-            before = item.get("ngayTraKetQua")
+            # Làm sạch date fields ngay khi nhận về — đếm số record có thay đổi
+            before = str({k: item.get(k) for k in _DATE_FIELDS if item.get(k)})
             _clean_record(item)
-            after = item.get("ngayTraKetQua")
+            after  = str({k: item.get(k) for k in _DATE_FIELDS if item.get(k)})
             if before != after:
                 cleaned += 1
 
-            # Inject thuTucId vào JSONB nếu chưa có
+            # Đảm bảo thuTucId có trong JSONB
             item["thuTucId"] = thu_tuc
 
-            # Ghi vào bảng gộp
-            db.add(DaXuLy(synced_at=synced_at, thu_tuc=thu_tuc, data=item))
-            # Ghi vào bảng legacy
+            db.add(unified_model(synced_at=synced_at, thu_tuc=thu_tuc, data=item))
             db.add(legacy_model(synced_at=synced_at, data=item))
 
         db.commit()
         _sync_log.info(
-            f"[da_xu_ly TT{thu_tuc}] {len(items)}/{total} records | "
-            f"{cleaned} ngày được làm sạch"
+            f"[{label}] {trang_thai} xử lý: "
+            f"{len(items)}/{total} records | {cleaned} record có ngày được làm sạch"
         )
         return {
             "ok":             True,
@@ -446,51 +440,51 @@ def _sync_da_xu_ly(thu_tuc: int, legacy_model) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 5. POST /sync/tt48-da-xu-ly  → bảng tt48_da_xu_ly + da_xu_ly
+# 5. POST /sync/tt48-da-xu-ly  → da_xu_ly (thu_tuc=48) + tt48_da_xu_ly
 # ---------------------------------------------------------------------------
 @app.post("/sync/tt48-da-xu-ly")
 def sync_tt48_da_xu_ly():
-    return _sync_da_xu_ly(thu_tuc=48, legacy_model=TT48DaXuLy)
+    return _sync_unified(DaXuLy, TT48DaXuLy, thu_tuc=48, is_done=True)
 
 
 # ---------------------------------------------------------------------------
-# 6. POST /sync/tt48-dang-xu-ly  → bảng tt48_dang_xu_ly
+# 6. POST /sync/tt48-dang-xu-ly  → dang_xu_ly (thu_tuc=48) + tt48_dang_xu_ly
 # ---------------------------------------------------------------------------
 @app.post("/sync/tt48-dang-xu-ly")
 def sync_tt48_dang_xu_ly():
-    return _sync_dashboard(TT48DangXuLy, thu_tuc=48, is_done=False, label="tt48_dang_xu_ly")
+    return _sync_unified(DangXuLy, TT48DangXuLy, thu_tuc=48, is_done=False)
 
 
 # ---------------------------------------------------------------------------
-# 7. POST /sync/tt47-da-xu-ly  → bảng tt47_da_xu_ly + da_xu_ly
+# 7. POST /sync/tt47-da-xu-ly  → da_xu_ly (thu_tuc=47) + tt47_da_xu_ly
 # ---------------------------------------------------------------------------
 @app.post("/sync/tt47-da-xu-ly")
 def sync_tt47_da_xu_ly():
-    return _sync_da_xu_ly(thu_tuc=47, legacy_model=TT47DaXuLy)
+    return _sync_unified(DaXuLy, TT47DaXuLy, thu_tuc=47, is_done=True)
 
 
 # ---------------------------------------------------------------------------
-# 8. POST /sync/tt47-dang-xu-ly  → bảng tt47_dang_xu_ly
+# 8. POST /sync/tt47-dang-xu-ly  → dang_xu_ly (thu_tuc=47) + tt47_dang_xu_ly
 # ---------------------------------------------------------------------------
 @app.post("/sync/tt47-dang-xu-ly")
 def sync_tt47_dang_xu_ly():
-    return _sync_dashboard(TT47DangXuLy, thu_tuc=47, is_done=False, label="tt47_dang_xu_ly")
+    return _sync_unified(DangXuLy, TT47DangXuLy, thu_tuc=47, is_done=False)
 
 
 # ---------------------------------------------------------------------------
-# 9. POST /sync/tt46-da-xu-ly  → bảng tt46_da_xu_ly + da_xu_ly
+# 9. POST /sync/tt46-da-xu-ly  → da_xu_ly (thu_tuc=46) + tt46_da_xu_ly
 # ---------------------------------------------------------------------------
 @app.post("/sync/tt46-da-xu-ly")
 def sync_tt46_da_xu_ly():
-    return _sync_da_xu_ly(thu_tuc=46, legacy_model=TT46DaXuLy)
+    return _sync_unified(DaXuLy, TT46DaXuLy, thu_tuc=46, is_done=True)
 
 
 # ---------------------------------------------------------------------------
-# 10. POST /sync/tt46-dang-xu-ly  → bảng tt46_dang_xu_ly
+# 10. POST /sync/tt46-dang-xu-ly  → dang_xu_ly (thu_tuc=46) + tt46_dang_xu_ly
 # ---------------------------------------------------------------------------
 @app.post("/sync/tt46-dang-xu-ly")
 def sync_tt46_dang_xu_ly():
-    return _sync_dashboard(TT46DangXuLy, thu_tuc=46, is_done=False, label="tt46_dang_xu_ly")
+    return _sync_unified(DangXuLy, TT46DangXuLy, thu_tuc=46, is_done=False)
 
 
 # ---------------------------------------------------------------------------
