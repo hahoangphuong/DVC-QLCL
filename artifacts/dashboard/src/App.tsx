@@ -423,6 +423,12 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
   const tdL  = "px-2 py-2 text-left   text-xs border border-slate-200";
   const totRow = "bg-slate-200 font-bold border-t-2 border-slate-400";
 
+  // Sticky column helpers — STT fixed at left:0, CV fixed at left:36px
+  const STT_W = 36;  // pixel width của cột STT
+  const stickySTT = { position: "sticky" as const, left: 0,       zIndex: 10 };
+  const stickyCV  = { position: "sticky" as const, left: STT_W,   zIndex: 10,
+                      boxShadow: "2px 0 4px -1px rgba(0,0,0,0.12)" };
+
   const totals: Record<string, number> = {
     ton_truoc:       cvSum(rows, "ton_truoc"),
     da_nhan:         cvSum(rows, "da_nhan"),
@@ -441,11 +447,19 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
     ? Math.round(totals.gq_tong / (totals.ton_truoc + totals.da_nhan) * 100) : 0;
 
   function CvRow({ row, idx }: { row: ChuyenVienRow; idx: number }) {
-    const bg = idx % 2 === 0 ? "bg-white" : "bg-slate-50";
+    const bgCls  = idx % 2 === 0 ? "bg-white" : "bg-slate-50";
+    const bgColor = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
+    const bg = bgCls;
     return (
       <tr className={`${bg} hover:bg-blue-50/40 transition-colors`}>
-        <td className={`${tdC} text-slate-400 w-8`}>{idx + 1}</td>
-        <td className={`${tdL} font-semibold text-slate-800 min-w-[160px]`}>{cleanCvName(row.ten_cv)}</td>
+        <td className={`${tdC} text-slate-400`}
+            style={{ ...stickySTT, backgroundColor: bgColor, width: STT_W, minWidth: STT_W }}>
+          {idx + 1}
+        </td>
+        <td className={`${tdL} font-semibold text-slate-800 min-w-[160px]`}
+            style={{ ...stickyCV, backgroundColor: bgColor }}>
+          {cleanCvName(row.ten_cv)}
+        </td>
         <td className={tdC}><Num v={row.ton_truoc} color="#be185d" bold /></td>
         <td className={tdC}><Num v={row.da_nhan}   color="#1d4ed8" bold /></td>
         <td className={`${tdC} font-bold text-slate-700`}><Num v={row.gq_tong} /></td>
@@ -481,8 +495,14 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
           <thead>
             {/* Hàng 1: nhóm cột */}
             <tr className="bg-slate-700 text-white">
-              <th className={`${thC} bg-slate-700 text-white`} rowSpan={2}>STT</th>
-              <th className={`${thL} bg-slate-700 text-white`} rowSpan={2}>Chuyên viên</th>
+              <th className={`${thC} bg-slate-700 text-white`} rowSpan={2}
+                  style={{ ...stickySTT, backgroundColor: "#334155", width: STT_W, minWidth: STT_W }}>
+                STT
+              </th>
+              <th className={`${thL} bg-slate-700 text-white min-w-[160px]`} rowSpan={2}
+                  style={{ ...stickyCV, backgroundColor: "#334155" }}>
+                Chuyên viên
+              </th>
               <th className={`${thC} bg-pink-700 text-white`} rowSpan={2}>Tồn<br />trước</th>
               <th className={`${thC} bg-blue-700 text-white`} rowSpan={2}>Đã<br />nhận</th>
               <th className={`${thC} bg-green-700 text-white`} colSpan={7}>Đã giải quyết</th>
@@ -518,8 +538,14 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
                 {/* Hàng "Chờ phân công" nếu có */}
                 {cpc && cpc.ton_sau_tong > 0 && (
                   <tr className="bg-yellow-50 border-b-2 border-yellow-200">
-                    <td className={`${tdC} text-slate-400`}>—</td>
-                    <td className={`${tdL} text-amber-700 font-semibold`}>Chờ phân công...</td>
+                    <td className={`${tdC} text-slate-400`}
+                        style={{ ...stickySTT, backgroundColor: "#fefce8", width: STT_W, minWidth: STT_W }}>
+                      —
+                    </td>
+                    <td className={`${tdL} text-amber-700 font-semibold`}
+                        style={{ ...stickyCV, backgroundColor: "#fefce8" }}>
+                      Chờ phân công...
+                    </td>
                     <td className={tdC}></td>
                     <td className={tdC}></td>
                     <td className={tdC}></td>
@@ -543,8 +569,12 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
           {rows.length > 0 && (
             <tfoot>
               <tr className={totRow}>
-                <td className={tdC} />
-                <td className={`${tdL} text-slate-700 font-bold`}>TỔNG</td>
+                <td className={tdC}
+                    style={{ ...stickySTT, backgroundColor: "#e2e8f0", width: STT_W, minWidth: STT_W }} />
+                <td className={`${tdL} text-slate-700 font-bold`}
+                    style={{ ...stickyCV, backgroundColor: "#e2e8f0" }}>
+                  TỔNG
+                </td>
                 <td className={tdC}><Num v={totals.ton_truoc}       color="#be185d" bold /></td>
                 <td className={tdC}><Num v={totals.da_nhan}         color="#1d4ed8" bold /></td>
                 <td className={tdC}><Num v={totals.gq_tong}         bold /></td>
