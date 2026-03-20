@@ -16,6 +16,7 @@ from db import Base, engine, SessionLocal
 from models import (
     RemoteFetchLog,
     TraCuuChung,
+    DaXuLy,
     TT48DaXuLy, TT48DangXuLy,
     TT47DaXuLy, TT47DangXuLy,
     TT46DaXuLy, TT46DangXuLy,
@@ -101,6 +102,50 @@ def _den_ngay_now() -> str:
 
 
 # ---------------------------------------------------------------------------
+# Helper: làm sạch giá trị ngày từ API nguồn
+# Xử lý trường hợp ngày bị ghi lặp (VD: "23/05/2025\n23/05/2025")
+# và chuyển đổi DD/MM/YYYY sang ISO 8601 nếu cần.
+# ---------------------------------------------------------------------------
+_DATE_FIELDS = {
+    "ngayTraKetQua", "ngayTiepNhan", "ngayHenTra",
+    "phoPhongNgayDuyet", "vanThuNgayDongDau",
+    "ngayDoanhNghiepNopHoSo", "ngayChuyenAuto",
+    "ngayMotCuaChuyen", "ngayThanhToan", "ngayXacNhanThanhToan",
+}
+
+def _clean_date_value(val: str) -> str | None:
+    """
+    Làm sạch một chuỗi ngày:
+    1. Bỏ ký tự thừa (newline, carriage return, khoảng trắng đầu/cuối)
+    2. Nếu bị lặp (VD: "23/05/2025\n23/05/2025"), lấy phần đầu
+    3. Chuyển định dạng DD/MM/YYYY → YYYY-MM-DDT00:00:00+07:00
+    Trả None nếu không thể xử lý.
+    """
+    if not val or not isinstance(val, str):
+        return val
+    # Lấy phần đầu trước ký tự xuống dòng / khoảng trắng thừa
+    cleaned = val.strip().split("\n")[0].split("\r")[0].strip()
+    if not cleaned:
+        return None
+    # Chuyển DD/MM/YYYY → ISO 8601
+    if len(cleaned) == 10 and cleaned[2] == "/" and cleaned[5] == "/":
+        try:
+            day, month, year = cleaned.split("/")
+            cleaned = f"{year}-{month}-{day}T00:00:00+07:00"
+        except ValueError:
+            return None
+    return cleaned
+
+
+def _clean_record(item: dict) -> dict:
+    """Áp dụng _clean_date_value cho tất cả trường ngày trong một record."""
+    for field in _DATE_FIELDS:
+        if field in item and isinstance(item[field], str):
+            item[field] = _clean_date_value(item[field])
+    return item
+
+
+# ---------------------------------------------------------------------------
 # Helper chung: login → POST JSON → xoá table → insert records
 #
 # model_class : SQLAlchemy model tương ứng (ví dụ: TraCuuChung)
@@ -138,9 +183,10 @@ def _do_sync(model_class, api_url: str, body: dict, label: str, referer: str | N
         # Bước 4: xoá toàn bộ dữ liệu cũ trong bảng
         db.query(model_class).delete()
 
-        # Bước 5: insert dữ liệu mới
+        # Bước 5: làm sạch date fields + insert dữ liệu mới
         synced_at = datetime.now(timezone.utc)
         for item in items:
+            _clean_record(item)
             db.add(model_class(synced_at=synced_at, data=item))
 
         db.commit()
@@ -307,12 +353,104 @@ def _sync_dashboard(model_class, thu_tuc: int, is_done: bool, label: str) -> dic
     return _do_sync(model_class, api_url, body, label, referer=referer)
 
 
+def _sync_da_xu_ly(thu_tuc: int, legacy_model) -> dict:
+    """
+    Sync bảng đã xử lý:
+    - Ghi vào bảng gộp da_xu_ly (với cột thu_tuc + thuTucId trong JSONB)
+    - Đồng thời ghi vào bảng riêng legacy (tt48/47/46_da_xu_ly) để backward-compat
+    - Áp dụng _clean_record để làm sạch date fields
+    """
+    base_url = os.environ.get("BASE_URL", "").rstrip("/")
+    api_url = (
+        f"{base_url}/api/services/app/dashBoard"
+        "/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
+    )
+    referer = f"{base_url}/lanhdaocuc/index"
+    body = _dashboard_body(thu_tuc, is_done=True)
+    label = f"da_xu_ly (TT{thu_tuc})"
+
+    db = SessionLocal()
+    try:
+        client = RemoteClient()
+        client.login()
+        resp = client.post_json(api_url, body, referer=referer)
+        payload = resp.json()
+
+        if not payload.get("success", True):
+            raise ValueError(f"API trả về lỗi: {payload.get('error', 'unknown')}")
+
+        result = payload.get("result", payload)
+        if isinstance(result, dict):
+            items = result.get("items", result.get("data", []))
+            total = result.get("totalCount", len(items))
+        elif isinstance(result, list):
+            items = result
+            total = len(items)
+        else:
+            raise ValueError(f"Không thể parse result: type={type(result)}")
+
+        synced_at = datetime.now(timezone.utc)
+
+        # Xóa dữ liệu cũ (cả hai bảng)
+        db.query(DaXuLy).filter(DaXuLy.thu_tuc == thu_tuc).delete()
+        db.query(legacy_model).delete()
+
+        cleaned = 0
+        for item in items:
+            # Đếm bao nhiêu ngày được làm sạch
+            before = item.get("ngayTraKetQua")
+            _clean_record(item)
+            after = item.get("ngayTraKetQua")
+            if before != after:
+                cleaned += 1
+
+            # Inject thuTucId vào JSONB nếu chưa có
+            item["thuTucId"] = thu_tuc
+
+            # Ghi vào bảng gộp
+            db.add(DaXuLy(synced_at=synced_at, thu_tuc=thu_tuc, data=item))
+            # Ghi vào bảng legacy
+            db.add(legacy_model(synced_at=synced_at, data=item))
+
+        db.commit()
+        _sync_log.info(
+            f"[da_xu_ly TT{thu_tuc}] {len(items)}/{total} records | "
+            f"{cleaned} ngày được làm sạch"
+        )
+        return {
+            "ok":             True,
+            "dataset":        label,
+            "inserted":       len(items),
+            "total_from_api": total,
+            "dates_cleaned":  cleaned,
+            "synced_at":      synced_at.isoformat(),
+        }
+
+    except RemoteAuthError as e:
+        db.rollback()
+        raise HTTPException(status_code=401, detail=str(e))
+    except EnvironmentError as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Thiếu cấu hình: {e}")
+    except requests.HTTPError as e:
+        db.rollback()
+        raise HTTPException(status_code=502, detail=f"Lỗi HTTP từ API: {e}")
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=502, detail=str(e))
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
 # ---------------------------------------------------------------------------
-# 5. POST /sync/tt48-da-xu-ly  → bảng tt48_da_xu_ly
+# 5. POST /sync/tt48-da-xu-ly  → bảng tt48_da_xu_ly + da_xu_ly
 # ---------------------------------------------------------------------------
 @app.post("/sync/tt48-da-xu-ly")
 def sync_tt48_da_xu_ly():
-    return _sync_dashboard(TT48DaXuLy, thu_tuc=48, is_done=True, label="tt48_da_xu_ly")
+    return _sync_da_xu_ly(thu_tuc=48, legacy_model=TT48DaXuLy)
 
 
 # ---------------------------------------------------------------------------
@@ -324,11 +462,11 @@ def sync_tt48_dang_xu_ly():
 
 
 # ---------------------------------------------------------------------------
-# 7. POST /sync/tt47-da-xu-ly  → bảng tt47_da_xu_ly
+# 7. POST /sync/tt47-da-xu-ly  → bảng tt47_da_xu_ly + da_xu_ly
 # ---------------------------------------------------------------------------
 @app.post("/sync/tt47-da-xu-ly")
 def sync_tt47_da_xu_ly():
-    return _sync_dashboard(TT47DaXuLy, thu_tuc=47, is_done=True, label="tt47_da_xu_ly")
+    return _sync_da_xu_ly(thu_tuc=47, legacy_model=TT47DaXuLy)
 
 
 # ---------------------------------------------------------------------------
@@ -340,11 +478,11 @@ def sync_tt47_dang_xu_ly():
 
 
 # ---------------------------------------------------------------------------
-# 9. POST /sync/tt46-da-xu-ly  → bảng tt46_da_xu_ly
+# 9. POST /sync/tt46-da-xu-ly  → bảng tt46_da_xu_ly + da_xu_ly
 # ---------------------------------------------------------------------------
 @app.post("/sync/tt46-da-xu-ly")
 def sync_tt46_da_xu_ly():
-    return _sync_dashboard(TT46DaXuLy, thu_tuc=46, is_done=True, label="tt46_da_xu_ly")
+    return _sync_da_xu_ly(thu_tuc=46, legacy_model=TT46DaXuLy)
 
 
 # ---------------------------------------------------------------------------
@@ -602,11 +740,8 @@ def stats_earliest_date(
 
 
 # ---------------------------------------------------------------------------
-# Helper: tên bảng da_xu_ly theo thuTucId
+# Stats: JOIN với bảng gộp da_xu_ly (thu_tuc để lọc)
 # ---------------------------------------------------------------------------
-DXL_TABLE = {46: "tt46_da_xu_ly", 47: "tt47_da_xu_ly", 48: "tt48_da_xu_ly"}
-
-
 @app.get("/stats/ton-sau")
 def stats_ton_sau(
     thu_tuc: int = Query(..., description="Phân loại: 46, 47, hoặc 48"),
@@ -615,25 +750,26 @@ def stats_ton_sau(
     """
     Phân tích hồ sơ TỒN SAU:
       - ngayTiepNhan (từ tra_cuu_chung) <= to_date
-      - ngayTraKetQua (từ ttXX_da_xu_ly) > to_date HOẶC không có kết quả (null/empty)
+      - ngayTraKetQua (từ da_xu_ly) > to_date HOẶC không có kết quả (null/empty)
     Chia thành:
       - Còn hạn: ngayHenTra (từ tra_cuu_chung) > to_date
       - Quá hạn: ngayHenTra IS NULL hoặc ngayHenTra <= to_date
     """
-    if thu_tuc not in DXL_TABLE:
+    if thu_tuc not in (46, 47, 48):
         raise HTTPException(status_code=400, detail="thu_tuc phải là 46, 47, hoặc 48")
-    dxl = DXL_TABLE[thu_tuc]
     db = SessionLocal()
     try:
         to_dt = f"{to_date}T23:59:59+07:00"
 
-        row = db.execute(text(f"""
+        row = db.execute(text("""
             WITH joined AS (
                 SELECT
                     t.data AS tcc,
                     NULLIF(d.data->>'ngayTraKetQua', '') AS kq
                 FROM tra_cuu_chung t
-                LEFT JOIN {dxl} d ON t.data->>'hoSoXuLyId_Active' = d.data->>'id'
+                LEFT JOIN da_xu_ly d
+                    ON t.data->>'hoSoXuLyId_Active' = d.data->>'id'
+                   AND d.thu_tuc = :thu_tuc
                 WHERE (t.data->>'thuTucId')::int = :thu_tuc
             )
             SELECT
@@ -681,26 +817,27 @@ def stats_giai_quyet(
 ):
     """
     Phân tích hồ sơ ĐÃ GIẢI QUYẾT trong kỳ thành Đúng hạn / Quá hạn.
-    ngayTraKetQua lấy từ ttXX_da_xu_ly qua JOIN pId.
+    ngayTraKetQua lấy từ da_xu_ly qua JOIN hoSoXuLyId_Active.
     ngayHenTra lấy từ tra_cuu_chung.
     - Đúng hạn: ngayTraKetQua trong kỳ VÀ ngayTraKetQua <= ngayHenTra
     - Quá hạn:  ngayTraKetQua trong kỳ VÀ (ngayHenTra IS NULL HOẶC ngayTraKetQua > ngayHenTra)
     """
-    if thu_tuc not in DXL_TABLE:
+    if thu_tuc not in (46, 47, 48):
         raise HTTPException(status_code=400, detail="thu_tuc phải là 46, 47, hoặc 48")
-    dxl = DXL_TABLE[thu_tuc]
     db = SessionLocal()
     try:
         from_dt = f"{from_date}T00:00:00+07:00"
         to_dt   = f"{to_date}T23:59:59+07:00"
 
-        row = db.execute(text(f"""
+        row = db.execute(text("""
             WITH joined AS (
                 SELECT
                     t.data AS tcc,
                     NULLIF(d.data->>'ngayTraKetQua', '') AS kq
                 FROM tra_cuu_chung t
-                LEFT JOIN {dxl} d ON t.data->>'hoSoXuLyId_Active' = d.data->>'id'
+                LEFT JOIN da_xu_ly d
+                    ON t.data->>'hoSoXuLyId_Active' = d.data->>'id'
+                   AND d.thu_tuc = :thu_tuc
                 WHERE (t.data->>'thuTucId')::int = :thu_tuc
             )
             SELECT
@@ -750,27 +887,28 @@ def stats_summary(
     to_date: str = Query(..., description="Đến ngày YYYY-MM-DD"),
 ):
     """
-    4 chỉ số tổng hợp. ngayTraKetQua lấy từ ttXX_da_xu_ly qua JOIN pId.
+    4 chỉ số tổng hợp. ngayTraKetQua lấy từ da_xu_ly qua JOIN hoSoXuLyId_Active.
     - ton_truoc: ngayTiepNhan < from_date AND (kq >= from_date OR kq IS NULL)
     - da_nhan:   from_date <= ngayTiepNhan <= to_date
     - da_giai_quyet: kq trong kỳ [from_date, to_date]
     - ton_sau:   ngayTiepNhan <= to_date AND (kq > to_date OR kq IS NULL)
     """
-    if thu_tuc not in DXL_TABLE:
+    if thu_tuc not in (46, 47, 48):
         raise HTTPException(status_code=400, detail="thu_tuc phải là 46, 47, hoặc 48")
-    dxl = DXL_TABLE[thu_tuc]
     db = SessionLocal()
     try:
         from_dt = f"{from_date}T00:00:00+07:00"
         to_dt   = f"{to_date}T23:59:59+07:00"
 
-        row = db.execute(text(f"""
+        row = db.execute(text("""
             WITH joined AS (
                 SELECT
                     t.data AS tcc,
                     NULLIF(d.data->>'ngayTraKetQua', '') AS kq
                 FROM tra_cuu_chung t
-                LEFT JOIN {dxl} d ON t.data->>'hoSoXuLyId_Active' = d.data->>'id'
+                LEFT JOIN da_xu_ly d
+                    ON t.data->>'hoSoXuLyId_Active' = d.data->>'id'
+                   AND d.thu_tuc = :thu_tuc
                 WHERE (t.data->>'thuTucId')::int = :thu_tuc
             )
             SELECT

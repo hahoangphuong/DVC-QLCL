@@ -16,31 +16,51 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
 
-## Python FastAPI Backend (ASP.NET Scraper)
+## Python FastAPI Backend (DAV Pharmaceutical Records)
 
-A standalone Python FastAPI service at the root level. Logs into an ASP.NET website, fetches API data, and stores it in PostgreSQL.
+A standalone Python FastAPI service at the root level. Logs into dichvucong.dav.gov.vn (ABP Framework), fetches 7 datasets of Vietnamese government pharmaceutical records (TT46/TT47/TT48), stores them in Replit PostgreSQL, and serves stats for the React dashboard.
 
 ### Files
-- `main.py` — FastAPI app, all endpoints
-- `db.py` — SQLAlchemy engine + session + init_db()
-- `models.py` — ORM model: `FetchedRecord`
-- `auth_client.py` — Login + XSRF token extraction + API fetch
+- `main.py` — FastAPI app: sync endpoints, stats endpoints, helpers
+- `db.py` — SQLAlchemy engine + session + `init_db()` (creates all tables)
+- `models.py` — ORM models: `TraCuuChung`, `TT48DaXuLy`, `TT47DaXuLy`, `TT46DaXuLy`, `TT48DangXuLy`, `TT47DangXuLy`, `TT46DangXuLy`, `DaXuLy` (unified)
+- `auth_client.py` — Login + XSRF token extraction + remote API calls
 - `requirements.txt` — Python dependencies
 
-### Required Secrets
-- `ASPNET_LOGIN_URL` — URL of the ASP.NET login page
-- `ASPNET_USERNAME` — Login username
-- `ASPNET_PASSWORD` — Login password
+### Database Tables
+- `tra_cuu_chung` — main lookup table (all 3 thủ tục, thuTucId in JSONB)
+- `da_xu_ly` — **unified** đã xử lý table, `thu_tuc` integer column (46/47/48) + JSONB data
+- `tt48_da_xu_ly`, `tt47_da_xu_ly`, `tt46_da_xu_ly` — legacy per-thủ-tục tables (kept for backward-compat)
+- `tt48_dang_xu_ly`, `tt47_dang_xu_ly`, `tt46_dang_xu_ly` — đang xử lý tables
 
-### Endpoints
-- `GET /health` — Health check
-- `POST /auth/login-test` — Test ASP.NET login
-- `POST /data/fetch-and-save?api_url=...&source=...` — Fetch + save to DB
-- `GET /data/records` — List saved records
-- `GET /data/records/{id}` — View full payload
+### JOIN Key (critical)
+`tra_cuu_chung.data->>'hoSoXuLyId_Active'` = `da_xu_ly.data->>'id'` AND `da_xu_ly.thu_tuc = :thu_tuc`
+
+### Required Secrets
+- `BASE_URL` — Base URL of dichvucong.dav.gov.vn
+- `REMOTE_USERNAME` / `REMOTE_PASSWORD` — Login credentials
+- `LOGIN_PATH` — Login path on remote site
+- `SESSION_SECRET` — Internal session secret
+
+### Sync Endpoints (POST)
+- `/sync/tra-cuu-chung` — Sync tra_cuu_chung (all 3 thủ tục)
+- `/sync/tt48-da-xu-ly` → writes `da_xu_ly` (thu_tuc=48) + `tt48_da_xu_ly` (legacy)
+- `/sync/tt47-da-xu-ly` → writes `da_xu_ly` (thu_tuc=47) + `tt47_da_xu_ly` (legacy)
+- `/sync/tt46-da-xu-ly` → writes `da_xu_ly` (thu_tuc=46) + `tt46_da_xu_ly` (legacy)
+- `/sync/tt48-dang-xu-ly`, `/sync/tt47-dang-xu-ly`, `/sync/tt46-dang-xu-ly` — Đang xử lý
+
+### Stats Endpoints (GET)
+- `/stats/summary?thu_tuc=&from_date=&to_date=` — 4 metrics: tồn trước / đã nhận / đã giải quyết / tồn sau
+- `/stats/giai-quyet?thu_tuc=&from_date=&to_date=` — Đúng hạn / Quá hạn breakdown
+- `/stats/ton-sau?thu_tuc=&to_date=` — Còn hạn / Quá hạn breakdown
+
+### Data Cleaning
+- `_clean_record(item)` — strips duplicate date strings (e.g. "23/05/2025\n23/05/2025")
+- `_clean_date_value(v)` — converts DD/MM/YYYY → ISO 8601, takes first part if duplicated
+- Applied automatically during all sync operations
 
 ### Workflow
-- `FastAPI Python Server` — runs `python main.py` on port 8000
+- `FastAPI Python Server` — runs `uvicorn main:app --host 0.0.0.0 --port 8000 --reload`
 
 ---
 

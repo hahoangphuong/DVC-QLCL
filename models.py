@@ -50,8 +50,17 @@ class TraCuuChung(_HoSoBase, Base):
     __tablename__ = "tra_cuu_chung"
 
 
+class DaXuLy(_HoSoBase, Base):
+    """
+    Hồ sơ ĐÃ xử lý — gộp chung TT46 + TT47 + TT48.
+    Cột thu_tuc (46/47/48) dùng để phân loại, JSONB data cũng có thuTucId.
+    """
+    __tablename__ = "da_xu_ly"
+    thu_tuc = Column(Integer, nullable=False, index=True)
+
+
 class TT48DaXuLy(_HoSoBase, Base):
-    """Hồ sơ TT48 đã được xử lý."""
+    """Hồ sơ TT48 đã được xử lý (giữ để backward-compat)."""
     __tablename__ = "tt48_da_xu_ly"
 
 
@@ -61,7 +70,7 @@ class TT48DangXuLy(_HoSoBase, Base):
 
 
 class TT47DaXuLy(_HoSoBase, Base):
-    """Hồ sơ TT47 đã được xử lý."""
+    """Hồ sơ TT47 đã được xử lý (giữ để backward-compat)."""
     __tablename__ = "tt47_da_xu_ly"
 
 
@@ -71,7 +80,7 @@ class TT47DangXuLy(_HoSoBase, Base):
 
 
 class TT46DaXuLy(_HoSoBase, Base):
-    """Hồ sơ TT46 đã được xử lý."""
+    """Hồ sơ TT46 đã được xử lý (giữ để backward-compat)."""
     __tablename__ = "tt46_da_xu_ly"
 
 
