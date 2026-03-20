@@ -12,6 +12,7 @@ import { Router as WouterRouter } from "wouter";
 const queryClient = new QueryClient();
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, ""); // e.g. "/dashboard"
+const API  = "/api"; // API base — tách biệt khỏi BASE để production routing hoạt động
 
 // Màu cho 4 chỉ số
 const COLORS = {
@@ -94,14 +95,14 @@ interface SummaryData {
 }
 
 async function fetchSummary(thuTuc: number, fromDate: string, toDate: string): Promise<SummaryData> {
-  const url = `${BASE}/api/stats/summary?thu_tuc=${thuTuc}&from_date=${fromDate}&to_date=${toDate}`;
+  const url = `${API}/stats/summary?thu_tuc=${thuTuc}&from_date=${fromDate}&to_date=${toDate}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
 async function fetchEarliestDate(thuTuc: number): Promise<string> {
-  const url = `${BASE}/api/stats/earliest-date?thu_tuc=${thuTuc}`;
+  const url = `${API}/stats/earliest-date?thu_tuc=${thuTuc}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
@@ -117,7 +118,7 @@ interface GiaiQuyetData {
 }
 
 async function fetchGiaiQuyet(thuTuc: number, fromDate: string, toDate: string): Promise<GiaiQuyetData> {
-  const url = `${BASE}/api/stats/giai-quyet?thu_tuc=${thuTuc}&from_date=${fromDate}&to_date=${toDate}`;
+  const url = `${API}/stats/giai-quyet?thu_tuc=${thuTuc}&from_date=${fromDate}&to_date=${toDate}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
@@ -132,7 +133,7 @@ interface TonSauData {
 }
 
 async function fetchTonSau(thuTuc: number, toDate: string): Promise<TonSauData> {
-  const url = `${BASE}/api/stats/ton-sau?thu_tuc=${thuTuc}&to_date=${toDate}`;
+  const url = `${API}/stats/ton-sau?thu_tuc=${thuTuc}&to_date=${toDate}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
@@ -165,7 +166,7 @@ interface ChuyenVienData {
 }
 
 async function fetchChuyenVien(thuTuc: number, fromDate: string, toDate: string): Promise<ChuyenVienData> {
-  const url = `${BASE}/api/stats/chuyen-vien?thu_tuc=${thuTuc}&from_date=${fromDate}&to_date=${toDate}`;
+  const url = `${API}/stats/chuyen-vien?thu_tuc=${thuTuc}&from_date=${fromDate}&to_date=${toDate}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
@@ -186,7 +187,7 @@ interface MonthlyData {
 }
 
 async function fetchMonthly(thuTuc: number): Promise<MonthlyData> {
-  const url = `${BASE}/api/stats/monthly?thu_tuc=${thuTuc}`;
+  const url = `${API}/stats/monthly?thu_tuc=${thuTuc}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();

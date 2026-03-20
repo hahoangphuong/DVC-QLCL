@@ -67,10 +67,9 @@ export default defineConfig({
       deny: ["**/.*"],
     },
     proxy: {
-      "/dashboard/api": {
-        target: "http://localhost:8000",
+      "/api": {
+        target: "http://localhost:8080",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/dashboard\/api/, ""),
       },
     },
   },
