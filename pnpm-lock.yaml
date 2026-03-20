@@ -184,6 +184,9 @@ importers:
       express:
         specifier: ^5
         version: 5.2.1
+      pg:
+        specifier: ^8.20.0
+        version: 8.20.0
     devDependencies:
       '@types/cookie-parser':
         specifier: ^1.4.10
@@ -197,6 +200,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 25.3.5
+      '@types/pg':
+        specifier: ^8.18.0
+        version: 8.18.0
       esbuild:
         specifier: 0.27.3
         version: 0.27.3
