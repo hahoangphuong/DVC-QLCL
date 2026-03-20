@@ -667,13 +667,13 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
   const handleTatCa = useCallback(async () => {
     setLoadingAll(true);
     try {
-      const earliest = await fetchEarliestDate(thuTuc);
+      const earliest = await fetchEarliestDate(48);
       const today = toYMD(new Date());
       applyDates(earliest, today, "tat_ca");
     } finally {
       setLoadingAll(false);
     }
-  }, [thuTuc, applyDates]);
+  }, [applyDates]);
 
   const handleFromBlur = () => {
     const parsed = parseDMY(fromInput);
@@ -762,7 +762,7 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                 loadingAll ? "opacity-60 cursor-wait" : "",
               ].join(" ")}
             >
-              {loadingAll ? "..." : "Cộng dồn"}
+              {loadingAll ? "..." : "Tất cả"}
             </button>
             {QUICK_FILTERS.map(({ key, label }) => (
               <button
