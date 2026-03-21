@@ -362,7 +362,11 @@ router.get("/stats/monthly", async (req, res) => {
 
     const nhanMap = new Map(nhanRows.map(r => [`${r.yr}-${r.mo}`, Number(r.cnt)]));
     const gqMap = new Map(gqRows.map(r => [`${r.yr}-${r.mo}`, Number(r.cnt)]));
-    const allKeys = [...new Set([...nhanMap.keys(), ...gqMap.keys()])].sort();
+    const allKeys = [...new Set([...nhanMap.keys(), ...gqMap.keys()])].sort((a, b) => {
+      const [aYr, aMo] = a.split("-").map(Number);
+      const [bYr, bMo] = b.split("-").map(Number);
+      return aYr !== bYr ? aYr - bYr : aMo - bMo;
+    });
 
     let cumNhan = 0, cumGq = 0;
     const months = allKeys.map(key => {
