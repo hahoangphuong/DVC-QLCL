@@ -259,20 +259,37 @@ router.get("/stats/chuyen-vien", async (req, res) => {
          FROM base
          GROUP BY cv_name
        ),
-       -- TREO: với mỗi maHoSo, lấy bản ghi xử lý gần nhất (id lớn nhất).
-       -- Nếu trạng thái là 4 (Cần bổ sung) → hồ sơ đang TREO cho chuyên viên đó.
-       latest_per_ho_so AS (
+       -- TREO: da_xu_ly mới nhất (ngayTiepNhan DESC) per maHoSo có trangThaiHoSo=4,
+       -- VÀ tra_cuu_chung mới nhất của maHoSo đó có ngayTiepNhan <= DXL
+       -- (doanh nghiệp chưa nộp bổ sung lại). Tên CV tra qua tra_cuu_chung.
+       latest_dxl_treo AS (
          SELECT DISTINCT ON (data->>'maHoSo')
-           COALESCE(NULLIF(TRIM(data->>'chuyenVienThuLyName'), ''), '__CHUA_PHAN__') AS cv_name,
-           data->>'trangThaiHoSo' AS trang_thai
+           data->>'maHoSo'                     AS ma_ho_so,
+           data->>'trangThaiHoSo'               AS trang_thai,
+           (data->>'ngayTiepNhan')::timestamptz AS ngay_nhan_dxl
+         FROM da_xu_ly
+         WHERE thu_tuc = $1
+           AND NULLIF(data->>'ngayTiepNhan','') IS NOT NULL
+         ORDER BY data->>'maHoSo', (data->>'ngayTiepNhan')::timestamptz DESC
+       ),
+       latest_tcc_treo AS (
+         SELECT DISTINCT ON (data->>'maHoSo')
+           data->>'maHoSo'                     AS ma_ho_so,
+           TRIM(data->>'chuyenVienThuLyName')   AS cv_name,
+           (data->>'ngayTiepNhan')::timestamptz AS ngay_nhan_tcc
          FROM tra_cuu_chung
          WHERE (data->>'thuTucId')::int = $1
-         ORDER BY data->>'maHoSo', (data->>'id')::int DESC
+           AND NULLIF(data->>'ngayTiepNhan','') IS NOT NULL
+         ORDER BY data->>'maHoSo', (data->>'ngayTiepNhan')::timestamptz DESC
        ),
        treo_by_cv AS (
-         SELECT cv_name, COUNT(*) AS treo
-         FROM latest_per_ho_so
-         WHERE trang_thai = '4'
+         SELECT
+           COALESCE(NULLIF(lt.cv_name, ''), '__CHUA_PHAN__') AS cv_name,
+           COUNT(*) AS treo
+         FROM latest_dxl_treo ld
+         JOIN latest_tcc_treo lt ON lt.ma_ho_so = ld.ma_ho_so
+         WHERE ld.trang_thai = '4'
+           AND lt.ngay_nhan_tcc <= ld.ngay_nhan_dxl
          GROUP BY cv_name
        )
        SELECT s.*, COALESCE(t.treo, 0) AS treo
