@@ -5,6 +5,7 @@ import {
   ResponsiveContainer, Cell, LabelList,
   PieChart, Pie, Legend,
   ComposedChart, Line,
+  AreaChart, Area,
 } from "recharts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Router as WouterRouter } from "wouter";
@@ -192,6 +193,40 @@ async function fetchMonthly(thuTuc: number): Promise<MonthlyData> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
+}
+
+interface DangXuLyRow {
+  cv_name: string;
+  tong: number;
+  cho_cv: number;
+  cho_cg: number;
+  cho_trp: number;
+  cho_van_thu: number;
+  con_han: number;
+  qua_han: number;
+  cham_so_ngay: number;
+  cham_ma: string | null;
+  cham_ngay: string | null;
+}
+interface DangXuLyData {
+  thu_tuc: number;
+  cho_phan_cong: DangXuLyRow | null;
+  rows: DangXuLyRow[];
+  months: { label: string; year: number; month: number; cnt: number }[];
+}
+
+async function fetchDangXuLy(thuTuc: number): Promise<DangXuLyData> {
+  const url = `${API}/stats/dang-xu-ly?thu_tuc=${thuTuc}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+function isoToDisplay(iso: string | null): string {
+  if (!iso) return "";
+  const d = iso.split("T")[0];
+  const [y, m, day] = d.split("-");
+  return `${day}-${m}-${y}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -931,14 +966,290 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 }
 
 // ---------------------------------------------------------------------------
-// Tab: ĐANG XỬ LÝ (tab 2, 4, 6 — placeholder)
+// Tab: ĐANG XỬ LÝ (tab 2, 4, 6)
 // ---------------------------------------------------------------------------
+
+const CHO_COLORS = {
+  cho_cv:  { fill: "#3b82f6", label: "Chờ CV",  text: "#1d4ed8" },
+  cho_cg:  { fill: "#22c55e", label: "Chờ CG",  text: "#15803d" },
+  cho_trp: { fill: "#f97316", label: "Chờ TrP", text: "#c2410c" },
+} as const;
+
 function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["dang-xu-ly", thuTuc],
+    queryFn:  () => fetchDangXuLy(thuTuc),
+    retry: 2,
+  });
+
+  if (isLoading) return (
+    <div className="flex items-center justify-center h-48 text-slate-400 text-sm gap-2">
+      <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+      Đang tải dữ liệu...
+    </div>
+  );
+  if (isError || !data) return (
+    <div className="flex items-center justify-center h-48 text-red-400 text-sm">
+      Không thể tải dữ liệu đang xử lý TT{thuTuc}
+    </div>
+  );
+
+  const allRows   = data.rows;
+  const cpc       = data.cho_phan_cong;
+  const months    = data.months;
+
+  // Aggregate totals for charts
+  const totCv  = allRows.reduce((s, r) => s + r.cho_cv,  0);
+  const totCg  = allRows.reduce((s, r) => s + r.cho_cg,  0);
+  const totTrp = allRows.reduce((s, r) => s + r.cho_trp, 0);
+  const totCon = allRows.reduce((s, r) => s + r.con_han, 0) + (cpc?.con_han ?? 0);
+  const totQua = allRows.reduce((s, r) => s + r.qua_han, 0) + (cpc?.qua_han ?? 0);
+  const grandTotal = totCon + totQua;
+  const pctQua = grandTotal > 0 ? Math.round(totQua / grandTotal * 100) : 0;
+  const pctCon = 100 - pctQua;
+
+  const catData = [
+    { name: "Chờ CV",  value: totCv,  fill: CHO_COLORS.cho_cv.fill  },
+    { name: "Chờ CG",  value: totCg,  fill: CHO_COLORS.cho_cg.fill  },
+    { name: "Chờ TrP", value: totTrp, fill: CHO_COLORS.cho_trp.fill },
+  ].filter(d => d.value > 0);
+
+  const hanData = [
+    { name: `Còn hạn (${pctCon}%)`, value: totCon, fill: "#3b82f6" },
+    { name: `Quá hạn (${pctQua}%)`, value: totQua, fill: "#f97316" },
+  ];
+
+  const catTotal = catData.reduce((s, d) => s + d.value, 0);
+  const renderPieLabel = ({ cx, cy, midAngle, outerRadius, value }: any) => {
+    if (catTotal === 0) return null;
+    const RADIAN = Math.PI / 180;
+    const r = outerRadius * 0.65;
+    const x = cx + r * Math.cos(-midAngle * RADIAN);
+    const y = cy + r * Math.sin(-midAngle * RADIAN);
+    const pct = Math.round(value / catTotal * 100);
+    if (pct < 5) return null;
+    return <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight={700}>{pct}%</text>;
+  };
+
+  const renderHanLabel = ({ cx, cy, midAngle, outerRadius, value }: any) => {
+    const RADIAN = Math.PI / 180;
+    const r = outerRadius * 0.62;
+    const x = cx + r * Math.cos(-midAngle * RADIAN);
+    const y = cy + r * Math.sin(-midAngle * RADIAN);
+    const pct = grandTotal > 0 ? Math.round(value / grandTotal * 100) : 0;
+    if (pct < 5) return null;
+    return <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={14} fontWeight={700}>{pct}%</text>;
+  };
+
+  // Table cell helpers
+  const numCell = (val: number, bg?: string, bold?: boolean) => (
+    <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${bg ?? ""} ${bold ? "font-bold" : ""}`}>
+      {val || ""}
+    </td>
+  );
+  const pctCell = (qua: number, tot: number) => {
+    const p = tot > 0 ? Math.round(qua / tot * 100) : 0;
+    const color = p >= 95 ? "text-red-600" : p >= 85 ? "text-orange-600" : "text-slate-600";
+    return (
+      <td className={`px-2 py-1.5 text-center text-xs font-semibold whitespace-nowrap ${color}`}>
+        {tot > 0 ? `${p}%` : ""}
+      </td>
+    );
+  };
+
+  const renderRow = (row: DangXuLyRow, idx: number | null) => {
+    const pct = row.tong > 0 ? Math.round(row.qua_han / row.tong * 100) : 0;
+    const isCpc = idx === null;
+    const bgRow = isCpc ? "bg-amber-50" : idx % 2 === 0 ? "bg-white" : "bg-slate-50";
+    const cvLabel = isCpc ? "Chờ phân công ..." : cleanCvName(row.cv_name);
+
+    const chamSoNgay = row.cham_so_ngay;
+    // Nếu quá hạn: dùng soNgayQuaHan; nếu còn hạn: dùng số ngày kể từ ngayTiepNhan
+    const tgDisplay = chamSoNgay > 0
+      ? chamSoNgay
+      : row.cham_ngay
+        ? Math.floor((Date.now() - new Date(row.cham_ngay).getTime()) / 86400000)
+        : 0;
+    const isOverdue = chamSoNgay > 0;
+    const tgColor = isOverdue && tgDisplay >= 300 ? "text-red-600 font-bold"
+      : isOverdue && tgDisplay >= 100 ? "text-orange-600 font-semibold"
+      : "text-slate-600";
+
+    return (
+      <tr key={row.cv_name} className={`${bgRow} hover:bg-blue-50 transition-colors`}>
+        {/* STT sticky */}
+        <td className={`sticky left-0 z-10 px-1 py-1.5 text-center text-xs text-slate-400 w-9 ${bgRow}`}>
+          {idx !== null ? idx + 1 : ""}
+        </td>
+        {/* CV name sticky */}
+        <td className={`sticky left-9 z-10 px-3 py-1.5 text-xs font-medium text-slate-700 min-w-[160px] max-w-[220px] ${bgRow}`}
+            style={{ boxShadow: "2px 0 4px -1px rgba(0,0,0,0.08)" }}>
+          {cvLabel}
+        </td>
+        {/* TỔNG */}
+        <td className={`px-2 py-1.5 text-center text-xs font-bold whitespace-nowrap ${row.tong > 100 ? "text-pink-700 bg-pink-50" : "text-slate-700"}`}>
+          {row.tong}
+        </td>
+        {/* Chờ CV */}
+        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_cv > 50 ? "bg-blue-100 text-blue-800 font-bold" : row.cho_cv > 0 ? "text-blue-700" : "text-slate-300"}`}>
+          {row.cho_cv || ""}
+        </td>
+        {/* Chờ CG */}
+        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_cg > 30 ? "bg-green-100 text-green-800 font-bold" : row.cho_cg > 0 ? "text-green-700" : "text-slate-300"}`}>
+          {row.cho_cg || ""}
+        </td>
+        {/* Chờ TrP */}
+        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_trp > 0 ? "text-orange-700" : "text-slate-300"}`}>
+          {row.cho_trp || ""}
+        </td>
+        {/* Còn hạn */}
+        {numCell(row.con_han, row.con_han > 0 ? "text-blue-600" : "text-slate-300")}
+        {/* Quá hạn */}
+        <td className={`px-2 py-1.5 text-center text-xs font-bold whitespace-nowrap ${row.qua_han > 70 ? "bg-orange-100 text-orange-800" : row.qua_han > 0 ? "text-orange-700" : "text-slate-300"}`}>
+          {row.qua_han || ""}
+        </td>
+        {/* % quá hạn */}
+        {pctCell(row.qua_han, row.tong)}
+        {/* Thời gian chờ */}
+        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap bg-rose-50 ${tgColor}`}>
+          {tgDisplay > 0 ? `${tgDisplay} ngày` : ""}
+        </td>
+        {/* Nộp từ */}
+        <td className="px-2 py-1.5 text-center text-xs whitespace-nowrap bg-rose-50 text-slate-600">
+          {isoToDisplay(row.cham_ngay)}
+        </td>
+        {/* Mã hs */}
+        <td className="px-2 py-1.5 text-center text-xs whitespace-nowrap bg-rose-50 text-slate-600 font-mono">
+          {row.cham_ma ?? ""}
+        </td>
+      </tr>
+    );
+  };
+
+  // Summary totals row
+  const totRow = [...allRows, ...(cpc ? [cpc] : [])];
+  const sumTong  = totRow.reduce((s, r) => s + r.tong, 0);
+  const sumCv    = totRow.reduce((s, r) => s + r.cho_cv, 0);
+  const sumCg    = totRow.reduce((s, r) => s + r.cho_cg, 0);
+  const sumTrp   = totRow.reduce((s, r) => s + r.cho_trp, 0);
+  const sumCon   = totRow.reduce((s, r) => s + r.con_han, 0);
+  const sumQua   = totRow.reduce((s, r) => s + r.qua_han, 0);
+
   return (
-    <div className="flex flex-col items-center justify-center h-48 text-slate-400 text-sm">
-      <div className="text-4xl mb-3">📋</div>
-      <div className="font-medium">Dữ liệu hồ sơ đang xử lý TT{thuTuc}</div>
-      <div className="text-xs mt-1">Sẽ được triển khai tiếp theo</div>
+    <div className="p-4 space-y-4">
+      {/* Title bar */}
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+          Hồ sơ đang giải quyết — TT{thuTuc}
+        </h2>
+        <span className="text-xs text-slate-400 italic">
+          Tổng: <strong className="text-slate-600">{grandTotal}</strong> hồ sơ đang xử lý
+        </span>
+      </div>
+
+      {/* Charts row */}
+      <div className="grid grid-cols-3 gap-4">
+        {/* Donut: Chờ CV / CG / TrP */}
+        <div className="bg-white rounded-xl border border-slate-200 p-3">
+          <p className="text-xs font-semibold text-slate-500 mb-1 text-center">Phân loại theo đơn vị xử lý</p>
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
+              <Pie data={catData} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
+                dataKey="value" labelLine={false} label={renderPieLabel}>
+                {catData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+              </Pie>
+              <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
+              <Tooltip formatter={(v: number) => [v.toLocaleString("vi-VN"), ""]} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Pie: Còn hạn / Quá hạn */}
+        <div className="bg-white rounded-xl border border-slate-200 p-3">
+          <p className="text-xs font-semibold text-slate-500 mb-1 text-center">Còn hạn / Quá hạn</p>
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
+              <Pie data={hanData} cx="50%" cy="50%" outerRadius={80}
+                dataKey="value" labelLine={false} label={renderHanLabel}>
+                {hanData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+              </Pie>
+              <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
+              <Tooltip formatter={(v: number) => [v.toLocaleString("vi-VN"), ""]} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Area: Phân bổ theo thời gian tiếp nhận */}
+        <div className="bg-white rounded-xl border border-slate-200 p-3">
+          <p className="text-xs font-semibold text-slate-500 mb-1 text-center">Phân bổ theo thời gian tiếp nhận</p>
+          <ResponsiveContainer width="100%" height={180}>
+            <AreaChart data={months} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 9 }} interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 9 }} />
+              <Tooltip formatter={(v: number) => [v.toLocaleString("vi-VN"), "Số hồ sơ"]} />
+              <Area type="monotone" dataKey="cnt" stroke="#3b82f6" fill="#93c5fd" strokeWidth={2} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="bg-slate-700 text-white">
+                <th className="sticky left-0 z-20 bg-slate-700 px-1 py-2 text-center w-9 text-xs" rowSpan={2}>STT</th>
+                <th className="sticky left-9 z-20 bg-slate-700 px-3 py-2 text-left text-xs min-w-[160px]"
+                    rowSpan={2} style={{ boxShadow: "2px 0 4px -1px rgba(0,0,0,0.15)" }}>
+                  Chuyên viên
+                </th>
+                <th className="px-2 py-2 text-center text-xs bg-slate-600" rowSpan={2}>TỔNG</th>
+                <th className="px-2 py-2 text-center text-xs bg-blue-600" colSpan={3}>ĐANG GIẢI QUYẾT</th>
+                <th className="px-2 py-2 text-center text-xs bg-green-700" rowSpan={2}>Còn<br/>hạn</th>
+                <th className="px-2 py-2 text-center text-xs bg-orange-600" rowSpan={2}>Quá<br/>hạn</th>
+                <th className="px-2 py-2 text-center text-xs bg-orange-700" rowSpan={2}>% quá<br/>hạn</th>
+                <th className="px-2 py-2 text-center text-xs bg-rose-700" colSpan={3}>Hồ sơ chậm nhất</th>
+              </tr>
+              <tr className="bg-slate-600 text-white">
+                <th className="px-2 py-1 text-center text-xs bg-blue-700">Chờ CV</th>
+                <th className="px-2 py-1 text-center text-xs bg-green-600">Chờ CG</th>
+                <th className="px-2 py-1 text-center text-xs bg-orange-600">Chờ TrP</th>
+                <th className="px-2 py-1 text-center text-xs bg-rose-600">Thời gian chờ</th>
+                <th className="px-2 py-1 text-center text-xs bg-rose-600">Nộp từ</th>
+                <th className="px-2 py-1 text-center text-xs bg-rose-600">Mã hs</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {/* Chờ phân công row */}
+              {cpc && renderRow(cpc, null)}
+              {/* CV rows */}
+              {allRows.map((row, idx) => renderRow(row, idx))}
+            </tbody>
+            {/* Totals */}
+            <tfoot>
+              <tr className="bg-slate-100 font-bold text-slate-700 border-t-2 border-slate-300">
+                <td className="sticky left-0 z-10 bg-slate-100 px-1 py-2 text-center text-xs" />
+                <td className="sticky left-9 z-10 bg-slate-100 px-3 py-2 text-xs font-bold"
+                    style={{ boxShadow: "2px 0 4px -1px rgba(0,0,0,0.08)" }}>TỔNG</td>
+                <td className="px-2 py-2 text-center text-xs font-bold text-slate-700">{sumTong}</td>
+                <td className="px-2 py-2 text-center text-xs text-blue-700">{sumCv}</td>
+                <td className="px-2 py-2 text-center text-xs text-green-700">{sumCg}</td>
+                <td className="px-2 py-2 text-center text-xs text-orange-700">{sumTrp}</td>
+                <td className="px-2 py-2 text-center text-xs text-blue-600">{sumCon}</td>
+                <td className="px-2 py-2 text-center text-xs text-orange-700 font-bold">{sumQua}</td>
+                <td className="px-2 py-2 text-center text-xs text-orange-700">
+                  {sumTong > 0 ? `${Math.round(sumQua / sumTong * 100)}%` : ""}
+                </td>
+                <td className="px-2 py-2 bg-rose-50" />
+                <td className="px-2 py-2 bg-rose-50" />
+                <td className="px-2 py-2 bg-rose-50" />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

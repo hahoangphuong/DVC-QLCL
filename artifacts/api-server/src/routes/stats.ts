@@ -401,4 +401,122 @@ router.get("/stats/monthly", async (req, res) => {
   }
 });
 
+// GET /stats/dang-xu-ly
+// Hồ sơ đang xử lý: nhóm theo CV, phân loại theo tenDonViXuLy, tìm hồ sơ chậm nhất
+router.get("/stats/dang-xu-ly", async (req, res) => {
+  const thuTuc = validateThuTuc(req.query["thu_tuc"]);
+  if (!thuTuc) return void res.status(400).json({ detail: "thu_tuc phải là 46, 47, hoặc 48" });
+  try {
+    const rows = await query<{
+      cv_name: string;
+      tong: string;
+      cho_cv: string;
+      cho_cg: string;
+      cho_trp: string;
+      cho_van_thu: string;
+      con_han: string;
+      qua_han: string;
+      cham_so_ngay: string;
+      cham_ma: string;
+      cham_ngay: string;
+    }>(
+      `WITH cv_from_tcc AS (
+         SELECT DISTINCT ON (data->>'maHoSo')
+           data->>'maHoSo'                                                          AS ma_ho_so,
+           COALESCE(NULLIF(TRIM(data->>'chuyenVienThuLyName'), ''), '__CHUA_PHAN__') AS cv_name
+         FROM tra_cuu_chung
+         WHERE (data->>'thuTucId')::int = $1
+           AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
+         ORDER BY data->>'maHoSo', (data->>'ngayTiepNhan')::timestamptz DESC
+       ),
+       base AS (
+         SELECT
+           COALESCE(c.cv_name, '__CHUA_PHAN__')                          AS cv_name,
+           d.data->>'tenDonViXuLy'                                        AS don_vi,
+           d.data->>'maHoSo'                                              AS ma_ho_so,
+           COALESCE(NULLIF(d.data->>'soNgayQuaHan', ''), '0')::int        AS qua_han_ngay,
+           d.data->>'ngayTiepNhan'                                        AS ngay_nhan
+         FROM dang_xu_ly d
+         LEFT JOIN cv_from_tcc c ON c.ma_ho_so = d.data->>'maHoSo'
+         WHERE d.thu_tuc = $1
+       ),
+       stats AS (
+         SELECT
+           cv_name,
+           COUNT(*)                                                            AS tong,
+           COUNT(*) FILTER (WHERE don_vi = 'Chuyên viên')                     AS cho_cv,
+           COUNT(*) FILTER (WHERE don_vi IN ('Chuyên gia thẩm định',
+                                              'Tổ trưởng chuyên gia'))         AS cho_cg,
+           COUNT(*) FILTER (WHERE don_vi = 'Trưởng phòng')                    AS cho_trp,
+           COUNT(*) FILTER (WHERE don_vi = 'Phòng ban phân công')              AS cho_van_thu,
+           COUNT(*) FILTER (WHERE qua_han_ngay <= 0)                          AS con_han,
+           COUNT(*) FILTER (WHERE qua_han_ngay > 0)                           AS qua_han
+         FROM base
+         GROUP BY cv_name
+       ),
+       cham_nhat AS (
+         SELECT DISTINCT ON (cv_name)
+           cv_name,
+           qua_han_ngay AS cham_so_ngay,
+           ma_ho_so     AS cham_ma,
+           ngay_nhan    AS cham_ngay
+         FROM base
+         ORDER BY cv_name, qua_han_ngay DESC
+       )
+       SELECT s.*, cn.cham_so_ngay, cn.cham_ma, cn.cham_ngay
+       FROM stats s
+       LEFT JOIN cham_nhat cn ON cn.cv_name = s.cv_name
+       ORDER BY s.tong DESC`,
+      [thuTuc]
+    );
+
+    const monthRows = await query<{ yr: string; mo: string; cnt: string }>(
+      `SELECT
+         EXTRACT(YEAR  FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
+         EXTRACT(MONTH FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS mo,
+         COUNT(*) AS cnt
+       FROM dang_xu_ly
+       WHERE thu_tuc = $1
+         AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
+       GROUP BY 1, 2 ORDER BY 1, 2`,
+      [thuTuc]
+    );
+
+    const toN = (v: unknown) => Number(v) || 0;
+    const fmt = (r: (typeof rows)[0]) => ({
+      cv_name:       r.cv_name,
+      tong:          toN(r.tong),
+      cho_cv:        toN(r.cho_cv),
+      cho_cg:        toN(r.cho_cg),
+      cho_trp:       toN(r.cho_trp),
+      cho_van_thu:   toN(r.cho_van_thu),
+      con_han:       toN(r.con_han),
+      qua_han:       toN(r.qua_han),
+      cham_so_ngay:  toN(r.cham_so_ngay),
+      cham_ma:       r.cham_ma  ?? null,
+      cham_ngay:     r.cham_ngay ?? null,
+    });
+
+    const choPhanCong = rows.find(r => r.cv_name === "__CHUA_PHAN__");
+    const cvRows      = rows.filter(r => r.cv_name !== "__CHUA_PHAN__");
+
+    const months = monthRows.map(r => ({
+      label: `T${r.mo}-${r.yr}`,
+      year:  Number(r.yr),
+      month: Number(r.mo),
+      cnt:   Number(r.cnt),
+    }));
+
+    res.json({
+      thu_tuc:        thuTuc,
+      cho_phan_cong:  choPhanCong ? fmt(choPhanCong) : null,
+      rows:           cvRows.map(fmt),
+      months,
+    });
+  } catch (e: unknown) {
+    res.status(500).json({ detail: String(e) });
+  }
+});
+
 export default router;
+
