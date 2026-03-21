@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "5F1qkKVJr63Ndwpc3kBHk"
+uri = "file://project_export.zip"
+type = "unspecified"
+title = "Toàn bộ source code project (1.4 MB)"
