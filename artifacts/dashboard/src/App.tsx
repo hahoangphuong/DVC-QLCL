@@ -155,6 +155,7 @@ interface ChuyenVienRow {
   ton_sau_tong:    number;
   ton_sau_con_han: number;
   ton_sau_qua_han: number;
+  treo:            number;
 }
 
 interface ChuyenVienData {
@@ -442,6 +443,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
     ton_sau_tong:    cvSum(rows, "ton_sau_tong"),
     ton_sau_con_han: cvSum(rows, "ton_sau_con_han"),
     ton_sau_qua_han: cvSum(rows, "ton_sau_qua_han"),
+    treo:            cvSum(rows, "treo"),
   };
   const tot_pct_dh = totals.gq_tong > 0 ? Math.round(totals.dung_han / totals.gq_tong * 100) : 0;
   const tot_pct_gq = (totals.ton_truoc + totals.da_nhan) > 0
@@ -475,11 +477,12 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
         <td className={`${tdC} font-bold text-slate-700`}><Num v={row.ton_sau_tong} /></td>
         <td className={tdC}><Num v={row.ton_sau_con_han} color="#2563eb" /></td>
         <td className={tdC}><Num v={row.ton_sau_qua_han} color="#dc2626" /></td>
+        <td className={tdC}><Num v={row.treo} color="#ea580c" bold /></td>
       </tr>
     );
   }
 
-  const colSpan = 16;
+  const colSpan = 17;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
@@ -510,6 +513,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
               <th className={`${thC} bg-green-800 text-white`} rowSpan={2}>%&nbsp;GQ<br />đúng hạn</th>
               <th className={`${thC} bg-green-800 text-white`} rowSpan={2}>%&nbsp;đã<br />GQ</th>
               <th className={`${thC} bg-amber-700 text-white`} colSpan={3}>Tồn sau</th>
+              <th className={`${thC} bg-orange-600 text-white`} rowSpan={2}>TREO</th>
             </tr>
             <tr className="bg-slate-100">
               <th className={`${thC} bg-green-50`}>Tổng</th>
@@ -561,6 +565,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
                     <td className={tdC}><Num v={cpc.ton_sau_tong} color="#b45309" bold /></td>
                     <td className={tdC}><Num v={cpc.ton_sau_con_han} color="#2563eb" /></td>
                     <td className={tdC}><Num v={cpc.ton_sau_qua_han} color="#dc2626" /></td>
+                    <td className={tdC}><Num v={cpc.treo} color="#ea580c" bold /></td>
                   </tr>
                 )}
                 {rows.map((row, idx) => <CvRow key={row.ten_cv} row={row} idx={idx} />)}
@@ -590,6 +595,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
                 <td className={tdC}><Num v={totals.ton_sau_tong}    bold /></td>
                 <td className={tdC}><Num v={totals.ton_sau_con_han} color="#2563eb" bold /></td>
                 <td className={tdC}><Num v={totals.ton_sau_qua_han} color="#dc2626" bold /></td>
+                <td className={tdC}><Num v={totals.treo}            color="#ea580c" bold /></td>
               </tr>
             </tfoot>
           )}

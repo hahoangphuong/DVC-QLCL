@@ -223,6 +223,7 @@ router.get("/stats/chuyen-vien", async (req, res) => {
       can_bo_sung: string; khong_dat: string; hoan_thanh: string;
       dung_han: string; qua_han: string; tg_tb: string | null;
       ton_sau_tong: string; ton_sau_con_han: string; ton_sau_qua_han: string;
+      treo: string;
     }>(
       `WITH base AS (
           SELECT
@@ -239,23 +240,44 @@ router.get("/stats/chuyen-vien", async (req, res) => {
             ON t.data->>'id' = d.data->>'id'
            AND d.thu_tuc = $1
           WHERE (t.data->>'thuTucId')::int = $1
+       ),
+       stats AS (
+         SELECT
+           cv_name,
+           COUNT(*) FILTER (WHERE ngay_nhan < $2 AND (ngay_tra IS NULL OR ngay_tra >= $2)) AS ton_truoc,
+           COUNT(*) FILTER (WHERE ngay_nhan >= $2 AND ngay_nhan <= $3) AS da_nhan,
+           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3) AS gq_tong,
+           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND trang_thai = '4') AS can_bo_sung,
+           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND trang_thai = '7') AS khong_dat,
+           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND trang_thai = '6') AS hoan_thanh,
+           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND kq_hen_tra IS NOT NULL AND ngay_tra <= kq_hen_tra) AS dung_han,
+           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND (kq_hen_tra IS NULL OR ngay_tra > kq_hen_tra)) AS qua_han,
+           ROUND(AVG(EXTRACT(EPOCH FROM (ngay_tra - ngay_nhan)) / 86400.0) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3))::int AS tg_tb,
+           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3)) AS ton_sau_tong,
+           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3) AND nhan_hen_tra IS NOT NULL AND nhan_hen_tra > $3) AS ton_sau_con_han,
+           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3) AND (nhan_hen_tra IS NULL OR nhan_hen_tra <= $3)) AS ton_sau_qua_han
+         FROM base
+         GROUP BY cv_name
+       ),
+       -- TREO: với mỗi maHoSo, lấy bản ghi xử lý gần nhất (id lớn nhất).
+       -- Nếu trạng thái là 4 (Cần bổ sung) → hồ sơ đang TREO cho chuyên viên đó.
+       latest_per_ho_so AS (
+         SELECT DISTINCT ON (data->>'maHoSo')
+           COALESCE(NULLIF(TRIM(data->>'chuyenVienThuLyName'), ''), '__CHUA_PHAN__') AS cv_name,
+           data->>'trangThaiHoSo' AS trang_thai
+         FROM tra_cuu_chung
+         WHERE (data->>'thuTucId')::int = $1
+         ORDER BY data->>'maHoSo', (data->>'id')::int DESC
+       ),
+       treo_by_cv AS (
+         SELECT cv_name, COUNT(*) AS treo
+         FROM latest_per_ho_so
+         WHERE trang_thai = '4'
+         GROUP BY cv_name
        )
-       SELECT
-         cv_name,
-         COUNT(*) FILTER (WHERE ngay_nhan < $2 AND (ngay_tra IS NULL OR ngay_tra >= $2)) AS ton_truoc,
-         COUNT(*) FILTER (WHERE ngay_nhan >= $2 AND ngay_nhan <= $3) AS da_nhan,
-         COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3) AS gq_tong,
-         COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND trang_thai = '4') AS can_bo_sung,
-         COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND trang_thai = '7') AS khong_dat,
-         COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND trang_thai = '6') AS hoan_thanh,
-         COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND kq_hen_tra IS NOT NULL AND ngay_tra <= kq_hen_tra) AS dung_han,
-         COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND (kq_hen_tra IS NULL OR ngay_tra > kq_hen_tra)) AS qua_han,
-         ROUND(AVG(EXTRACT(EPOCH FROM (ngay_tra - ngay_nhan)) / 86400.0) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3))::int AS tg_tb,
-         COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3)) AS ton_sau_tong,
-         COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3) AND nhan_hen_tra IS NOT NULL AND nhan_hen_tra > $3) AS ton_sau_con_han,
-         COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3) AND (nhan_hen_tra IS NULL OR nhan_hen_tra <= $3)) AS ton_sau_qua_han
-       FROM base
-       GROUP BY cv_name`,
+       SELECT s.*, COALESCE(t.treo, 0) AS treo
+       FROM stats s
+       LEFT JOIN treo_by_cv t ON s.cv_name = t.cv_name`,
       [thuTuc, fromDt, toDt]
     );
 
@@ -283,6 +305,7 @@ router.get("/stats/chuyen-vien", async (req, res) => {
         ton_sau_tong: Number(r.ton_sau_tong),
         ton_sau_con_han: Number(r.ton_sau_con_han),
         ton_sau_qua_han: Number(r.ton_sau_qua_han),
+        treo: Number(r.treo),
       };
       if (r.cv_name === "__CHUA_PHAN__") {
         choPhanCong = rec;
