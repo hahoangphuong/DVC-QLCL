@@ -974,7 +974,7 @@ function Dashboard() {
             <h1 className="text-base font-bold text-slate-800 leading-none">
               Dashboard Hồ Sơ PQLCL
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">Cục Quản lý Chất lượng Dược phẩm</p>
+            <p className="text-xs text-slate-500 mt-0.5">Cục Quản lý Dược</p>
           </div>
         </div>
 
