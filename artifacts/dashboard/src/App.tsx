@@ -520,12 +520,33 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
   const tot_pct_gq = (totals.ton_truoc + totals.da_nhan) > 0
     ? Math.round(totals.gq_tong / (totals.ton_truoc + totals.da_nhan) * 100) : 0;
 
+  // Tính ngưỡng top 30% cho từng cột cần highlight
+  function topThresh(vals: (number | null)[]): number {
+    const sorted = vals
+      .filter((v): v is number => typeof v === "number" && v > 0)
+      .sort((a, b) => b - a);
+    if (sorted.length === 0) return Infinity;
+    return sorted[Math.max(0, Math.ceil(sorted.length * 0.3) - 1)];
+  }
+  const hiThresh = {
+    ton_truoc:    topThresh(rows.map(r => r.ton_truoc)),
+    da_nhan:      topThresh(rows.map(r => r.da_nhan)),
+    gq_tong:      topThresh(rows.map(r => r.gq_tong)),
+    hoan_thanh:   topThresh(rows.map(r => r.hoan_thanh)),
+    tg_tb:        topThresh(rows.map(r => r.tg_tb)),
+    ton_sau_tong: topThresh(rows.map(r => r.ton_sau_tong)),
+  };
+  const isHi = (thresh: number, v: number | null | undefined) =>
+    v != null && v > 0 && v >= thresh;
+  // Trả về class td có thêm highlight nền vàng nhạt nếu đủ điều kiện
+  const hiTd = (thresh: number, v: number | null | undefined, extra = "") =>
+    `${tdC}${extra ? " " + extra : ""}${isHi(thresh, v) ? " bg-amber-100" : ""}`;
+
   function CvRow({ row, idx }: { row: ChuyenVienRow; idx: number }) {
     const bgCls  = idx % 2 === 0 ? "bg-white" : "bg-slate-50";
     const bgColor = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
-    const bg = bgCls;
     return (
-      <tr className={`${bg} hover:bg-blue-50/40 transition-colors`}>
+      <tr className={`${bgCls} hover:bg-blue-50/40 transition-colors`}>
         <td className={`${tdC} text-slate-400`}
             style={{ ...stickySTT, backgroundColor: bgColor, width: STT_W, minWidth: STT_W }}>
           {idx + 1}
@@ -534,18 +555,18 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
             style={{ ...stickyCV, backgroundColor: bgColor }}>
           {cleanCvName(row.ten_cv)}
         </td>
-        <td className={tdC}><Num v={row.ton_truoc} color="#be185d" bold /></td>
-        <td className={tdC}><Num v={row.da_nhan}   color="#1d4ed8" bold /></td>
-        <td className={`${tdC} font-bold text-slate-700`}><Num v={row.gq_tong} /></td>
+        <td className={hiTd(hiThresh.ton_truoc,    row.ton_truoc)}><Num v={row.ton_truoc} color="#be185d" bold /></td>
+        <td className={hiTd(hiThresh.da_nhan,       row.da_nhan)}><Num v={row.da_nhan}   color="#1d4ed8" bold /></td>
+        <td className={hiTd(hiThresh.gq_tong,       row.gq_tong, "font-bold text-slate-700")}><Num v={row.gq_tong} /></td>
         <td className={tdC}><Num v={row.can_bo_sung} color="#b45309" /></td>
         <td className={tdC}><Num v={row.khong_dat}   color="#dc2626" /></td>
-        <td className={tdC}><Num v={row.hoan_thanh}  color="#15803d" /></td>
+        <td className={hiTd(hiThresh.hoan_thanh,    row.hoan_thanh)}><Num v={row.hoan_thanh}  color="#15803d" /></td>
         <td className={tdC}><Num v={row.dung_han}    color="#15803d" /></td>
         <td className={tdC}><Num v={row.qua_han}     color="#dc2626" /></td>
-        <td className={tdC}><Num v={row.tg_tb} color="#6b7280" /></td>
+        <td className={hiTd(hiThresh.tg_tb,          row.tg_tb)}><Num v={row.tg_tb} color="#6b7280" /></td>
         <td className={tdC}><Pct v={row.pct_gq_dung_han} warnBelow={30} /></td>
         <td className={tdC}><Pct v={row.pct_da_gq} /></td>
-        <td className={`${tdC} font-bold text-slate-700`}><Num v={row.ton_sau_tong} /></td>
+        <td className={hiTd(hiThresh.ton_sau_tong,  row.ton_sau_tong, "font-bold text-slate-700")}><Num v={row.ton_sau_tong} /></td>
         <td className={tdC}><Num v={row.ton_sau_con_han} color="#2563eb" /></td>
         <td className={tdC}><Num v={row.ton_sau_qua_han} color="#dc2626" /></td>
         <td className={tdC}><Num v={row.treo} color="#ea580c" bold /></td>
