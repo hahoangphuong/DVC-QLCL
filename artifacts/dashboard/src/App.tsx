@@ -1255,20 +1255,20 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                     rowSpan={2} style={{ boxShadow: "2px 0 4px -1px rgba(0,0,0,0.15)" }}>
                   Chuyên viên
                 </th>
-                <th className="px-2 py-2 text-center text-xs bg-slate-600" rowSpan={2}>TỔNG</th>
-                <th className="px-2 py-2 text-center text-xs bg-blue-600" colSpan={6}>ĐANG GIẢI QUYẾT</th>
-                <th className="px-2 py-2 text-center text-xs bg-green-700" rowSpan={2}>Còn<br/>hạn</th>
-                <th className="px-2 py-2 text-center text-xs bg-orange-600" rowSpan={2}>Quá<br/>hạn</th>
-                <th className="px-2 py-2 text-center text-xs bg-orange-700" rowSpan={2}>% quá<br/>hạn</th>
+                <th className="px-2 py-2 text-center text-xs bg-blue-600" colSpan={10}>ĐANG GIẢI QUYẾT</th>
                 <th className="px-2 py-2 text-center text-xs bg-rose-700" colSpan={3}>Hồ sơ chậm nhất</th>
               </tr>
               <tr className="bg-slate-600 text-white">
+                <th className="px-2 py-1 text-center text-xs bg-slate-600 font-bold">TỔNG</th>
                 <th className="px-2 py-1 text-center text-xs bg-blue-700">Chờ CV</th>
                 <th className="px-2 py-1 text-center text-xs bg-green-600">Chờ CG</th>
                 <th className="px-2 py-1 text-center text-xs bg-emerald-600">Chờ Tổ<br/>trưởng</th>
                 <th className="px-2 py-1 text-center text-xs bg-orange-600">Chờ TrP</th>
                 <th className="px-2 py-1 text-center text-xs bg-purple-600">Chờ PCT</th>
                 <th className="px-2 py-1 text-center text-xs bg-slate-500">Chờ<br/>Văn thư</th>
+                <th className="px-2 py-1 text-center text-xs bg-green-700">Còn<br/>hạn</th>
+                <th className="px-2 py-1 text-center text-xs bg-orange-600">Quá<br/>hạn</th>
+                <th className="px-2 py-1 text-center text-xs bg-orange-700">% quá<br/>hạn</th>
                 <th className="px-2 py-1 text-center text-xs bg-rose-600">Thời gian chờ</th>
                 <th className="px-2 py-1 text-center text-xs bg-rose-600">Nộp từ</th>
                 <th className="px-2 py-1 text-center text-xs bg-rose-600">Mã hs</th>
