@@ -1,6 +1,10 @@
 import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+
+# Load .env nếu có; không lỗi nếu file không tồn tại
+load_dotenv()
 
 # Đọc DATABASE_URL từ environment variable (Replit tự cấp khi có PostgreSQL)
 DATABASE_URL = os.environ.get("DATABASE_URL")
