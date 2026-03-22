@@ -504,16 +504,16 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
 
   const totals: Record<string, number> = {
     ton_truoc:       cvSum(rows, "ton_truoc"),
-    da_nhan:         cvSum(rows, "da_nhan"),
+    da_nhan:         cvSum(rows, "da_nhan") + (cpc?.da_nhan ?? 0),
     gq_tong:         cvSum(rows, "gq_tong"),
     can_bo_sung:     cvSum(rows, "can_bo_sung"),
     khong_dat:       cvSum(rows, "khong_dat"),
     hoan_thanh:      cvSum(rows, "hoan_thanh"),
     dung_han:        cvSum(rows, "dung_han"),
     qua_han:         cvSum(rows, "qua_han"),
-    ton_sau_tong:    cvSum(rows, "ton_sau_tong"),
-    ton_sau_con_han: cvSum(rows, "ton_sau_con_han"),
-    ton_sau_qua_han: cvSum(rows, "ton_sau_qua_han"),
+    ton_sau_tong:    cvSum(rows, "ton_sau_tong")    + (cpc?.ton_sau_tong    ?? 0),
+    ton_sau_con_han: cvSum(rows, "ton_sau_con_han") + (cpc?.ton_sau_con_han ?? 0),
+    ton_sau_qua_han: cvSum(rows, "ton_sau_qua_han") + (cpc?.ton_sau_qua_han ?? 0),
     treo:            cvSum(rows, "treo"),
   };
   const tot_pct_dh = totals.gq_tong > 0 ? Math.round(totals.dung_han / totals.gq_tong * 100) : 0;
@@ -612,7 +612,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
             ) : (
               <>
                 {/* Hàng "Chờ phân công" nếu có */}
-                {cpc && cpc.ton_sau_tong > 0 && (
+                {cpc && (cpc.ton_sau_tong > 0 || cpc.da_nhan > 0) && (
                   <tr className="bg-yellow-50 border-b-2 border-yellow-200">
                     <td className={`${tdC} text-slate-400`}
                         style={{ ...stickySTT, backgroundColor: "#fefce8", width: STT_W, minWidth: STT_W }}>
@@ -623,7 +623,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
                       Chờ phân công...
                     </td>
                     <td className={tdC}></td>
-                    <td className={tdC}></td>
+                    <td className={tdC}><Num v={cpc.da_nhan} color="#1d4ed8" bold /></td>
                     <td className={tdC}></td>
                     <td className={tdC}></td>
                     <td className={tdC}></td>
