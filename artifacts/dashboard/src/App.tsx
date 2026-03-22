@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -1267,11 +1267,169 @@ const TABS = [
 ] as const;
 
 // ---------------------------------------------------------------------------
+// Admin Export Panel (chỉ hiển thị khi URL hash = #admin-export)
+// ---------------------------------------------------------------------------
+const EXPORT_TABLES = [
+  { id: "tra_cuu_chung", label: "Tra Cứu Chung",  desc: "Danh sách hồ sơ tiếp nhận" },
+  { id: "dang_xu_ly",    label: "Đang Xử Lý",     desc: "Hồ sơ đang trong quá trình xử lý" },
+  { id: "da_xu_ly",      label: "Đã Xử Lý",       desc: "Hồ sơ đã hoàn tất xử lý" },
+] as const;
+
+function AdminExportPanel({ onClose }: { onClose: () => void }) {
+  const STORAGE_KEY = "dav_admin_token";
+  const [token, setToken] = useState<string>(() => {
+    try { return localStorage.getItem(STORAGE_KEY) ?? ""; } catch { return ""; }
+  });
+  const [status, setStatus] = useState<Record<string, "idle" | "loading" | "error">>({});
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const saveToken = (v: string) => {
+    setToken(v);
+    try { localStorage.setItem(STORAGE_KEY, v); } catch { /* ignore */ }
+  };
+
+  const handleDownload = async (tableId: string) => {
+    if (!token.trim()) { alert("Vui lòng nhập mã xác thực trước."); return; }
+    setStatus(s => ({ ...s, [tableId]: "loading" }));
+    try {
+      const url = `${API}/admin/export/${tableId}?token=${encodeURIComponent(token.trim())}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+        alert(`Lỗi: ${err.detail ?? "Không thể tải file"}`);
+        setStatus(s => ({ ...s, [tableId]: "error" }));
+        return;
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get("Content-Disposition") ?? "";
+      const nameMatch = cd.match(/filename="?([^"]+)"?/);
+      const filename = nameMatch?.[1] ?? `${tableId}.xlsx`;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+      setStatus(s => ({ ...s, [tableId]: "idle" }));
+    } catch (e) {
+      alert(`Lỗi kết nối: ${String(e)}`);
+      setStatus(s => ({ ...s, [tableId]: "error" }));
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md mx-4 overflow-hidden">
+        {/* Header */}
+        <div className="bg-slate-800 px-6 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-white font-bold text-base">Xuất Dữ Liệu Excel</h2>
+            <p className="text-slate-400 text-xs mt-0.5">Chỉ dành cho quản trị viên</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white transition-colors text-xl font-bold leading-none"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Token input */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+              Mã xác thực
+            </label>
+            <input
+              ref={inputRef}
+              type="password"
+              value={token}
+              onChange={e => saveToken(e.target.value)}
+              placeholder="Nhập ADMIN_EXPORT_TOKEN..."
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 font-mono"
+            />
+            <p className="text-xs text-slate-400 mt-1">Mã được lưu tạm trong trình duyệt của bạn.</p>
+          </div>
+
+          {/* Download buttons */}
+          <div className="space-y-2.5">
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Chọn bảng dữ liệu</p>
+            {EXPORT_TABLES.map(t => {
+              const st = status[t.id] ?? "idle";
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => handleDownload(t.id)}
+                  disabled={st === "loading"}
+                  className={[
+                    "w-full flex items-center justify-between px-4 py-3 rounded-xl border text-left transition-all",
+                    st === "loading"
+                      ? "border-blue-300 bg-blue-50 opacity-70 cursor-not-allowed"
+                      : st === "error"
+                      ? "border-red-300 bg-red-50 hover:bg-red-100"
+                      : "border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300",
+                  ].join(" ")}
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700">{t.label}</p>
+                    <p className="text-xs text-slate-400">{t.desc}</p>
+                  </div>
+                  <span className="text-xs font-medium text-slate-500 ml-4 flex-shrink-0">
+                    {st === "loading" ? "⏳ Đang tải..." : st === "error" ? "❌ Lỗi" : "⬇ .xlsx"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="text-xs text-slate-400 text-center border-t border-slate-100 pt-4">
+            Thoát: nhấn <kbd className="bg-slate-100 border border-slate-300 rounded px-1 text-xs">Esc</kbd> hoặc click × bên trên
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main Dashboard
 // ---------------------------------------------------------------------------
 function Dashboard() {
   const [activeTab, setActiveTab] = useState<string>(TABS[0].id);
   const current = TABS.find((t) => t.id === activeTab) ?? TABS[0];
+  const [showAdmin, setShowAdmin] = useState<boolean>(
+    () => window.location.hash === "#admin-export"
+  );
+
+  // Mở panel khi hash = #admin-export, đóng khi hash thay đổi
+  useEffect(() => {
+    const onHash = () => {
+      if (window.location.hash === "#admin-export") setShowAdmin(true);
+      else setShowAdmin(false);
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  // Đóng panel bằng Esc
+  useEffect(() => {
+    if (!showAdmin) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeAdmin();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showAdmin]);
+
+  const closeAdmin = () => {
+    setShowAdmin(false);
+    if (window.location.hash === "#admin-export") {
+      history.pushState("", document.title, window.location.pathname + window.location.search);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -1312,6 +1470,9 @@ function Dashboard() {
       <main className="max-w-screen-2xl mx-auto px-4 py-6">
         <current.content />
       </main>
+
+      {/* Admin Export Panel — chỉ hiển thị khi URL hash = #admin-export */}
+      {showAdmin && <AdminExportPanel onClose={closeAdmin} />}
     </div>
   );
 }
