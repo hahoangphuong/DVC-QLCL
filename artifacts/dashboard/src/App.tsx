@@ -230,17 +230,19 @@ async function fetchMonthly(thuTuc: number): Promise<MonthlyData> {
 }
 
 interface DangXuLyRow {
-  cv_name: string;
-  tong: number;
-  cho_cv: number;
-  cho_cg: number;
-  cho_trp: number;
-  cho_van_thu: number;
-  con_han: number;
-  qua_han: number;
-  cham_so_ngay: number;
-  cham_ma: string | null;
-  cham_ngay: string | null;
+  cv_name:       string;
+  tong:          number;
+  cho_cv:        number;
+  cho_cg:        number;
+  cho_to_truong: number;
+  cho_trp:       number;
+  cho_pct:       number;
+  cho_van_thu:   number;
+  con_han:       number;
+  qua_han:       number;
+  cham_so_ngay:  number;
+  cham_ma:       string | null;
+  cham_ngay:     string | null;
 }
 interface DangXuLyData {
   thu_tuc: number;
@@ -994,9 +996,12 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 // ---------------------------------------------------------------------------
 
 const CHO_COLORS = {
-  cho_cv:  { fill: "#3b82f6", label: "Chờ CV",  text: "#1d4ed8" },
-  cho_cg:  { fill: "#22c55e", label: "Chờ CG",  text: "#15803d" },
-  cho_trp: { fill: "#f97316", label: "Chờ TrP", text: "#c2410c" },
+  cho_cv:        { fill: "#3b82f6", label: "Chờ CV",          text: "#1d4ed8" },
+  cho_cg:        { fill: "#22c55e", label: "Chờ CG",          text: "#15803d" },
+  cho_to_truong: { fill: "#10b981", label: "Chờ Tổ trưởng",  text: "#065f46" },
+  cho_trp:       { fill: "#f97316", label: "Chờ TrP",         text: "#c2410c" },
+  cho_pct:       { fill: "#a855f7", label: "Chờ PCT",         text: "#7e22ce" },
+  cho_van_thu:   { fill: "#64748b", label: "Chờ Văn thư",    text: "#334155" },
 } as const;
 
 function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
@@ -1023,9 +1028,12 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
   const months    = data.months;
 
   // Aggregate totals for charts
-  const totCv  = allRows.reduce((s, r) => s + r.cho_cv,  0);
-  const totCg  = allRows.reduce((s, r) => s + r.cho_cg,  0);
-  const totTrp = allRows.reduce((s, r) => s + r.cho_trp, 0);
+  const totCv       = allRows.reduce((s, r) => s + r.cho_cv,        0);
+  const totCg       = allRows.reduce((s, r) => s + r.cho_cg,        0);
+  const totToTruong = allRows.reduce((s, r) => s + r.cho_to_truong, 0);
+  const totTrp      = allRows.reduce((s, r) => s + r.cho_trp,       0);
+  const totPct      = allRows.reduce((s, r) => s + r.cho_pct,       0);
+  const totVanThu   = allRows.reduce((s, r) => s + r.cho_van_thu,   0);
   const totCon = allRows.reduce((s, r) => s + r.con_han, 0) + (cpc?.con_han ?? 0);
   const totQua = allRows.reduce((s, r) => s + r.qua_han, 0) + (cpc?.qua_han ?? 0);
   const grandTotal = totCon + totQua;
@@ -1033,9 +1041,12 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
   const pctCon = 100 - pctQua;
 
   const catData = [
-    { name: "Chờ CV",  value: totCv,  fill: CHO_COLORS.cho_cv.fill  },
-    { name: "Chờ CG",  value: totCg,  fill: CHO_COLORS.cho_cg.fill  },
-    { name: "Chờ TrP", value: totTrp, fill: CHO_COLORS.cho_trp.fill },
+    { name: "Chờ CV",         value: totCv,       fill: CHO_COLORS.cho_cv.fill        },
+    { name: "Chờ CG",         value: totCg,       fill: CHO_COLORS.cho_cg.fill        },
+    { name: "Chờ Tổ trưởng", value: totToTruong, fill: CHO_COLORS.cho_to_truong.fill },
+    { name: "Chờ TrP",        value: totTrp,      fill: CHO_COLORS.cho_trp.fill       },
+    { name: "Chờ PCT",        value: totPct,      fill: CHO_COLORS.cho_pct.fill       },
+    { name: "Chờ Văn thư",   value: totVanThu,   fill: CHO_COLORS.cho_van_thu.fill   },
   ].filter(d => d.value > 0);
 
   const hanData = [
@@ -1122,9 +1133,21 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
         <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_cg > 30 ? "bg-green-100 text-green-800 font-bold" : row.cho_cg > 0 ? "text-green-700" : "text-slate-300"}`}>
           {row.cho_cg || ""}
         </td>
+        {/* Chờ Tổ trưởng */}
+        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_to_truong > 0 ? "text-emerald-700 font-semibold" : "text-slate-300"}`}>
+          {row.cho_to_truong || ""}
+        </td>
         {/* Chờ TrP */}
         <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_trp > 0 ? "text-orange-700" : "text-slate-300"}`}>
           {row.cho_trp || ""}
+        </td>
+        {/* Chờ PCT */}
+        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_pct > 0 ? "text-purple-700 font-semibold" : "text-slate-300"}`}>
+          {row.cho_pct || ""}
+        </td>
+        {/* Chờ Văn thư */}
+        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_van_thu > 0 ? "text-slate-600" : "text-slate-300"}`}>
+          {row.cho_van_thu || ""}
         </td>
         {/* Còn hạn */}
         {numCell(row.con_han, row.con_han > 0 ? "text-blue-600" : "text-slate-300")}
@@ -1151,13 +1174,16 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
   };
 
   // Summary totals row
-  const totRow = [...allRows, ...(cpc ? [cpc] : [])];
-  const sumTong  = totRow.reduce((s, r) => s + r.tong, 0);
-  const sumCv    = totRow.reduce((s, r) => s + r.cho_cv, 0);
-  const sumCg    = totRow.reduce((s, r) => s + r.cho_cg, 0);
-  const sumTrp   = totRow.reduce((s, r) => s + r.cho_trp, 0);
-  const sumCon   = totRow.reduce((s, r) => s + r.con_han, 0);
-  const sumQua   = totRow.reduce((s, r) => s + r.qua_han, 0);
+  const totRow      = [...allRows, ...(cpc ? [cpc] : [])];
+  const sumTong     = totRow.reduce((s, r) => s + r.tong,          0);
+  const sumCv       = totRow.reduce((s, r) => s + r.cho_cv,        0);
+  const sumCg       = totRow.reduce((s, r) => s + r.cho_cg,        0);
+  const sumToTruong = totRow.reduce((s, r) => s + r.cho_to_truong, 0);
+  const sumTrp      = totRow.reduce((s, r) => s + r.cho_trp,       0);
+  const sumPct      = totRow.reduce((s, r) => s + r.cho_pct,       0);
+  const sumVanThu   = totRow.reduce((s, r) => s + r.cho_van_thu,   0);
+  const sumCon      = totRow.reduce((s, r) => s + r.con_han,       0);
+  const sumQua      = totRow.reduce((s, r) => s + r.qua_han,       0);
 
   return (
     <div className="p-4 space-y-4">
@@ -1230,7 +1256,7 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                   Chuyên viên
                 </th>
                 <th className="px-2 py-2 text-center text-xs bg-slate-600" rowSpan={2}>TỔNG</th>
-                <th className="px-2 py-2 text-center text-xs bg-blue-600" colSpan={3}>ĐANG GIẢI QUYẾT</th>
+                <th className="px-2 py-2 text-center text-xs bg-blue-600" colSpan={6}>ĐANG GIẢI QUYẾT</th>
                 <th className="px-2 py-2 text-center text-xs bg-green-700" rowSpan={2}>Còn<br/>hạn</th>
                 <th className="px-2 py-2 text-center text-xs bg-orange-600" rowSpan={2}>Quá<br/>hạn</th>
                 <th className="px-2 py-2 text-center text-xs bg-orange-700" rowSpan={2}>% quá<br/>hạn</th>
@@ -1239,7 +1265,10 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
               <tr className="bg-slate-600 text-white">
                 <th className="px-2 py-1 text-center text-xs bg-blue-700">Chờ CV</th>
                 <th className="px-2 py-1 text-center text-xs bg-green-600">Chờ CG</th>
+                <th className="px-2 py-1 text-center text-xs bg-emerald-600">Chờ Tổ<br/>trưởng</th>
                 <th className="px-2 py-1 text-center text-xs bg-orange-600">Chờ TrP</th>
+                <th className="px-2 py-1 text-center text-xs bg-purple-600">Chờ PCT</th>
+                <th className="px-2 py-1 text-center text-xs bg-slate-500">Chờ<br/>Văn thư</th>
                 <th className="px-2 py-1 text-center text-xs bg-rose-600">Thời gian chờ</th>
                 <th className="px-2 py-1 text-center text-xs bg-rose-600">Nộp từ</th>
                 <th className="px-2 py-1 text-center text-xs bg-rose-600">Mã hs</th>
@@ -1260,7 +1289,10 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                 <td className="px-2 py-2 text-center text-xs font-bold text-slate-700">{sumTong}</td>
                 <td className="px-2 py-2 text-center text-xs text-blue-700">{sumCv}</td>
                 <td className="px-2 py-2 text-center text-xs text-green-700">{sumCg}</td>
+                <td className="px-2 py-2 text-center text-xs text-emerald-700">{sumToTruong || ""}</td>
                 <td className="px-2 py-2 text-center text-xs text-orange-700">{sumTrp}</td>
+                <td className="px-2 py-2 text-center text-xs text-purple-700">{sumPct || ""}</td>
+                <td className="px-2 py-2 text-center text-xs text-slate-600">{sumVanThu || ""}</td>
                 <td className="px-2 py-2 text-center text-xs text-blue-600">{sumCon}</td>
                 <td className="px-2 py-2 text-center text-xs text-orange-700 font-bold">{sumQua}</td>
                 <td className="px-2 py-2 text-center text-xs text-orange-700">

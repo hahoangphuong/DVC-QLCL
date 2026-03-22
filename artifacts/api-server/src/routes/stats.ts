@@ -408,17 +408,19 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
   if (!thuTuc) return void res.status(400).json({ detail: "thu_tuc phải là 46, 47, hoặc 48" });
   try {
     const rows = await query<{
-      cv_name: string;
-      tong: string;
-      cho_cv: string;
-      cho_cg: string;
-      cho_trp: string;
-      cho_van_thu: string;
-      con_han: string;
-      qua_han: string;
+      cv_name:      string;
+      tong:         string;
+      cho_cv:       string;
+      cho_cg:       string;
+      cho_to_truong: string;
+      cho_trp:      string;
+      cho_pct:      string;
+      cho_van_thu:  string;
+      con_han:      string;
+      qua_han:      string;
       cham_so_ngay: string;
-      cham_ma: string;
-      cham_ngay: string;
+      cham_ma:      string;
+      cham_ngay:    string;
     }>(
       `WITH cv_from_tcc AS (
          SELECT DISTINCT ON (data->>'maHoSo')
@@ -445,10 +447,11 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
            cv_name,
            COUNT(*)                                                            AS tong,
            COUNT(*) FILTER (WHERE don_vi = 'Chuyên viên')                     AS cho_cv,
-           COUNT(*) FILTER (WHERE don_vi IN ('Chuyên gia thẩm định',
-                                              'Tổ trưởng chuyên gia'))         AS cho_cg,
+           COUNT(*) FILTER (WHERE don_vi = 'Chuyên gia thẩm định')              AS cho_cg,
+           COUNT(*) FILTER (WHERE don_vi = 'Tổ trưởng chuyên gia')            AS cho_to_truong,
            COUNT(*) FILTER (WHERE don_vi = 'Trưởng phòng')                    AS cho_trp,
-           COUNT(*) FILTER (WHERE don_vi = 'Phòng ban phân công')              AS cho_van_thu,
+           COUNT(*) FILTER (WHERE don_vi = 'Phó Cục trưởng')                  AS cho_pct,
+           COUNT(*) FILTER (WHERE don_vi LIKE 'Văn thư%')                     AS cho_van_thu,
            COUNT(*) FILTER (WHERE qua_han_ngay <= 0)                          AS con_han,
            COUNT(*) FILTER (WHERE qua_han_ngay > 0)                           AS qua_han
          FROM base
@@ -488,7 +491,9 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
       tong:          toN(r.tong),
       cho_cv:        toN(r.cho_cv),
       cho_cg:        toN(r.cho_cg),
+      cho_to_truong: toN(r.cho_to_truong),
       cho_trp:       toN(r.cho_trp),
+      cho_pct:       toN(r.cho_pct),
       cho_van_thu:   toN(r.cho_van_thu),
       con_han:       toN(r.con_han),
       qua_han:       toN(r.qua_han),
