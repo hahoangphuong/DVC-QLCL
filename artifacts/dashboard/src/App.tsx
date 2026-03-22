@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, createContext, useContext, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -82,6 +82,31 @@ const QUICK_FILTERS = [
   { key: "3_thang",   label: "3 tháng gần nhất" },
   { key: "thang_nay", label: "Tháng này" },
 ];
+
+// ---------------------------------------------------------------------------
+// Shared Filter Context (giữ nguyên bộ lọc khi chuyển tab)
+// ---------------------------------------------------------------------------
+interface FilterState {
+  fromDate:     string;
+  toDate:       string;
+  fromInput:    string;
+  toInput:      string;
+  activePreset: string;
+  loadingAll:   boolean;
+  applyDates:   (from: string, to: string, preset?: string) => void;
+  setFromInput: (v: string) => void;
+  setToInput:   (v: string) => void;
+  setFromDate:  (v: string) => void;
+  setToDate:    (v: string) => void;
+  setActivePreset: (v: string) => void;
+  setLoadingAll:   (v: boolean) => void;
+}
+const FilterCtx = createContext<FilterState | null>(null);
+function useFilter(): FilterState {
+  const ctx = useContext(FilterCtx);
+  if (!ctx) throw new Error("useFilter must be inside FilterCtx.Provider");
+  return ctx;
+}
 
 // ---------------------------------------------------------------------------
 // API fetch
@@ -720,32 +745,22 @@ function MonthlyTrendChart({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 // Tab: THỐNG KÊ (tab 1, 3, 5 — TT48 / TT47 / TT46)
 // ---------------------------------------------------------------------------
 function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
-  const init = getPreset("nam_nay");
-  const [fromDate, setFromDate] = useState(init.from);
-  const [toDate, setToDate]     = useState(init.to);
-  const [fromInput, setFromInput] = useState(toDMY(init.from));
-  const [toInput,   setToInput]   = useState(toDMY(init.to));
-  const [activePreset, setActivePreset] = useState<string>("nam_nay");
-  const [loadingAll, setLoadingAll]     = useState(false);
-
-  const applyDates = useCallback((from: string, to: string, preset?: string) => {
-    setFromDate(from);
-    setToDate(to);
-    setFromInput(toDMY(from));
-    setToInput(toDMY(to));
-    setActivePreset(preset ?? "");
-  }, []);
+  const {
+    fromDate, toDate, fromInput, toInput, activePreset, loadingAll,
+    applyDates, setFromInput, setToInput, setFromDate, setToDate,
+    setActivePreset, setLoadingAll,
+  } = useFilter();
 
   const handleTatCa = useCallback(async () => {
     setLoadingAll(true);
     try {
-      const earliest = await fetchEarliestDate(48);
+      const earliest = await fetchEarliestDate(thuTuc);
       const today = toYMD(new Date());
       applyDates(earliest, today, "tat_ca");
     } finally {
       setLoadingAll(false);
     }
-  }, [applyDates]);
+  }, [applyDates, thuTuc, setLoadingAll]);
 
   const handleFromBlur = () => {
     const parsed = parseDMY(fromInput);
@@ -1404,6 +1419,29 @@ function Dashboard() {
     () => window.location.hash === "#admin-export"
   );
 
+  // Shared filter state — preserved when switching tabs
+  const initFilter = getPreset("nam_nay");
+  const [fromDate,     setFromDate]     = useState(initFilter.from);
+  const [toDate,       setToDate]       = useState(initFilter.to);
+  const [fromInput,    setFromInput]    = useState(toDMY(initFilter.from));
+  const [toInput,      setToInput]      = useState(toDMY(initFilter.to));
+  const [activePreset, setActivePreset] = useState<string>("nam_nay");
+  const [loadingAll,   setLoadingAll]   = useState(false);
+
+  const applyDates = useCallback((from: string, to: string, preset?: string) => {
+    setFromDate(from);
+    setToDate(to);
+    setFromInput(toDMY(from));
+    setToInput(toDMY(to));
+    setActivePreset(preset ?? "");
+  }, []);
+
+  const filterValue = useMemo<FilterState>(() => ({
+    fromDate, toDate, fromInput, toInput, activePreset, loadingAll,
+    applyDates, setFromInput, setToInput, setFromDate, setToDate,
+    setActivePreset, setLoadingAll,
+  }), [fromDate, toDate, fromInput, toInput, activePreset, loadingAll, applyDates]);
+
   // Mở panel khi hash = #admin-export, đóng khi hash thay đổi
   useEffect(() => {
     const onHash = () => {
@@ -1432,6 +1470,7 @@ function Dashboard() {
   };
 
   return (
+    <FilterCtx.Provider value={filterValue}>
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-40">
@@ -1474,6 +1513,7 @@ function Dashboard() {
       {/* Admin Export Panel — chỉ hiển thị khi URL hash = #admin-export */}
       {showAdmin && <AdminExportPanel onClose={closeAdmin} />}
     </div>
+    </FilterCtx.Provider>
   );
 }
 
