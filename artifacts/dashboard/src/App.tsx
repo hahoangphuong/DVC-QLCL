@@ -580,9 +580,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
               </th>
               <th className={`${thC} bg-pink-700 text-white`} rowSpan={2}>Tồn<br />trước</th>
               <th className={`${thC} bg-blue-700 text-white`} rowSpan={2}>Đã<br />nhận</th>
-              <th className={`${thC} bg-green-700 text-white`} colSpan={7}>Đã giải quyết</th>
-              <th className={`${thC} bg-green-800 text-white`} rowSpan={2}>%&nbsp;GQ<br />đúng hạn</th>
-              <th className={`${thC} bg-green-800 text-white`} rowSpan={2}>%&nbsp;đã<br />GQ</th>
+              <th className={`${thC} bg-green-700 text-white`} colSpan={9}>Đã giải quyết</th>
               <th className={`${thC} bg-amber-700 text-white`} colSpan={3}>Tồn sau</th>
               <th className={`${thC} bg-orange-600 text-white`} rowSpan={2}>TREO</th>
             </tr>
@@ -594,6 +592,8 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
               <th className={`${thC} bg-green-50 text-green-700`}>Đúng hạn</th>
               <th className={`${thC} bg-red-50 text-red-700`}>Quá hạn</th>
               <th className={`${thC} bg-slate-50`}>TG TB</th>
+              <th className={`${thC} bg-green-50 text-green-700`}>%&nbsp;GQ<br />đúng hạn</th>
+              <th className={`${thC} bg-slate-50 text-slate-600`}>%&nbsp;đã<br />GQ</th>
               <th className={`${thC} bg-amber-50`}>Tổng</th>
               <th className={`${thC} bg-blue-50 text-blue-700`}>Còn hạn</th>
               <th className={`${thC} bg-red-50 text-red-700`}>Quá hạn</th>
@@ -998,7 +998,7 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 const CHO_COLORS = {
   cho_cv:        { fill: "#3b82f6", label: "Chờ CV",          text: "#1d4ed8" },
   cho_cg:        { fill: "#22c55e", label: "Chờ CG",          text: "#15803d" },
-  cho_to_truong: { fill: "#10b981", label: "Chờ Tổ trưởng",  text: "#065f46" },
+  cho_to_truong: { fill: "#fb923c", label: "Chờ Tổ trưởng",  text: "#c2410c" },
   cho_trp:       { fill: "#f97316", label: "Chờ TrP",         text: "#c2410c" },
   cho_pct:       { fill: "#a855f7", label: "Chờ PCT",         text: "#7e22ce" },
   cho_van_thu:   { fill: "#64748b", label: "Chờ Văn thư",    text: "#334155" },
@@ -1055,15 +1055,16 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
   ];
 
   const catTotal = catData.reduce((s, d) => s + d.value, 0);
-  const renderPieLabel = ({ cx, cy, midAngle, outerRadius, value }: any) => {
+  const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, value }: any) => {
     if (catTotal === 0) return null;
     const RADIAN = Math.PI / 180;
-    const r = outerRadius * 0.65;
+    // Đặt nhãn ở giữa vành khăn (midpoint giữa innerRadius và outerRadius)
+    const r = innerRadius + (outerRadius - innerRadius) * 0.5;
     const x = cx + r * Math.cos(-midAngle * RADIAN);
     const y = cy + r * Math.sin(-midAngle * RADIAN);
     const pct = Math.round(value / catTotal * 100);
     if (pct < 5) return null;
-    return <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight={700}>{pct}%</text>;
+    return <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={700}>{pct}%</text>;
   };
 
   const renderHanLabel = ({ cx, cy, midAngle, outerRadius, value }: any) => {
@@ -1134,7 +1135,7 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
           {row.cho_cg || ""}
         </td>
         {/* Chờ Tổ trưởng */}
-        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_to_truong > 0 ? "text-emerald-700 font-semibold" : "text-slate-300"}`}>
+        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_to_truong > 0 ? "text-orange-500 font-semibold" : "text-slate-300"}`}>
           {row.cho_to_truong || ""}
         </td>
         {/* Chờ TrP */}
@@ -1201,7 +1202,7 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
       <div className="grid grid-cols-3 gap-4">
         {/* Donut: Chờ CV / CG / TrP */}
         <div className="bg-white rounded-xl border border-slate-200 p-3">
-          <p className="text-xs font-semibold text-slate-500 mb-1 text-center">Phân loại theo đơn vị xử lý</p>
+          <p className="text-xs font-semibold text-slate-500 mb-1 text-center">Phân loại theo bước xử lý</p>
           <ResponsiveContainer width="100%" height={180}>
             <PieChart>
               <Pie data={catData} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
@@ -1262,7 +1263,7 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                 <th className="px-2 py-1 text-center text-xs bg-slate-600 font-bold">TỔNG</th>
                 <th className="px-2 py-1 text-center text-xs bg-blue-700">Chờ CV</th>
                 <th className="px-2 py-1 text-center text-xs bg-green-600">Chờ CG</th>
-                <th className="px-2 py-1 text-center text-xs bg-emerald-600">Chờ Tổ<br/>trưởng</th>
+                <th className="px-2 py-1 text-center text-xs bg-orange-400">Chờ Tổ<br/>trưởng</th>
                 <th className="px-2 py-1 text-center text-xs bg-orange-600">Chờ TrP</th>
                 <th className="px-2 py-1 text-center text-xs bg-purple-600">Chờ PCT</th>
                 <th className="px-2 py-1 text-center text-xs bg-slate-500">Chờ<br/>Văn thư</th>
