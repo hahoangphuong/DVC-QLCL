@@ -225,20 +225,42 @@ router.get("/stats/chuyen-vien", async (req, res) => {
       ton_sau_tong: string; ton_sau_con_han: string; ton_sau_qua_han: string;
       treo: string;
     }>(
-      `WITH base AS (
+      `WITH
+       -- Hồ sơ đang thực sự được xử lý (có mặt trong dang_xu_ly)
+       dxl_active AS (
+         SELECT DISTINCT data->>'maHoSo' AS ma_ho_so
+         FROM dang_xu_ly WHERE thu_tuc = $1
+       ),
+       -- Hồ sơ đang ở trạng thái "Chờ phân công" trong dang_xu_ly
+       -- → dù tra_cuu_chung có gán tên CV vẫn phải tính vào __CHUA_PHAN__
+       dxl_cho_pc AS (
+         SELECT DISTINCT data->>'maHoSo' AS ma_ho_so
+         FROM dang_xu_ly
+         WHERE thu_tuc = $1
+           AND data->>'tenDonViXuLy' = 'Phòng ban phân công'
+       ),
+       base AS (
           SELECT
-            COALESCE(NULLIF(TRIM(t.data->>'chuyenVienThuLyName'), ''), '__CHUA_PHAN__') AS cv_name,
+            -- Nếu hồ sơ đang "Chờ phân công" trong dang_xu_ly → gán __CHUA_PHAN__
+            -- bất kể chuyenVienThuLyName trong tra_cuu_chung là gì
+            CASE WHEN dcp.ma_ho_so IS NOT NULL THEN '__CHUA_PHAN__'
+                 ELSE COALESCE(NULLIF(TRIM(t.data->>'chuyenVienThuLyName'), ''), '__CHUA_PHAN__')
+            END AS cv_name,
             (t.data->>'ngayTiepNhan')::timestamptz AS ngay_nhan,
             (t.data->>'ngayHenTra')::timestamptz   AS nhan_hen_tra,
             CASE WHEN NULLIF(d.data->>'ngayTraKetQua','') IS NOT NULL
                  THEN (d.data->>'ngayTraKetQua')::timestamptz ELSE NULL END AS ngay_tra,
             CASE WHEN NULLIF(d.data->>'ngayHenTra','') IS NOT NULL
                  THEN (d.data->>'ngayHenTra')::timestamptz ELSE NULL END    AS kq_hen_tra,
-            d.data->>'trangThaiHoSo' AS trang_thai
+            d.data->>'trangThaiHoSo' AS trang_thai,
+            -- Chỉ tính tồn sau cho hồ sơ THỰC SỰ đang trong dang_xu_ly
+            (da.ma_ho_so IS NOT NULL) AS is_active
           FROM tra_cuu_chung t
           LEFT JOIN da_xu_ly d
             ON t.data->>'id' = d.data->>'id'
            AND d.thu_tuc = $1
+          LEFT JOIN dxl_active da  ON t.data->>'maHoSo' = da.ma_ho_so
+          LEFT JOIN dxl_cho_pc dcp ON t.data->>'maHoSo' = dcp.ma_ho_so
           WHERE (t.data->>'thuTucId')::int = $1
        ),
        stats AS (
@@ -253,9 +275,10 @@ router.get("/stats/chuyen-vien", async (req, res) => {
            COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND kq_hen_tra IS NOT NULL AND ngay_tra <= kq_hen_tra) AS dung_han,
            COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND (kq_hen_tra IS NULL OR ngay_tra > kq_hen_tra)) AS qua_han,
            ROUND(AVG(EXTRACT(EPOCH FROM (ngay_tra - ngay_nhan)) / 86400.0) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3))::int AS tg_tb,
-           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3)) AS ton_sau_tong,
-           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3) AND nhan_hen_tra IS NOT NULL AND nhan_hen_tra > $3) AS ton_sau_con_han,
-           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3) AND (nhan_hen_tra IS NULL OR nhan_hen_tra <= $3)) AS ton_sau_qua_han
+           -- Tồn sau: chỉ đếm hồ sơ đang thực sự trong dang_xu_ly (is_active)
+           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3) AND is_active) AS ton_sau_tong,
+           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3) AND is_active AND nhan_hen_tra IS NOT NULL AND nhan_hen_tra > $3) AS ton_sau_con_han,
+           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3) AND is_active AND (nhan_hen_tra IS NULL OR nhan_hen_tra <= $3)) AS ton_sau_qua_han
          FROM base
          GROUP BY cv_name
        ),
