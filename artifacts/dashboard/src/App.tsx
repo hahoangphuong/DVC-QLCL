@@ -122,6 +122,13 @@ interface SummaryData {
   to_date:       string;
 }
 
+interface SyncStatus { lastSyncedAt: string | null; totalSizeMB: number; }
+async function fetchSyncStatus(): Promise<SyncStatus> {
+  const res = await fetch(`${API}/sync-status`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 async function fetchSummary(thuTuc: number, fromDate: string, toDate: string): Promise<SummaryData> {
   const url = `${API}/stats/summary?thu_tuc=${thuTuc}&from_date=${fromDate}&to_date=${toDate}`;
   const res = await fetch(url);
@@ -1421,6 +1428,14 @@ function Dashboard() {
     () => window.location.hash === "#admin-export"
   );
 
+  // Trạng thái sync gần nhất — tự động refresh mỗi 5 phút
+  const { data: syncStatus } = useQuery({
+    queryKey: ["sync-status"],
+    queryFn: fetchSyncStatus,
+    refetchInterval: 5 * 60 * 1000,
+    staleTime: 60 * 1000,
+  });
+
   // Filter state riêng cho từng tab Thống kê (48 / 47 / 46) — không bị reset khi chuyển tab
   const [filters, setFilters] = useState<Record<number, TabFilter>>({
     48: makeTabFilter("nam_nay"),
@@ -1470,15 +1485,32 @@ function Dashboard() {
       {/* Header */}
       <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-40">
         <div className="max-w-screen-2xl mx-auto px-4 py-3 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow">
+          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow flex-shrink-0">
             DAV
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-base font-bold text-slate-800 leading-none">
               Dashboard Hồ Sơ PQLCL
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">Cục Quản lý Dược</p>
           </div>
+          {syncStatus?.lastSyncedAt && (() => {
+            const d = new Date(syncStatus.lastSyncedAt);
+            const dd   = String(d.getDate()).padStart(2, "0");
+            const mm   = String(d.getMonth() + 1).padStart(2, "0");
+            const yyyy = d.getFullYear();
+            const hh   = String(d.getHours()).padStart(2, "0");
+            const min  = String(d.getMinutes()).padStart(2, "0");
+            return (
+              <p className="text-xs text-slate-400 text-right leading-snug hidden sm:block">
+                Dữ liệu cập nhật lần cuối<br />
+                <span className="font-medium text-slate-600">
+                  {dd}-{mm}-{yyyy} lúc {hh}:{min}
+                  {" "}({syncStatus.totalSizeMB.toFixed(2)} MB)
+                </span>
+              </p>
+            );
+          })()}
         </div>
 
         {/* Tab navigation */}

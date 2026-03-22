@@ -528,5 +528,34 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// GET /sync-status — thời gian sync gần nhất + tổng dung lượng data
+// ---------------------------------------------------------------------------
+router.get("/sync-status", async (_req, res) => {
+  try {
+    const timeRow = await queryOne<{ last_synced_at: string | null }>(`
+      SELECT GREATEST(
+        (SELECT MAX(synced_at) FROM tra_cuu_chung),
+        (SELECT MAX(synced_at) FROM dang_xu_ly),
+        (SELECT MAX(synced_at) FROM da_xu_ly)
+      ) AS last_synced_at
+    `);
+
+    const sizeRow = await queryOne<{ total_bytes: string }>(`
+      SELECT SUM(pg_total_relation_size(relid))::bigint AS total_bytes
+      FROM pg_stat_user_tables
+      WHERE schemaname = 'public'
+    `);
+
+    const lastSyncedAt = timeRow?.last_synced_at ?? null;
+    const totalBytes   = parseInt(sizeRow?.total_bytes ?? "0", 10);
+    const totalSizeMB  = totalBytes / (1024 * 1024);
+
+    res.json({ lastSyncedAt, totalSizeMB: parseFloat(totalSizeMB.toFixed(2)) });
+  } catch (e: unknown) {
+    res.status(500).json({ detail: String(e) });
+  }
+});
+
 export default router;
 
