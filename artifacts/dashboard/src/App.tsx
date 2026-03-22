@@ -86,26 +86,28 @@ const QUICK_FILTERS = [
 // ---------------------------------------------------------------------------
 // Shared Filter Context (giữ nguyên bộ lọc khi chuyển tab)
 // ---------------------------------------------------------------------------
-interface FilterState {
+// Mỗi tab Thống kê có bộ lọc riêng, được lưu theo thuTuc
+interface TabFilter {
   fromDate:     string;
   toDate:       string;
   fromInput:    string;
   toInput:      string;
   activePreset: string;
   loadingAll:   boolean;
-  applyDates:   (from: string, to: string, preset?: string) => void;
-  setFromInput: (v: string) => void;
-  setToInput:   (v: string) => void;
-  setFromDate:  (v: string) => void;
-  setToDate:    (v: string) => void;
-  setActivePreset: (v: string) => void;
-  setLoadingAll:   (v: boolean) => void;
 }
-const FilterCtx = createContext<FilterState | null>(null);
-function useFilter(): FilterState {
-  const ctx = useContext(FilterCtx);
-  if (!ctx) throw new Error("useFilter must be inside FilterCtx.Provider");
-  return ctx;
+interface FiltersCtxType {
+  filters:      Record<number, TabFilter>;
+  updateFilter: (thuTuc: number, patch: Partial<TabFilter>) => void;
+}
+const FiltersCtx = createContext<FiltersCtxType | null>(null);
+function useTabFilter(thuTuc: number): TabFilter & { update: (p: Partial<TabFilter>) => void } {
+  const ctx = useContext(FiltersCtx);
+  if (!ctx) throw new Error("useTabFilter must be inside FiltersCtx.Provider");
+  return { ...ctx.filters[thuTuc], update: (p) => ctx.updateFilter(thuTuc, p) };
+}
+function makeTabFilter(preset = "nam_nay"): TabFilter {
+  const p = getPreset(preset);
+  return { fromDate: p.from, toDate: p.to, fromInput: toDMY(p.from), toInput: toDMY(p.to), activePreset: preset, loadingAll: false };
 }
 
 // ---------------------------------------------------------------------------
@@ -745,33 +747,33 @@ function MonthlyTrendChart({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 // Tab: THỐNG KÊ (tab 1, 3, 5 — TT48 / TT47 / TT46)
 // ---------------------------------------------------------------------------
 function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
-  const {
-    fromDate, toDate, fromInput, toInput, activePreset, loadingAll,
-    applyDates, setFromInput, setToInput, setFromDate, setToDate,
-    setActivePreset, setLoadingAll,
-  } = useFilter();
+  const { fromDate, toDate, fromInput, toInput, activePreset, loadingAll, update } = useTabFilter(thuTuc);
+
+  const applyDates = useCallback((from: string, to: string, preset?: string) => {
+    update({ fromDate: from, toDate: to, fromInput: toDMY(from), toInput: toDMY(to), activePreset: preset ?? "" });
+  }, [update]);
 
   const handleTatCa = useCallback(async () => {
-    setLoadingAll(true);
+    update({ loadingAll: true });
     try {
       const earliest = await fetchEarliestDate(thuTuc);
       const today = toYMD(new Date());
       applyDates(earliest, today, "tat_ca");
     } finally {
-      setLoadingAll(false);
+      update({ loadingAll: false });
     }
-  }, [applyDates, thuTuc, setLoadingAll]);
+  }, [applyDates, thuTuc, update]);
 
   const handleFromBlur = () => {
     const parsed = parseDMY(fromInput);
-    if (parsed) { setFromDate(parsed); setActivePreset(""); }
-    else setFromInput(toDMY(fromDate));
+    if (parsed) update({ fromDate: parsed, activePreset: "" });
+    else update({ fromInput: toDMY(fromDate) });
   };
 
   const handleToBlur = () => {
     const parsed = parseDMY(toInput);
-    if (parsed) { setToDate(parsed); setActivePreset(""); }
-    else setToInput(toDMY(toDate));
+    if (parsed) update({ toDate: parsed, activePreset: "" });
+    else update({ toInput: toDMY(toDate) });
   };
 
   const { data, isLoading, isError } = useQuery({
@@ -817,7 +819,7 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                 type="text"
                 placeholder="DD/MM/YYYY"
                 value={fromInput}
-                onChange={(e) => setFromInput(e.target.value)}
+                onChange={(e) => update({ fromInput: e.target.value })}
                 onBlur={handleFromBlur}
                 className="w-36 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
               />
@@ -829,7 +831,7 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                 type="text"
                 placeholder="DD/MM/YYYY"
                 value={toInput}
-                onChange={(e) => setToInput(e.target.value)}
+                onChange={(e) => update({ toInput: e.target.value })}
                 onBlur={handleToBlur}
                 className="w-36 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
               />
@@ -1419,28 +1421,21 @@ function Dashboard() {
     () => window.location.hash === "#admin-export"
   );
 
-  // Shared filter state — preserved when switching tabs
-  const initFilter = getPreset("nam_nay");
-  const [fromDate,     setFromDate]     = useState(initFilter.from);
-  const [toDate,       setToDate]       = useState(initFilter.to);
-  const [fromInput,    setFromInput]    = useState(toDMY(initFilter.from));
-  const [toInput,      setToInput]      = useState(toDMY(initFilter.to));
-  const [activePreset, setActivePreset] = useState<string>("nam_nay");
-  const [loadingAll,   setLoadingAll]   = useState(false);
+  // Filter state riêng cho từng tab Thống kê (48 / 47 / 46) — không bị reset khi chuyển tab
+  const [filters, setFilters] = useState<Record<number, TabFilter>>({
+    48: makeTabFilter("nam_nay"),
+    47: makeTabFilter("nam_nay"),
+    46: makeTabFilter("nam_nay"),
+  });
 
-  const applyDates = useCallback((from: string, to: string, preset?: string) => {
-    setFromDate(from);
-    setToDate(to);
-    setFromInput(toDMY(from));
-    setToInput(toDMY(to));
-    setActivePreset(preset ?? "");
+  const updateFilter = useCallback((thuTuc: number, patch: Partial<TabFilter>) => {
+    setFilters(prev => ({ ...prev, [thuTuc]: { ...prev[thuTuc], ...patch } }));
   }, []);
 
-  const filterValue = useMemo<FilterState>(() => ({
-    fromDate, toDate, fromInput, toInput, activePreset, loadingAll,
-    applyDates, setFromInput, setToInput, setFromDate, setToDate,
-    setActivePreset, setLoadingAll,
-  }), [fromDate, toDate, fromInput, toInput, activePreset, loadingAll, applyDates]);
+  const filtersValue = useMemo<FiltersCtxType>(
+    () => ({ filters, updateFilter }),
+    [filters, updateFilter]
+  );
 
   // Mở panel khi hash = #admin-export, đóng khi hash thay đổi
   useEffect(() => {
@@ -1470,7 +1465,7 @@ function Dashboard() {
   };
 
   return (
-    <FilterCtx.Provider value={filterValue}>
+    <FiltersCtx.Provider value={filtersValue}>
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-40">
@@ -1513,7 +1508,7 @@ function Dashboard() {
       {/* Admin Export Panel — chỉ hiển thị khi URL hash = #admin-export */}
       {showAdmin && <AdminExportPanel onClose={closeAdmin} />}
     </div>
-    </FilterCtx.Provider>
+    </FiltersCtx.Provider>
   );
 }
 
