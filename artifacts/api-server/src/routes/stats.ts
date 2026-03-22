@@ -500,6 +500,16 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
     const choPhanCong = rows.find(r => r.cv_name === "__CHUA_PHAN__");
     const cvRows      = rows.filter(r => r.cv_name !== "__CHUA_PHAN__");
 
+    // Sắp xếp theo PRIORITY (giống Thống kê TT48), extras sort alpha
+    const resultMap = Object.fromEntries(cvRows.map(r => [r.cv_name, r]));
+    const sortedCv: typeof cvRows = [];
+    for (const name of PRIORITY) {
+      if (resultMap[name]) sortedCv.push(resultMap[name]);
+    }
+    const extras = cvRows.filter(r => !KNOWN_SET.has(r.cv_name));
+    extras.sort((a, b) => a.cv_name.localeCompare(b.cv_name));
+    sortedCv.push(...extras);
+
     const months = monthRows.map(r => ({
       label: `T${r.mo}-${r.yr}`,
       year:  Number(r.yr),
@@ -510,7 +520,7 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
     res.json({
       thu_tuc:        thuTuc,
       cho_phan_cong:  choPhanCong ? fmt(choPhanCong) : null,
-      rows:           cvRows.map(fmt),
+      rows:           sortedCv.map(fmt),
       months,
     });
   } catch (e: unknown) {
