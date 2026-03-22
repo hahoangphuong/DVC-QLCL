@@ -52,15 +52,21 @@ router.get("/admin/export/:table", async (req, res) => {
     const headers = ["id", "synced_at", ...dataKeys];
 
     // Tạo worksheet
+    // Excel cell limit = 32767 chars
+    const MAX_CELL = 32767;
+    const cellVal = (v: unknown): string | number | boolean => {
+      if (v === null || v === undefined) return "";
+      if (typeof v === "number" || typeof v === "boolean") return v;
+      const s = typeof v === "object" ? JSON.stringify(v) : String(v);
+      return s.length > MAX_CELL ? s.slice(0, MAX_CELL) : s;
+    };
+
     const wsData: unknown[][] = [headers];
     for (const r of rows) {
       const row: unknown[] = [
         r.id,
         r.synced_at,
-        ...dataKeys.map(k => {
-          const v = r.data?.[k];
-          return v === null || v === undefined ? "" : typeof v === "object" ? JSON.stringify(v) : v;
-        }),
+        ...dataKeys.map(k => cellVal(r.data?.[k])),
       ];
       wsData.push(row);
     }
