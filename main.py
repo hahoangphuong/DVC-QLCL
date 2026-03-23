@@ -53,9 +53,10 @@ _job_run_counter = 0
 
 
 # ===========================================================================
-# SCHEDULER — APScheduler chạy job mỗi 3 giờ
+# SCHEDULER — APScheduler chạy job mỗi N giờ (mặc định 3h, có thể thay đổi)
 # ===========================================================================
 _scheduler = BackgroundScheduler(timezone="UTC")
+_sync_interval_hours: float = 3.0  # giá trị hiện tại, cập nhật khi reschedule
 
 
 # Tạo tất cả bảng + khởi động scheduler khi server start
@@ -1235,6 +1236,56 @@ def stats_summary(
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# GET /admin/scheduler — trả về interval hiện tại
+# POST /admin/scheduler — thay đổi interval (body JSON: {"hours": N})
+# Không cần token riêng vì đã được api-server proxy sau khi xác thực token
+# ---------------------------------------------------------------------------
+@app.get("/admin/scheduler")
+def admin_scheduler_get():
+    global _sync_interval_hours
+    job = _scheduler.get_job("sync_all_3h")
+    next_run = None
+    if job and job.next_run_time:
+        next_run = job.next_run_time.isoformat()
+    return {
+        "ok": True,
+        "interval_hours": _sync_interval_hours,
+        "next_run": next_run,
+    }
+
+
+@app.post("/admin/scheduler")
+def admin_scheduler_set(payload: dict):
+    global _sync_interval_hours
+    hours = payload.get("hours")
+    if hours is None:
+        raise HTTPException(status_code=400, detail="Thiếu trường 'hours'")
+    try:
+        hours = float(hours)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="'hours' phải là số")
+    if hours < 0.1:
+        raise HTTPException(status_code=400, detail="Tần suất tối thiểu là 0.1 giờ (6 phút)")
+    if hours > 24:
+        raise HTTPException(status_code=400, detail="Tần suất tối đa là 24 giờ")
+
+    _sync_interval_hours = hours
+    _scheduler.reschedule_job(
+        "sync_all_3h",
+        trigger="interval",
+        hours=hours,
+    )
+    job = _scheduler.get_job("sync_all_3h")
+    next_run = job.next_run_time.isoformat() if job and job.next_run_time else None
+    _sync_log.info(f"SCHEDULER cập nhật: interval={hours}h, next_run={next_run}")
+    return {
+        "ok": True,
+        "interval_hours": hours,
+        "next_run": next_run,
+    }
 
 
 # ---------------------------------------------------------------------------

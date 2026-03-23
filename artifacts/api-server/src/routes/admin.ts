@@ -5,6 +5,7 @@ import ExcelJS from "exceljs";
 const router: IRouter = Router();
 
 const ADMIN_TOKEN = process.env["ADMIN_EXPORT_TOKEN"] ?? "";
+const PYTHON_API  = "http://localhost:8000";
 
 function checkToken(req: import("express").Request, res: import("express").Response): boolean {
   const provided = String(req.query["token"] ?? req.headers["x-admin-token"] ?? "");
@@ -19,6 +20,130 @@ function checkToken(req: import("express").Request, res: import("express").Respo
   return true;
 }
 
+// ---------------------------------------------------------------------------
+// GET /admin/db-stats — số bản ghi trong 3 bảng chính
+// ---------------------------------------------------------------------------
+router.get("/admin/db-stats", async (req, res) => {
+  if (!checkToken(req, res)) return;
+  try {
+    const [tcc, dxl, dxly] = await Promise.all([
+      query<{ cnt: string; last_sync: string | null }>(
+        `SELECT COUNT(*) AS cnt, MAX(synced_at) AS last_sync FROM tra_cuu_chung`
+      ),
+      query<{ cnt: string; last_sync: string | null; cnt_48: string; cnt_47: string; cnt_46: string }>(
+        `SELECT
+           COUNT(*)                                                AS cnt,
+           MAX(synced_at)                                         AS last_sync,
+           COUNT(*) FILTER (WHERE thu_tuc = 48)                   AS cnt_48,
+           COUNT(*) FILTER (WHERE thu_tuc = 47)                   AS cnt_47,
+           COUNT(*) FILTER (WHERE thu_tuc = 46)                   AS cnt_46
+         FROM dang_xu_ly`
+      ),
+      query<{ cnt: string; last_sync: string | null; cnt_48: string; cnt_47: string; cnt_46: string }>(
+        `SELECT
+           COUNT(*)                                                AS cnt,
+           MAX(synced_at)                                         AS last_sync,
+           COUNT(*) FILTER (WHERE thu_tuc = 48)                   AS cnt_48,
+           COUNT(*) FILTER (WHERE thu_tuc = 47)                   AS cnt_47,
+           COUNT(*) FILTER (WHERE thu_tuc = 46)                   AS cnt_46
+         FROM da_xu_ly`
+      ),
+    ]);
+    res.json({
+      ok: true,
+      tables: {
+        tra_cuu_chung: {
+          total: parseInt(tcc[0]?.cnt ?? "0"),
+          last_sync: tcc[0]?.last_sync ?? null,
+        },
+        dang_xu_ly: {
+          total: parseInt(dxl[0]?.cnt ?? "0"),
+          by_thu_tuc: {
+            48: parseInt(dxl[0]?.cnt_48 ?? "0"),
+            47: parseInt(dxl[0]?.cnt_47 ?? "0"),
+            46: parseInt(dxl[0]?.cnt_46 ?? "0"),
+          },
+          last_sync: dxl[0]?.last_sync ?? null,
+        },
+        da_xu_ly: {
+          total: parseInt(dxly[0]?.cnt ?? "0"),
+          by_thu_tuc: {
+            48: parseInt(dxly[0]?.cnt_48 ?? "0"),
+            47: parseInt(dxly[0]?.cnt_47 ?? "0"),
+            46: parseInt(dxly[0]?.cnt_46 ?? "0"),
+          },
+          last_sync: dxly[0]?.last_sync ?? null,
+        },
+      },
+    });
+  } catch (e: unknown) {
+    res.status(500).json({ detail: String(e) });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /admin/force-sync — kích hoạt sync ngay lập tức
+// ---------------------------------------------------------------------------
+router.post("/admin/force-sync", async (req, res) => {
+  if (!checkToken(req, res)) return;
+  try {
+    const pyRes = await fetch(`${PYTHON_API}/sync/all`, { method: "POST" });
+    const data = await pyRes.json();
+    res.status(pyRes.ok ? 200 : 502).json(data);
+  } catch (e: unknown) {
+    res.status(502).json({ detail: `Không thể kết nối Python backend: ${String(e)}` });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /admin/scheduler — lấy interval hiện tại
+// POST /admin/scheduler — cập nhật interval (body: {hours: N})
+// ---------------------------------------------------------------------------
+router.get("/admin/scheduler", async (req, res) => {
+  if (!checkToken(req, res)) return;
+  try {
+    const pyRes = await fetch(`${PYTHON_API}/admin/scheduler`);
+    const data = await pyRes.json();
+    res.status(pyRes.ok ? 200 : 502).json(data);
+  } catch (e: unknown) {
+    res.status(502).json({ detail: `Không thể kết nối Python backend: ${String(e)}` });
+  }
+});
+
+router.post("/admin/scheduler", async (req, res) => {
+  if (!checkToken(req, res)) return;
+  try {
+    const body = req.body as { hours?: unknown };
+    const pyRes = await fetch(`${PYTHON_API}/admin/scheduler`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hours: body.hours }),
+    });
+    const data = await pyRes.json();
+    res.status(pyRes.ok ? 200 : (pyRes.status === 400 ? 400 : 502)).json(data);
+  } catch (e: unknown) {
+    res.status(502).json({ detail: `Không thể kết nối Python backend: ${String(e)}` });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /admin/logs?lines=N — đọc sync log từ Python backend
+// ---------------------------------------------------------------------------
+router.get("/admin/logs", async (req, res) => {
+  if (!checkToken(req, res)) return;
+  try {
+    const lines = Math.min(parseInt(String(req.query["lines"] ?? "200"), 10) || 200, 2000);
+    const pyRes = await fetch(`${PYTHON_API}/logs/sync?lines=${lines}`);
+    const data = await pyRes.json();
+    res.status(pyRes.ok ? 200 : 502).json(data);
+  } catch (e: unknown) {
+    res.status(502).json({ detail: `Không thể kết nối Python backend: ${String(e)}` });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /admin/export/:table — xuất Excel (giữ nguyên)
+// ---------------------------------------------------------------------------
 const ALLOWED_TABLES = ["tra_cuu_chung", "dang_xu_ly", "da_xu_ly"] as const;
 type AllowedTable = (typeof ALLOWED_TABLES)[number];
 
@@ -28,7 +153,6 @@ const TABLE_LABELS: Record<AllowedTable, string> = {
   da_xu_ly:      "Da_xu_ly",
 };
 
-// Excel cell limit = 32767 chars
 const MAX_CELL = 32767;
 function cellVal(v: unknown): string | number | boolean {
   if (v === null || v === undefined) return "";
@@ -46,19 +170,16 @@ router.get("/admin/export/:table", async (req, res) => {
   }
 
   try {
-    // Bước 1: Lấy tất cả keys từ JSONB data (nhẹ, không load data thực)
     const keysResult = await query<{ key: string }>(
       `SELECT DISTINCT jsonb_object_keys(data) AS key FROM "${table}" ORDER BY key`
     );
     const dataKeys = keysResult.map(r => r.key);
 
-    // Bước 2: Set headers để browser nhận file ngay khi stream bắt đầu
     const filename = `${TABLE_LABELS[table]}_${new Date().toISOString().slice(0, 10)}.xlsx`;
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Transfer-Encoding", "chunked");
 
-    // Bước 3: Tạo ExcelJS streaming workbook — ghi thẳng ra response, không buffer RAM
     const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
       stream: res,
       useStyles: false,
@@ -66,10 +187,8 @@ router.get("/admin/export/:table", async (req, res) => {
     });
     const ws = workbook.addWorksheet(TABLE_LABELS[table]);
 
-    // Bước 4: Ghi header row
     ws.addRow(["id", "synced_at", ...dataKeys]).commit();
 
-    // Bước 5: Stream dữ liệu theo từng chunk 300 dòng — peak memory thấp
     const CHUNK = 300;
     let offset = 0;
     while (true) {
