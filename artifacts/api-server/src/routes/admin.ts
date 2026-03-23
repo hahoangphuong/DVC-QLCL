@@ -82,12 +82,12 @@ router.get("/admin/db-stats", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /admin/force-sync — kích hoạt sync ngay lập tức
+// POST /admin/force-sync — kích hoạt sync ngay lập tức (chạy background, trả về ngay)
 // ---------------------------------------------------------------------------
 router.post("/admin/force-sync", async (req, res) => {
   if (!checkToken(req, res)) return;
   try {
-    const pyRes = await fetch(`${PYTHON_API}/sync/all`, { method: "POST" });
+    const pyRes = await fetch(`${PYTHON_API}/sync/all/async`, { method: "POST" });
     const data = await pyRes.json();
     res.status(pyRes.ok ? 200 : 502).json(data);
   } catch (e: unknown) {

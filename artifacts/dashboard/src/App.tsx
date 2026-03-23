@@ -1438,23 +1438,18 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
     } catch { /* silent */ }
   };
 
-  // ---- Force sync ----
+  // ---- Force sync (async — trả về ngay, sync chạy background) ----
   const handleForceSync = async () => {
     if (!hasToken) { alert("Vui lòng nhập mã xác thực trước."); return; }
     setSyncBusy(true);
     setSyncResult(null);
-    const t0 = Date.now();
     try {
       const r = await fetch(`${API}/admin/force-sync?token=${tk()}`, { method: "POST" });
       const d = await r.json();
-      const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
       if (!r.ok) {
         setSyncResult(`❌ Lỗi: ${d.detail ?? `HTTP ${r.status}`}`);
       } else {
-        const ok  = (d.results?.length ?? 0);
-        const err = (d.errors?.length ?? 0);
-        setSyncResult(`✅ Hoàn thành trong ${elapsed}s — ${ok} dataset OK, ${err} lỗi (run #${d.run_id})`);
-        loadDbStats();
+        setSyncResult(`✅ ${d.message ?? "Sync đã được kích hoạt. Xem log để theo dõi."}`);
       }
     } catch (e) {
       setSyncResult(`❌ Lỗi kết nối: ${String(e)}`);
@@ -1631,7 +1626,7 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
 
           {/* 2 — Force sync */}
           <Section title="Đồng bộ dữ liệu ngay">
-            <p className="text-xs text-slate-500 mb-3">Kích hoạt sync toàn bộ 7 dataset ngay lập tức (thay vì đợi scheduler). Quá trình mất khoảng 1–3 phút.</p>
+            <p className="text-xs text-slate-500 mb-3">Kích hoạt sync toàn bộ 7 dataset ngay lập tức (thay vì đợi scheduler). Lệnh trả về ngay, sync chạy nền trong 1–3 phút — xem Log bên dưới để theo dõi tiến trình.</p>
             <div className="flex items-center gap-3 flex-wrap">
               <button
                 onClick={handleForceSync}

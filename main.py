@@ -632,11 +632,33 @@ def _run_sync_all_job(triggered_by: str = "scheduler") -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 11. POST /sync/all — gọi thủ công, cũng ghi vào file log
+# 11. POST /sync/all — gọi thủ công đồng bộ (blocking, giữ nguyên để compat)
 # ---------------------------------------------------------------------------
 @app.post("/sync/all")
 def sync_all():
     return _run_sync_all_job(triggered_by="manual")
+
+
+# ---------------------------------------------------------------------------
+# 11b. POST /sync/all/async — kích hoạt sync ngay trong background, trả về ngay
+# Dùng APScheduler để trigger 1 lần tức thì → không block HTTP request
+# ---------------------------------------------------------------------------
+@app.post("/sync/all/async")
+def sync_all_async():
+    _scheduler.add_job(
+        _run_sync_all_job,
+        trigger="date",
+        run_date=datetime.now(timezone.utc),
+        id="manual_sync_now",
+        replace_existing=True,
+        kwargs={"triggered_by": "manual"},
+        misfire_grace_time=60,
+    )
+    _sync_log.info("SYNC/ALL ASYNC được kích hoạt thủ công — chạy trong background")
+    return {
+        "ok": True,
+        "message": "Sync đã bắt đầu chạy trong background. Xem log để theo dõi tiến trình.",
+    }
 
 
 # ---------------------------------------------------------------------------
