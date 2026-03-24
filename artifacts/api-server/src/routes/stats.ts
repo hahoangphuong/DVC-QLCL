@@ -262,6 +262,10 @@ router.get("/stats/chuyen-vien", async (req, res) => {
           LEFT JOIN dxl_active da  ON t.data->>'maHoSo' = da.ma_ho_so
           LEFT JOIN dxl_cho_pc dcp ON t.data->>'maHoSo' = dcp.ma_ho_so
           WHERE (t.data->>'thuTucId')::int = $1
+            -- Loại orphan: hồ sơ chỉ tồn tại trong tra_cuu_chung nhưng không có
+            -- trong dang_xu_ly (chưa/đang xử lý) lẫn da_xu_ly (đã xử lý).
+            -- Những hồ sơ này không phản ánh thực tế nên không được tính vào bất kỳ chỉ số nào.
+            AND (da.ma_ho_so IS NOT NULL OR NULLIF(d.data->>'id','') IS NOT NULL)
        ),
        stats AS (
          SELECT
