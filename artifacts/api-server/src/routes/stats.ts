@@ -565,12 +565,11 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
 // ---------------------------------------------------------------------------
 router.get("/sync-status", async (_req, res) => {
   try {
+    // Đọc từ bảng sync_meta thay vì MAX(synced_at) trên hàng triệu row
     const timeRow = await queryOne<{ last_synced_at: string | null }>(`
-      SELECT GREATEST(
-        (SELECT MAX(synced_at) FROM tra_cuu_chung),
-        (SELECT MAX(synced_at) FROM dang_xu_ly),
-        (SELECT MAX(synced_at) FROM da_xu_ly)
-      ) AS last_synced_at
+      SELECT MAX(synced_at) AS last_synced_at
+      FROM sync_meta
+      WHERE table_name IN ('tra_cuu_chung', 'dang_xu_ly', 'da_xu_ly')
     `);
 
     const sizeRow = await queryOne<{ total_bytes: string }>(`

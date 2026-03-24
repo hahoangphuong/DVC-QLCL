@@ -15,6 +15,7 @@ from sqlalchemy import text
 
 from db import Base, engine, SessionLocal
 from models import (
+    SyncMeta,
     RemoteFetchLog,
     TraCuuChung,
     DaXuLy, DangXuLy,
@@ -58,11 +59,87 @@ _job_run_counter = 0
 _scheduler = BackgroundScheduler(timezone="UTC")
 _sync_interval_hours: float = 3.0  # giá trị hiện tại, cập nhật khi reschedule
 
+# Tên các bảng dữ liệu hồ sơ (không tính sync_meta, logs, ...)
+_DATA_TABLES = [
+    "tra_cuu_chung",
+    "dang_xu_ly",
+    "da_xu_ly",
+    "tt48_da_xu_ly", "tt48_dang_xu_ly",
+    "tt47_da_xu_ly", "tt47_dang_xu_ly",
+    "tt46_da_xu_ly", "tt46_dang_xu_ly",
+]
+
+
+def _migrate_schema():
+    """
+    Migration idempotent chạy mỗi lần server khởi động.
+
+    1. Xóa cột synced_at (không còn per-row — đã chuyển sang sync_meta).
+    2. Tạo các functional index JSONB còn thiếu để tăng tốc query thống kê.
+    """
+    with engine.begin() as conn:
+        # -- 1. Bỏ cột synced_at khỏi tất cả bảng dữ liệu ------------------
+        for t in _DATA_TABLES:
+            conn.execute(text(
+                f'ALTER TABLE IF EXISTS "{t}" DROP COLUMN IF EXISTS synced_at'
+            ))
+
+        # -- 2. Thêm JSONB indexes còn thiếu ---------------------------------
+        # dang_xu_ly — thiếu index maHoSo, id, tenDonViXuLy (dùng trong JOIN/CTE)
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_dxly_ma_ho_so "
+            "ON dang_xu_ly ((data->>'maHoSo'))"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_dxly_id "
+            "ON dang_xu_ly ((data->>'id'))"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_dxly_don_vi "
+            "ON dang_xu_ly ((data->>'tenDonViXuLy'))"
+        ))
+
+        # tra_cuu_chung — index text cho ngayTiepNhan, ngayHenTra (ISO 8601 → so sánh text đúng)
+        # Lưu ý: không thể index ::timestamptz vì cast không phải IMMUTABLE trong PostgreSQL
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_tcc_ngay_tiep_nhan "
+            "ON tra_cuu_chung ((data->>'ngayTiepNhan'))"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_tcc_ngay_hen_tra "
+            "ON tra_cuu_chung ((data->>'ngayHenTra'))"
+        ))
+
+        # da_xu_ly — index text cho ngayTraKetQua và trangThaiHoSo
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_dxl_ngay_tra "
+            "ON da_xu_ly ((data->>'ngayTraKetQua'))"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_dxl_trang_thai "
+            "ON da_xu_ly ((data->>'trangThaiHoSo'))"
+        ))
+
+
+def _upsert_sync_meta(db, table_name: str, synced_at, record_count: int):
+    """Cập nhật bảng sync_meta cho một bảng dữ liệu (INSERT hoặc UPDATE)."""
+    db.execute(
+        text("""
+            INSERT INTO sync_meta (table_name, synced_at, record_count)
+            VALUES (:tn, :sa, :rc)
+            ON CONFLICT (table_name)
+            DO UPDATE SET synced_at = EXCLUDED.synced_at,
+                          record_count = EXCLUDED.record_count
+        """),
+        {"tn": table_name, "sa": synced_at, "rc": record_count},
+    )
+
 
 # Tạo tất cả bảng + khởi động scheduler khi server start
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    _migrate_schema()
     # next_run_time=now → chạy sync ngay lập tức khi server khởi động,
     # sau đó lặp lại mỗi 3 giờ tự động
     _scheduler.add_job(
@@ -219,15 +296,18 @@ def _do_sync(model_class, api_url: str, body: dict, label: str, referer: str | N
         else:
             raise ValueError(f"Không thể parse result từ response: type={type(result)}")
 
-        # Bước 4: xoá toàn bộ dữ liệu cũ trong bảng
-        db.query(model_class).delete()
-
-        # Bước 5: làm sạch date fields + insert dữ liệu mới
-        synced_at = datetime.now(timezone.utc)
+        # Bước 4: làm sạch date fields ngay sau khi nhận về
         for item in items:
             _clean_record(item)
-            db.add(model_class(synced_at=synced_at, data=item))
 
+        # Bước 5: xoá toàn bộ dữ liệu cũ (TRUNCATE nhanh hơn DELETE rất nhiều)
+        #         rồi bulk INSERT thay vì loop db.add() từng row
+        synced_at = datetime.now(timezone.utc)
+        tbl = model_class.__tablename__
+        db.execute(text(f'TRUNCATE TABLE "{tbl}" RESTART IDENTITY'))
+        if items:
+            db.execute(model_class.__table__.insert(), [{"data": item} for item in items])
+        _upsert_sync_meta(db, tbl, synced_at, len(items))
         db.commit()
 
         return {
@@ -390,8 +470,8 @@ def _sync_unified(
     Hàm sync tổng quát cho cả đã xử lý và đang xử lý:
     - Fetch dữ liệu từ API remote
     - Làm sạch date fields ngay khi nhận về (_clean_record)
-    - Ghi vào bảng gộp (da_xu_ly / dang_xu_ly) với cột thu_tuc
-    - Ghi đồng thời vào bảng legacy (tt48/47/46_da/dang_xu_ly) để backward-compat
+    - Ghi vào bảng gộp (da_xu_ly / dang_xu_ly) bằng bulk INSERT
+    - Bảng legacy (tt48/47/46_*) không còn được ghi vào — chỉ giữ cho compat đọc
     """
     trang_thai = "đã" if is_done else "đang"
     label = f"{'da' if is_done else 'dang'}_xu_ly (TT{thu_tuc})"
@@ -426,40 +506,34 @@ def _sync_unified(
 
         synced_at = datetime.now(timezone.utc)
 
-        # Xóa dữ liệu cũ trong cả bảng gộp (theo thu_tuc) và bảng legacy
-        db.query(unified_model).filter(unified_model.thu_tuc == thu_tuc).delete()
-        db.query(legacy_model).delete()
-
-        cleaned  = 0
-        skipped  = 0   # số record bị lọc ra (pId≠null cho da_xu_ly)
-        inserted = 0
-
+        # Làm sạch date fields + đảm bảo thuTucId đúng
         for item in items:
-            # Làm sạch date fields ngay khi nhận về — đếm số record có thay đổi
-            before = str({k: item.get(k) for k in _DATE_FIELDS if item.get(k)})
             _clean_record(item)
-            after  = str({k: item.get(k) for k in _DATE_FIELDS if item.get(k)})
-            if before != after:
-                cleaned += 1
-
-            # Đảm bảo thuTucId có trong JSONB
             item["thuTucId"] = thu_tuc
 
-            db.add(legacy_model(synced_at=synced_at, data=item))
-            db.add(unified_model(synced_at=synced_at, thu_tuc=thu_tuc, data=item))
-            inserted += 1
-
+        # Xóa dữ liệu cũ của thu_tuc này trong bảng gộp, sau đó bulk INSERT
+        unified_tbl = unified_model.__tablename__
+        db.execute(
+            text(f'DELETE FROM "{unified_tbl}" WHERE thu_tuc = :tt'),
+            {"tt": thu_tuc},
+        )
+        if items:
+            db.execute(
+                unified_model.__table__.insert(),
+                [{"thu_tuc": thu_tuc, "data": item} for item in items],
+            )
+        _upsert_sync_meta(db, unified_tbl, synced_at, len(items))
         db.commit()
+
+        inserted = len(items)
         _sync_log.info(
-            f"[{label}] {trang_thai} xử lý: "
-            f"{inserted}/{total} records | {cleaned} ngày làm sạch / fallback"
+            f"[{label}] {trang_thai} xử lý: {inserted}/{total} records"
         )
         return {
             "ok":             True,
             "dataset":        label,
             "inserted":       inserted,
             "total_from_api": total,
-            "dates_cleaned":  cleaned,
             "synced_at":      synced_at.isoformat(),
         }
 

@@ -31,8 +31,9 @@ A standalone Python FastAPI service at the root level. Logs into dichvucong.dav.
 - `tra_cuu_chung` — main lookup table (all 3 thủ tục, thuTucId in JSONB)
 - `da_xu_ly` — **unified** đã xử lý, `thu_tuc` integer column (46/47/48) + JSONB data
 - `dang_xu_ly` — **unified** đang xử lý, `thu_tuc` integer column (46/47/48) + JSONB data
-- `tt48_da_xu_ly`, `tt47_da_xu_ly`, `tt46_da_xu_ly` — legacy (backward-compat, always synced alongside unified)
-- `tt48_dang_xu_ly`, `tt47_dang_xu_ly`, `tt46_dang_xu_ly` — legacy (backward-compat)
+- `tt48_da_xu_ly`, `tt47_da_xu_ly`, `tt46_da_xu_ly` — legacy (giữ lại, **không ghi mới từ v2 trở đi**)
+- `tt48_dang_xu_ly`, `tt47_dang_xu_ly`, `tt46_dang_xu_ly` — legacy (giữ lại, **không ghi mới từ v2 trở đi**)
+- `sync_meta` — 1 row/bảng, lưu `synced_at` + `record_count` (thay cho cột `synced_at` per-row cũ)
 
 ### Notes on null ngayTraKetQua in da_xu_ly
 - TT48: ~1,209 records có `trangThaiHoSo=4` + `pId≠null` → **bình thường**, là hồ sơ trung gian (chưa giải quyết xong)

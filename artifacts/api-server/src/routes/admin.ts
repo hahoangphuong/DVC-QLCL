@@ -26,53 +26,59 @@ function checkToken(req: import("express").Request, res: import("express").Respo
 router.get("/admin/db-stats", async (req, res) => {
   if (!checkToken(req, res)) return;
   try {
-    const [tcc, dxl, dxly] = await Promise.all([
-      query<{ cnt: string; last_sync: string | null }>(
-        `SELECT COUNT(*) AS cnt, MAX(synced_at) AS last_sync FROM tra_cuu_chung`
-      ),
-      query<{ cnt: string; last_sync: string | null; cnt_48: string; cnt_47: string; cnt_46: string }>(
-        `SELECT
-           COUNT(*)                                                AS cnt,
-           MAX(synced_at)                                         AS last_sync,
-           COUNT(*) FILTER (WHERE thu_tuc = 48)                   AS cnt_48,
-           COUNT(*) FILTER (WHERE thu_tuc = 47)                   AS cnt_47,
-           COUNT(*) FILTER (WHERE thu_tuc = 46)                   AS cnt_46
-         FROM dang_xu_ly`
-      ),
-      query<{ cnt: string; last_sync: string | null; cnt_48: string; cnt_47: string; cnt_46: string }>(
-        `SELECT
-           COUNT(*)                                                AS cnt,
-           MAX(synced_at)                                         AS last_sync,
-           COUNT(*) FILTER (WHERE thu_tuc = 48)                   AS cnt_48,
-           COUNT(*) FILTER (WHERE thu_tuc = 47)                   AS cnt_47,
-           COUNT(*) FILTER (WHERE thu_tuc = 46)                   AS cnt_46
-         FROM da_xu_ly`
-      ),
+    // Đọc record counts + phân tách per-thu_tuc song song với last_sync từ sync_meta
+    const [counts, syncMeta] = await Promise.all([
+      query<{ table_name: string; cnt: string; cnt_48: string; cnt_47: string; cnt_46: string }>(`
+        SELECT 'tra_cuu_chung' AS table_name, COUNT(*)::text AS cnt,
+               '0' AS cnt_48, '0' AS cnt_47, '0' AS cnt_46
+        FROM tra_cuu_chung
+        UNION ALL
+        SELECT 'dang_xu_ly', COUNT(*)::text,
+               COUNT(*) FILTER (WHERE thu_tuc = 48)::text,
+               COUNT(*) FILTER (WHERE thu_tuc = 47)::text,
+               COUNT(*) FILTER (WHERE thu_tuc = 46)::text
+        FROM dang_xu_ly
+        UNION ALL
+        SELECT 'da_xu_ly', COUNT(*)::text,
+               COUNT(*) FILTER (WHERE thu_tuc = 48)::text,
+               COUNT(*) FILTER (WHERE thu_tuc = 47)::text,
+               COUNT(*) FILTER (WHERE thu_tuc = 46)::text
+        FROM da_xu_ly
+      `),
+      query<{ table_name: string; synced_at: string | null }>(`
+        SELECT table_name, synced_at
+        FROM sync_meta
+        WHERE table_name IN ('tra_cuu_chung', 'dang_xu_ly', 'da_xu_ly')
+      `),
     ]);
+
+    const countMap = Object.fromEntries(counts.map(r => [r.table_name, r]));
+    const metaMap  = Object.fromEntries(syncMeta.map(r => [r.table_name, r.synced_at]));
+
     res.json({
       ok: true,
       tables: {
         tra_cuu_chung: {
-          total: parseInt(tcc[0]?.cnt ?? "0"),
-          last_sync: tcc[0]?.last_sync ?? null,
+          total:     parseInt(countMap["tra_cuu_chung"]?.cnt ?? "0"),
+          last_sync: metaMap["tra_cuu_chung"] ?? null,
         },
         dang_xu_ly: {
-          total: parseInt(dxl[0]?.cnt ?? "0"),
+          total:     parseInt(countMap["dang_xu_ly"]?.cnt ?? "0"),
           by_thu_tuc: {
-            48: parseInt(dxl[0]?.cnt_48 ?? "0"),
-            47: parseInt(dxl[0]?.cnt_47 ?? "0"),
-            46: parseInt(dxl[0]?.cnt_46 ?? "0"),
+            48: parseInt(countMap["dang_xu_ly"]?.cnt_48 ?? "0"),
+            47: parseInt(countMap["dang_xu_ly"]?.cnt_47 ?? "0"),
+            46: parseInt(countMap["dang_xu_ly"]?.cnt_46 ?? "0"),
           },
-          last_sync: dxl[0]?.last_sync ?? null,
+          last_sync: metaMap["dang_xu_ly"] ?? null,
         },
         da_xu_ly: {
-          total: parseInt(dxly[0]?.cnt ?? "0"),
+          total:     parseInt(countMap["da_xu_ly"]?.cnt ?? "0"),
           by_thu_tuc: {
-            48: parseInt(dxly[0]?.cnt_48 ?? "0"),
-            47: parseInt(dxly[0]?.cnt_47 ?? "0"),
-            46: parseInt(dxly[0]?.cnt_46 ?? "0"),
+            48: parseInt(countMap["da_xu_ly"]?.cnt_48 ?? "0"),
+            47: parseInt(countMap["da_xu_ly"]?.cnt_47 ?? "0"),
+            46: parseInt(countMap["da_xu_ly"]?.cnt_46 ?? "0"),
           },
-          last_sync: dxly[0]?.last_sync ?? null,
+          last_sync: metaMap["da_xu_ly"] ?? null,
         },
       },
     });
@@ -187,20 +193,19 @@ router.get("/admin/export/:table", async (req, res) => {
     });
     const ws = workbook.addWorksheet(TABLE_LABELS[table]);
 
-    ws.addRow(["id", "synced_at", ...dataKeys]).commit();
+    ws.addRow(["id", ...dataKeys]).commit();
 
     const CHUNK = 300;
     let offset = 0;
     while (true) {
-      const rows = await query<{ id: number; synced_at: string; data: Record<string, unknown> }>(
-        `SELECT id, synced_at, data FROM "${table}" ORDER BY id LIMIT ${CHUNK} OFFSET ${offset}`
+      const rows = await query<{ id: number; data: Record<string, unknown> }>(
+        `SELECT id, data FROM "${table}" ORDER BY id LIMIT ${CHUNK} OFFSET ${offset}`
       );
       if (rows.length === 0) break;
 
       for (const r of rows) {
         ws.addRow([
           r.id,
-          r.synced_at,
           ...dataKeys.map(k => cellVal(r.data?.[k])),
         ]).commit();
       }
