@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
 
 from db import Base
@@ -10,12 +10,17 @@ class SyncMeta(Base):
     Lưu thời gian sync gần nhất và số bản ghi cho từng bảng dữ liệu.
     Thay thế cho cột synced_at trên từng row — tiết kiệm lưu trữ đáng kể.
     Mỗi bảng có đúng 1 dòng; được INSERT ON CONFLICT UPDATE sau mỗi lần sync.
+
+    fetch_sec   : thời gian (giây) gọi API từ xa và nhận dữ liệu về
+    insert_sec  : thời gian (giây) để xử lý + bulk INSERT vào DB (bao gồm commit)
     """
     __tablename__ = "sync_meta"
 
     table_name   = Column(String(100), primary_key=True)
     synced_at    = Column(DateTime(timezone=True), nullable=False)
     record_count = Column(Integer, nullable=False, default=0)
+    fetch_sec    = Column(Float, nullable=True)
+    insert_sec   = Column(Float, nullable=True)
 
     def __repr__(self):
         return (

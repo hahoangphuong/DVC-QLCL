@@ -1353,11 +1353,12 @@ const EXPORT_TABLES = [
   { id: "da_xu_ly",      label: "Đã Xử Lý",       desc: "Hồ sơ đã hoàn tất xử lý" },
 ] as const;
 
+type TableMeta = { last_sync: string | null; fetch_sec: number | null; insert_sec: number | null };
 type DbStats = {
   tables: {
-    tra_cuu_chung: { total: number; last_sync: string | null };
-    dang_xu_ly:    { total: number; by_thu_tuc: Record<string,number>; last_sync: string | null };
-    da_xu_ly:      { total: number; by_thu_tuc: Record<string,number>; last_sync: string | null };
+    tra_cuu_chung: { total: number } & TableMeta;
+    dang_xu_ly:    { total: number; by_thu_tuc: Record<string,number> } & TableMeta;
+    da_xu_ly:      { total: number; by_thu_tuc: Record<string,number> } & TableMeta;
   };
 };
 
@@ -1613,7 +1614,21 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
                         <td className="px-3 py-2 border border-slate-200 text-right text-slate-600">{by ? by[48]?.toLocaleString() : "—"}</td>
                         <td className="px-3 py-2 border border-slate-200 text-right text-slate-600">{by ? by[47]?.toLocaleString() : "—"}</td>
                         <td className="px-3 py-2 border border-slate-200 text-right text-slate-600">{by ? by[46]?.toLocaleString() : "—"}</td>
-                        <td className="px-3 py-2 border border-slate-200 text-slate-500">{fmtSyncAt(t.last_sync)}</td>
+                        <td className="px-3 py-2 border border-slate-200 text-slate-500">
+                          {t.last_sync
+                            ? <>
+                                <span className="font-medium text-slate-700">{fmtSyncAt(t.last_sync)}</span>
+                                {(t.fetch_sec != null || t.insert_sec != null) && (
+                                  <div className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+                                    {t.fetch_sec  != null && <span>🌐 Kéo: <span className="font-mono text-slate-600">{t.fetch_sec.toFixed(2)}s</span></span>}
+                                    {t.fetch_sec  != null && t.insert_sec != null && <span className="mx-1">·</span>}
+                                    {t.insert_sec != null && <span>💾 Ghi: <span className="font-mono text-slate-600">{t.insert_sec.toFixed(2)}s</span></span>}
+                                  </div>
+                                )}
+                              </>
+                            : <span className="text-slate-300">—</span>
+                          }
+                        </td>
                       </tr>
                     );
                   })}
@@ -1831,18 +1846,25 @@ function Dashboard() {
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">Cục Quản lý Dược</p>
           </div>
-          {syncStatus?.lastSyncedAt && (() => {
-            const d = new Date(syncStatus.lastSyncedAt);
-            const dd   = String(d.getDate()).padStart(2, "0");
-            const mm   = String(d.getMonth() + 1).padStart(2, "0");
-            const yyyy = d.getFullYear();
-            const hh   = String(d.getHours()).padStart(2, "0");
-            const min  = String(d.getMinutes()).padStart(2, "0");
+          {syncStatus && (() => {
+            const iso = syncStatus.lastSyncedAt;
+            if (!iso) return (
+              <p className="text-xs text-slate-400 text-right leading-snug hidden sm:block">
+                Dữ liệu cập nhật lần cuối<br />
+                <span className="text-slate-400 italic">Chưa có dữ liệu sync</span>
+                <span className="text-slate-400"> · {syncStatus.totalSizeMB.toFixed(2)} MB</span>
+              </p>
+            );
+            const d   = new Date(iso);
+            const dd  = String(d.getDate()).padStart(2, "0");
+            const mm  = String(d.getMonth() + 1).padStart(2, "0");
+            const hh  = String(d.getHours()).padStart(2, "0");
+            const min = String(d.getMinutes()).padStart(2, "0");
             return (
               <p className="text-xs text-slate-400 text-right leading-snug hidden sm:block">
                 Dữ liệu cập nhật lần cuối<br />
                 <span className="font-medium text-slate-600">
-                  {dd}-{mm}-{yyyy} lúc {hh}:{min}
+                  {dd}-{mm}-{d.getFullYear()} lúc {hh}:{min}
                   {" "}({syncStatus.totalSizeMB.toFixed(2)} MB)
                 </span>
               </p>

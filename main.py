@@ -84,7 +84,17 @@ def _migrate_schema():
                 f'ALTER TABLE IF EXISTS "{t}" DROP COLUMN IF EXISTS synced_at'
             ))
 
-        # -- 2. Thêm JSONB indexes còn thiếu ---------------------------------
+        # -- 2. Thêm cột fetch_sec / insert_sec vào sync_meta nếu chưa có -----
+        conn.execute(text(
+            "ALTER TABLE IF EXISTS sync_meta "
+            "ADD COLUMN IF NOT EXISTS fetch_sec FLOAT"
+        ))
+        conn.execute(text(
+            "ALTER TABLE IF EXISTS sync_meta "
+            "ADD COLUMN IF NOT EXISTS insert_sec FLOAT"
+        ))
+
+        # -- 3. Thêm JSONB indexes còn thiếu ---------------------------------
         # dang_xu_ly — thiếu index maHoSo, id, tenDonViXuLy (dùng trong JOIN/CTE)
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_dxly_ma_ho_so "
@@ -121,17 +131,27 @@ def _migrate_schema():
         ))
 
 
-def _upsert_sync_meta(db, table_name: str, synced_at, record_count: int):
+def _upsert_sync_meta(
+    db,
+    table_name: str,
+    synced_at,
+    record_count: int,
+    fetch_sec: float = 0.0,
+    insert_sec: float = 0.0,
+):
     """Cập nhật bảng sync_meta cho một bảng dữ liệu (INSERT hoặc UPDATE)."""
     db.execute(
         text("""
-            INSERT INTO sync_meta (table_name, synced_at, record_count)
-            VALUES (:tn, :sa, :rc)
+            INSERT INTO sync_meta (table_name, synced_at, record_count, fetch_sec, insert_sec)
+            VALUES (:tn, :sa, :rc, :fs, :is)
             ON CONFLICT (table_name)
-            DO UPDATE SET synced_at = EXCLUDED.synced_at,
-                          record_count = EXCLUDED.record_count
+            DO UPDATE SET synced_at    = EXCLUDED.synced_at,
+                          record_count = EXCLUDED.record_count,
+                          fetch_sec    = EXCLUDED.fetch_sec,
+                          insert_sec   = EXCLUDED.insert_sec
         """),
-        {"tn": table_name, "sa": synced_at, "rc": record_count},
+        {"tn": table_name, "sa": synced_at, "rc": record_count,
+         "fs": round(fetch_sec, 2), "is": round(insert_sec, 2)},
     )
 
 
@@ -272,7 +292,8 @@ def _clean_record(item: dict) -> dict:
 def _do_sync(model_class, api_url: str, body: dict, label: str, referer: str | None = None) -> dict:
     db = SessionLocal()
     try:
-        # Bước 1: đăng nhập
+        # Bước 1: đăng nhập + fetch (đo thời gian kéo dữ liệu)
+        t_fetch = _time.monotonic()
         client = RemoteClient()
         client.login()
 
@@ -296,18 +317,20 @@ def _do_sync(model_class, api_url: str, body: dict, label: str, referer: str | N
         else:
             raise ValueError(f"Không thể parse result từ response: type={type(result)}")
 
-        # Bước 4: làm sạch date fields ngay sau khi nhận về
+        # Làm sạch date fields ngay sau khi nhận về
         for item in items:
             _clean_record(item)
+        fetch_sec = _time.monotonic() - t_fetch
 
-        # Bước 5: xoá toàn bộ dữ liệu cũ (TRUNCATE nhanh hơn DELETE rất nhiều)
-        #         rồi bulk INSERT thay vì loop db.add() từng row
+        # Bước 4: TRUNCATE + bulk INSERT (đo thời gian xử lý / ghi DB)
+        t_insert = _time.monotonic()
         synced_at = datetime.now(timezone.utc)
         tbl = model_class.__tablename__
         db.execute(text(f'TRUNCATE TABLE "{tbl}" RESTART IDENTITY'))
         if items:
             db.execute(model_class.__table__.insert(), [{"data": item} for item in items])
-        _upsert_sync_meta(db, tbl, synced_at, len(items))
+        _upsert_sync_meta(db, tbl, synced_at, len(items),
+                          fetch_sec=fetch_sec, insert_sec=_time.monotonic() - t_insert)
         db.commit()
 
         return {
@@ -486,6 +509,7 @@ def _sync_unified(
 
     db = SessionLocal()
     try:
+        t_fetch = _time.monotonic()
         client = RemoteClient()
         client.login()
         resp = client.post_json(api_url, body, referer=referer)
@@ -504,7 +528,7 @@ def _sync_unified(
         else:
             raise ValueError(f"Không thể parse result: type={type(result)}")
 
-        synced_at = datetime.now(timezone.utc)
+        fetch_sec = _time.monotonic() - t_fetch
 
         # Làm sạch date fields + đảm bảo thuTucId đúng
         for item in items:
@@ -512,6 +536,8 @@ def _sync_unified(
             item["thuTucId"] = thu_tuc
 
         # Xóa dữ liệu cũ của thu_tuc này trong bảng gộp, sau đó bulk INSERT
+        t_insert = _time.monotonic()
+        synced_at = datetime.now(timezone.utc)
         unified_tbl = unified_model.__tablename__
         db.execute(
             text(f'DELETE FROM "{unified_tbl}" WHERE thu_tuc = :tt'),
@@ -522,7 +548,8 @@ def _sync_unified(
                 unified_model.__table__.insert(),
                 [{"thu_tuc": thu_tuc, "data": item} for item in items],
             )
-        _upsert_sync_meta(db, unified_tbl, synced_at, len(items))
+        _upsert_sync_meta(db, unified_tbl, synced_at, len(items),
+                          fetch_sec=fetch_sec, insert_sec=_time.monotonic() - t_insert)
         db.commit()
 
         inserted = len(items)

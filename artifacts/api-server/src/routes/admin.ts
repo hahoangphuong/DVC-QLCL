@@ -45,40 +45,46 @@ router.get("/admin/db-stats", async (req, res) => {
                COUNT(*) FILTER (WHERE thu_tuc = 46)::text
         FROM da_xu_ly
       `),
-      query<{ table_name: string; synced_at: string | null }>(`
-        SELECT table_name, synced_at
+      query<{ table_name: string; synced_at: string | null; fetch_sec: number | null; insert_sec: number | null }>(`
+        SELECT table_name, synced_at, fetch_sec, insert_sec
         FROM sync_meta
         WHERE table_name IN ('tra_cuu_chung', 'dang_xu_ly', 'da_xu_ly')
       `),
     ]);
 
     const countMap = Object.fromEntries(counts.map(r => [r.table_name, r]));
-    const metaMap  = Object.fromEntries(syncMeta.map(r => [r.table_name, r.synced_at]));
+    const metaMap  = Object.fromEntries(syncMeta.map(r => [r.table_name, r]));
+
+    const meta = (k: string) => ({
+      last_sync:  metaMap[k]?.synced_at  ?? null,
+      fetch_sec:  metaMap[k]?.fetch_sec  ?? null,
+      insert_sec: metaMap[k]?.insert_sec ?? null,
+    });
 
     res.json({
       ok: true,
       tables: {
         tra_cuu_chung: {
-          total:     parseInt(countMap["tra_cuu_chung"]?.cnt ?? "0"),
-          last_sync: metaMap["tra_cuu_chung"] ?? null,
+          total: parseInt(countMap["tra_cuu_chung"]?.cnt ?? "0"),
+          ...meta("tra_cuu_chung"),
         },
         dang_xu_ly: {
-          total:     parseInt(countMap["dang_xu_ly"]?.cnt ?? "0"),
+          total: parseInt(countMap["dang_xu_ly"]?.cnt ?? "0"),
           by_thu_tuc: {
             48: parseInt(countMap["dang_xu_ly"]?.cnt_48 ?? "0"),
             47: parseInt(countMap["dang_xu_ly"]?.cnt_47 ?? "0"),
             46: parseInt(countMap["dang_xu_ly"]?.cnt_46 ?? "0"),
           },
-          last_sync: metaMap["dang_xu_ly"] ?? null,
+          ...meta("dang_xu_ly"),
         },
         da_xu_ly: {
-          total:     parseInt(countMap["da_xu_ly"]?.cnt ?? "0"),
+          total: parseInt(countMap["da_xu_ly"]?.cnt ?? "0"),
           by_thu_tuc: {
             48: parseInt(countMap["da_xu_ly"]?.cnt_48 ?? "0"),
             47: parseInt(countMap["da_xu_ly"]?.cnt_47 ?? "0"),
             46: parseInt(countMap["da_xu_ly"]?.cnt_46 ?? "0"),
           },
-          last_sync: metaMap["da_xu_ly"] ?? null,
+          ...meta("da_xu_ly"),
         },
       },
     });
