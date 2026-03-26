@@ -5,8 +5,8 @@ import ExcelJS from "exceljs";
 const router: IRouter = Router();
 
 const ADMIN_TOKEN = process.env["ADMIN_EXPORT_TOKEN"] ?? "";
-// Python API luôn chạy ở port 8008 (service độc lập, cả dev lẫn production)
-const PYTHON_API  = "http://localhost:8008";
+// Python API luôn chạy ở port 8000 (service độc lập, cả dev lẫn production)
+const PYTHON_API  = "http://localhost:8000";
 
 function checkToken(req: import("express").Request, res: import("express").Response): boolean {
   const provided = String(req.query["token"] ?? req.headers["x-admin-token"] ?? "");
