@@ -1,7 +1,9 @@
+import json as _json
 import logging
 import logging.handlers
 import os
 import re
+import threading
 import time as _time
 import requests
 from contextlib import asynccontextmanager
@@ -51,6 +53,9 @@ _sync_log.addHandler(_fh)
 
 # Bộ đếm thứ tự mỗi lần chạy job (dễ theo dõi trong log)
 _job_run_counter = 0
+
+# Lock ngăn nhiều phiên sync chạy đồng thời → tránh tốn RAM nhân đôi
+_sync_lock = threading.Lock()
 
 
 # ===========================================================================
@@ -282,6 +287,46 @@ def _clean_record(item: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# RAM-aware batch INSERT helpers
+# ---------------------------------------------------------------------------
+def _get_free_ram_mb() -> int:
+    """Đọc MemAvailable từ /proc/meminfo (Linux). Fallback 512 MB nếu lỗi."""
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("MemAvailable:"):
+                    return int(line.split()[1]) // 1024  # KiB → MiB
+    except Exception:
+        pass
+    return 512
+
+
+def _calc_batch_size(items: list, safety_factor: float = 0.25) -> int:
+    """Tính batch size INSERT động.
+
+    Ước tính từ 20 record đầu (serialized JSON) × overhead ×4,
+    rồi chia vào RAM budget = free_ram × safety_factor.
+    Clamp kết quả vào [50, 2000].
+    """
+    if not items:
+        return 500
+    sample = items[:20]
+    avg_bytes = sum(len(_json.dumps(r, ensure_ascii=False).encode()) for r in sample) / len(sample)
+    # ×4: Python dict + SQLAlchemy binding + PostgreSQL row buffer + safety
+    size_per_record = avg_bytes * 4
+    budget_bytes = _get_free_ram_mb() * 1024 * 1024 * safety_factor
+    batch = int(budget_bytes / size_per_record) if size_per_record > 0 else 500
+    return max(50, min(batch, 2000))
+
+
+def _batched_insert(db, table, rows: list, batch_size: int) -> None:
+    """INSERT theo batch để tránh OOM; flush sau mỗi batch để giải phóng bộ nhớ."""
+    for i in range(0, len(rows), batch_size):
+        db.execute(table.insert(), rows[i: i + batch_size])
+        db.flush()
+
+
+# ---------------------------------------------------------------------------
 # Helper chung: login → POST JSON → xoá table → insert records
 #
 # model_class : SQLAlchemy model tương ứng (ví dụ: TraCuuChung)
@@ -322,13 +367,15 @@ def _do_sync(model_class, api_url: str, body: dict, label: str, referer: str | N
             _clean_record(item)
         fetch_sec = _time.monotonic() - t_fetch
 
-        # Bước 4: TRUNCATE + bulk INSERT (đo thời gian xử lý / ghi DB)
+        # Bước 4: TRUNCATE + bulk INSERT theo batch (đo thời gian xử lý / ghi DB)
         t_insert = _time.monotonic()
         synced_at = datetime.now(timezone.utc)
         tbl = model_class.__tablename__
         db.execute(text(f'TRUNCATE TABLE "{tbl}" RESTART IDENTITY'))
         if items:
-            db.execute(model_class.__table__.insert(), [{"data": item} for item in items])
+            batch_size = _calc_batch_size(items)
+            rows = [{"data": item} for item in items]
+            _batched_insert(db, model_class.__table__, rows, batch_size)
         _upsert_sync_meta(db, tbl, synced_at, len(items),
                           fetch_sec=fetch_sec, insert_sec=_time.monotonic() - t_insert)
         db.commit()
@@ -544,10 +591,9 @@ def _sync_unified(
             {"tt": thu_tuc},
         )
         if items:
-            db.execute(
-                unified_model.__table__.insert(),
-                [{"thu_tuc": thu_tuc, "data": item} for item in items],
-            )
+            batch_size = _calc_batch_size(items)
+            rows = [{"thu_tuc": thu_tuc, "data": item} for item in items]
+            _batched_insert(db, unified_model.__table__, rows, batch_size)
         _upsert_sync_meta(db, unified_tbl, synced_at, len(items),
                           fetch_sec=fetch_sec, insert_sec=_time.monotonic() - t_insert)
         db.commit()
@@ -639,97 +685,109 @@ def sync_tt46_dang_xu_ly():
 # Trả về dict {"ok", "results", "errors", "run_id"}
 # ---------------------------------------------------------------------------
 def _run_sync_all_job(triggered_by: str = "scheduler") -> dict:
-    global _job_run_counter
-    _job_run_counter += 1
-    run_id = _job_run_counter
+    # Ngăn nhiều phiên sync chạy đồng thời — tránh tốn RAM nhân đôi
+    if not _sync_lock.acquire(blocking=False):
+        _sync_log.warning(
+            f"[SKIP] Sync đang chạy — bỏ qua lần kích hoạt này "
+            f"(triggered_by={triggered_by})"
+        )
+        return {"ok": False, "skipped": True, "reason": "Sync đang chạy, bỏ qua"}
 
-    base_url = os.environ.get("BASE_URL", "").rstrip("/")
+    try:
+        global _job_run_counter
+        _job_run_counter += 1
+        run_id = _job_run_counter
 
-    # Danh sách 7 task: (label hiển thị, hàm sync, path API để ghi log)
-    _TASKS = [
-        (
-            "tra_cuu_chung",
-            sync_tra_cuu_chung,
-            f"{base_url}/api/services/app/traCuu_PQLCL/TraCuu",
-        ),
-        (
-            "tt48_da_xu_ly",
-            sync_tt48_da_xu_ly,
-            f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
-            " [ThuTucEnum=48, isDone=True]",
-        ),
-        (
-            "tt48_dang_xu_ly",
-            sync_tt48_dang_xu_ly,
-            f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
-            " [ThuTucEnum=48, isDone=False]",
-        ),
-        (
-            "tt47_da_xu_ly",
-            sync_tt47_da_xu_ly,
-            f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
-            " [ThuTucEnum=47, isDone=True]",
-        ),
-        (
-            "tt47_dang_xu_ly",
-            sync_tt47_dang_xu_ly,
-            f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
-            " [ThuTucEnum=47, isDone=False]",
-        ),
-        (
-            "tt46_da_xu_ly",
-            sync_tt46_da_xu_ly,
-            f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
-            " [ThuTucEnum=46, isDone=True]",
-        ),
-        (
-            "tt46_dang_xu_ly",
-            sync_tt46_dang_xu_ly,
-            f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
-            " [ThuTucEnum=46, isDone=False]",
-        ),
-    ]
+        base_url = os.environ.get("BASE_URL", "").rstrip("/")
 
-    _sync_log.info("─" * 70)
-    _sync_log.info(f"[run #{run_id}] SYNC/ALL BẮT ĐẦU | triggered_by={triggered_by}")
+        # Danh sách 7 task: (label hiển thị, hàm sync, path API để ghi log)
+        _TASKS = [
+            (
+                "tra_cuu_chung",
+                sync_tra_cuu_chung,
+                f"{base_url}/api/services/app/traCuu_PQLCL/TraCuu",
+            ),
+            (
+                "tt48_da_xu_ly",
+                sync_tt48_da_xu_ly,
+                f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
+                " [ThuTucEnum=48, isDone=True]",
+            ),
+            (
+                "tt48_dang_xu_ly",
+                sync_tt48_dang_xu_ly,
+                f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
+                " [ThuTucEnum=48, isDone=False]",
+            ),
+            (
+                "tt47_da_xu_ly",
+                sync_tt47_da_xu_ly,
+                f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
+                " [ThuTucEnum=47, isDone=True]",
+            ),
+            (
+                "tt47_dang_xu_ly",
+                sync_tt47_dang_xu_ly,
+                f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
+                " [ThuTucEnum=47, isDone=False]",
+            ),
+            (
+                "tt46_da_xu_ly",
+                sync_tt46_da_xu_ly,
+                f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
+                " [ThuTucEnum=46, isDone=True]",
+            ),
+            (
+                "tt46_dang_xu_ly",
+                sync_tt46_dang_xu_ly,
+                f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
+                " [ThuTucEnum=46, isDone=False]",
+            ),
+        ]
 
-    results = []
-    errors = []
+        _sync_log.info("─" * 70)
+        _sync_log.info(f"[run #{run_id}] SYNC/ALL BẮT ĐẦU | triggered_by={triggered_by}")
 
-    for label, fn, api_info in _TASKS:
-        t0 = _time.monotonic()
-        try:
-            result = fn()
-            elapsed = _time.monotonic() - t0
-            inserted = result.get("inserted", "?")
-            total    = result.get("total_from_api", "?")
-            _sync_log.info(
-                f"[run #{run_id}] [{label}] POST {api_info}"
-                f" → OK | {inserted}/{total} records | {elapsed:.1f}s"
-            )
-            results.append(result)
-        except HTTPException as e:
-            elapsed = _time.monotonic() - t0
-            _sync_log.error(
-                f"[run #{run_id}] [{label}] POST {api_info}"
-                f" → HTTP {e.status_code} | {e.detail} | {elapsed:.1f}s"
-            )
-            errors.append({"dataset": label, "http_status": e.status_code, "error": e.detail})
-        except Exception as e:
-            elapsed = _time.monotonic() - t0
-            _sync_log.error(
-                f"[run #{run_id}] [{label}] POST {api_info}"
-                f" → EXCEPTION {type(e).__name__} | {e} | {elapsed:.1f}s"
-            )
-            errors.append({"dataset": label, "error": f"{type(e).__name__}: {e}"})
+        results = []
+        errors = []
 
-    status_str = f"{len(results)} OK, {len(errors)} lỗi"
-    if errors:
-        _sync_log.warning(f"[run #{run_id}] SYNC/ALL HOÀN THÀNH (có lỗi) | {status_str}")
-    else:
-        _sync_log.info(f"[run #{run_id}] SYNC/ALL HOÀN THÀNH | {status_str}")
+        for label, fn, api_info in _TASKS:
+            t0 = _time.monotonic()
+            try:
+                result = fn()
+                elapsed = _time.monotonic() - t0
+                inserted = result.get("inserted", "?")
+                total    = result.get("total_from_api", "?")
+                _sync_log.info(
+                    f"[run #{run_id}] [{label}] POST {api_info}"
+                    f" → OK | {inserted}/{total} records | {elapsed:.1f}s"
+                )
+                results.append(result)
+            except HTTPException as e:
+                elapsed = _time.monotonic() - t0
+                _sync_log.error(
+                    f"[run #{run_id}] [{label}] POST {api_info}"
+                    f" → HTTP {e.status_code} | {e.detail} | {elapsed:.1f}s"
+                )
+                errors.append({"dataset": label, "http_status": e.status_code, "error": e.detail})
+            except Exception as e:
+                elapsed = _time.monotonic() - t0
+                _sync_log.error(
+                    f"[run #{run_id}] [{label}] POST {api_info}"
+                    f" → EXCEPTION {type(e).__name__} | {e} | {elapsed:.1f}s"
+                )
+                errors.append({"dataset": label, "error": f"{type(e).__name__}: {e}"})
 
-    return {"ok": len(errors) == 0, "run_id": run_id, "results": results, "errors": errors}
+        status_str = f"{len(results)} OK, {len(errors)} lỗi"
+        if errors:
+            _sync_log.warning(f"[run #{run_id}] SYNC/ALL HOÀN THÀNH (có lỗi) | {status_str}")
+        else:
+            _sync_log.info(f"[run #{run_id}] SYNC/ALL HOÀN THÀNH | {status_str}")
+
+        return {"ok": len(errors) == 0, "run_id": run_id, "results": results, "errors": errors}
+
+    finally:
+        _sync_lock.release()
 
 
 # ---------------------------------------------------------------------------
@@ -746,6 +804,17 @@ def sync_all():
 # ---------------------------------------------------------------------------
 @app.post("/sync/all/async")
 def sync_all_async():
+    # Kiểm tra sớm để trả ngay về nếu sync đang bận (lock đang bị hold)
+    already_running = not _sync_lock.acquire(blocking=False)
+    if not already_running:
+        _sync_lock.release()  # release ngay — lock thực sự sẽ được giữ bởi job
+    if already_running:
+        _sync_log.warning("SYNC/ALL ASYNC bị từ chối — sync đang chạy")
+        return {
+            "ok": False,
+            "running": True,
+            "message": "Sync đang chạy. Vui lòng đợi kết thúc rồi thử lại.",
+        }
     _scheduler.add_job(
         _run_sync_all_job,
         trigger="date",
