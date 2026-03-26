@@ -241,9 +241,11 @@ router.get("/stats/chuyen-vien", async (req, res) => {
        ),
        base AS (
           SELECT
-            -- Nếu hồ sơ đang "Chờ phân công" trong dang_xu_ly → gán __CHUA_PHAN__
-            -- bất kể chuyenVienThuLyName trong tra_cuu_chung là gì
-            CASE WHEN dcp.ma_ho_so IS NOT NULL THEN '__CHUA_PHAN__'
+            -- Chỉ gán __CHUA_PHAN__ khi maHoSo đang "Chờ phân công" trong dang_xu_ly
+            -- VÀ TCC row này chưa có match trong da_xu_ly (ngay_tra IS NULL).
+            -- Nếu TCC row đã có match (hồ sơ cũ đã giải quyết, sau đó nộp lại),
+            -- dùng chuyenVienThuLyName gốc để tránh double-count vào __CHUA_PHAN__.
+            CASE WHEN dcp.ma_ho_so IS NOT NULL AND NULLIF(d.data->>'id','') IS NULL THEN '__CHUA_PHAN__'
                  ELSE COALESCE(NULLIF(TRIM(t.data->>'chuyenVienThuLyName'), ''), '__CHUA_PHAN__')
             END AS cv_name,
             (t.data->>'ngayTiepNhan')::timestamptz AS ngay_nhan,
