@@ -25,11 +25,11 @@ PORT = "8080"
 path = "/api/healthz"
 
 [[services]]
-localPort = 8000
+localPort = 8008
 name = "Python API"
 
 [services.development]
-run = "uvicorn main:app --host 0.0.0.0 --port 8000 --reload --app-dir /home/runner/workspace"
+run = "uvicorn main:app --host 0.0.0.0 --port 8008 --reload --app-dir /home/runner/workspace"
 
 [services.production.run]
-args = ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "/home/runner/workspace"]
+args = ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8008", "--app-dir", "/home/runner/workspace"]
