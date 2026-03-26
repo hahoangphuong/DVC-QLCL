@@ -4,8 +4,9 @@ import ExcelJS from "exceljs";
 
 const router: IRouter = Router();
 
-const ADMIN_TOKEN = process.env["ADMIN_EXPORT_TOKEN"] ?? "";
-const PYTHON_API  = "http://localhost:8000";
+const ADMIN_TOKEN  = process.env["ADMIN_EXPORT_TOKEN"] ?? "";
+const PYTHON_PORT  = process.env["PYTHON_PORT"] ?? "8000";
+const PYTHON_API   = `http://localhost:${PYTHON_PORT}`;
 
 function checkToken(req: import("express").Request, res: import("express").Response): boolean {
   const provided = String(req.query["token"] ?? req.headers["x-admin-token"] ?? "");

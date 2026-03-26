@@ -23,12 +23,16 @@ app.listen(port, () => {
 // Python tự trigger sync ngay lúc startup (qua APScheduler next_run_time=now).
 if (process.env["NODE_ENV"] === "production") {
   const repoRoot = process.cwd(); // production khởi động từ root repo
+  const PYTHON_PORT = "8001";
+
+  // Ghi vào process.env để admin.ts đọc đúng port khi gọi Python API
+  process.env["PYTHON_PORT"] = PYTHON_PORT;
 
   function startPythonServer() {
-    console.log(`[python] Starting uvicorn from ${repoRoot} ...`);
+    console.log(`[python] Starting uvicorn on port ${PYTHON_PORT} from ${repoRoot} ...`);
     const proc = spawn(
       "uvicorn",
-      ["main:app", "--host", "127.0.0.1", "--port", "8001"],
+      ["main:app", "--host", "127.0.0.1", "--port", PYTHON_PORT],
       {
         cwd: repoRoot,
         stdio: "inherit",
