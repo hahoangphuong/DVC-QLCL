@@ -657,7 +657,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
                     <td className={tdC}><Num v={cpc.ton_sau_tong} color="#b45309" bold /></td>
                     <td className={tdC}><Num v={cpc.ton_sau_con_han} color="#2563eb" /></td>
                     <td className={tdC}><Num v={cpc.ton_sau_qua_han} color="#dc2626" /></td>
-                    <td className={tdC}><Num v={cpc.treo} color="#ea580c" bold /></td>
+                    <td className={tdC}></td>
                   </tr>
                 )}
                 {rows.map((row, idx) => <CvRow key={row.ten_cv} row={row} idx={idx} />)}
