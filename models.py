@@ -88,33 +88,3 @@ class DangXuLy(_HoSoBase, Base):
     """
     __tablename__ = "dang_xu_ly"
     thu_tuc = Column(Integer, nullable=False, index=True)
-
-
-class TT48DaXuLy(_HoSoBase, Base):
-    """Hồ sơ TT48 đã được xử lý (giữ để backward-compat, không còn ghi mới)."""
-    __tablename__ = "tt48_da_xu_ly"
-
-
-class TT48DangXuLy(_HoSoBase, Base):
-    """Hồ sơ TT48 đang được xử lý (giữ để backward-compat, không còn ghi mới)."""
-    __tablename__ = "tt48_dang_xu_ly"
-
-
-class TT47DaXuLy(_HoSoBase, Base):
-    """Hồ sơ TT47 đã được xử lý (giữ để backward-compat, không còn ghi mới)."""
-    __tablename__ = "tt47_da_xu_ly"
-
-
-class TT47DangXuLy(_HoSoBase, Base):
-    """Hồ sơ TT47 đang được xử lý (giữ để backward-compat, không còn ghi mới)."""
-    __tablename__ = "tt47_dang_xu_ly"
-
-
-class TT46DaXuLy(_HoSoBase, Base):
-    """Hồ sơ TT46 đã được xử lý (giữ để backward-compat, không còn ghi mới)."""
-    __tablename__ = "tt46_da_xu_ly"
-
-
-class TT46DangXuLy(_HoSoBase, Base):
-    """Hồ sơ TT46 đang được xử lý (giữ để backward-compat, không còn ghi mới)."""
-    __tablename__ = "tt46_dang_xu_ly"

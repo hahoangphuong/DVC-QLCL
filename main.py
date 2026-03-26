@@ -21,9 +21,6 @@ from models import (
     RemoteFetchLog,
     TraCuuChung,
     DaXuLy, DangXuLy,
-    TT48DaXuLy, TT48DangXuLy,
-    TT47DaXuLy, TT47DangXuLy,
-    TT46DaXuLy, TT46DangXuLy,
 )
 from auth_client import RemoteClient, RemoteAuthError
 
@@ -69,9 +66,6 @@ _DATA_TABLES = [
     "tra_cuu_chung",
     "dang_xu_ly",
     "da_xu_ly",
-    "tt48_da_xu_ly", "tt48_dang_xu_ly",
-    "tt47_da_xu_ly", "tt47_dang_xu_ly",
-    "tt46_da_xu_ly", "tt46_dang_xu_ly",
 ]
 
 
@@ -532,7 +526,6 @@ def _dashboard_body(thu_tuc: int, is_done: bool) -> dict:
 
 def _sync_unified(
     unified_model,
-    legacy_model,
     thu_tuc: int,
     is_done: bool,
 ) -> dict:
@@ -541,7 +534,6 @@ def _sync_unified(
     - Fetch dữ liệu từ API remote
     - Làm sạch date fields ngay khi nhận về (_clean_record)
     - Ghi vào bảng gộp (da_xu_ly / dang_xu_ly) bằng bulk INSERT
-    - Bảng legacy (tt48/47/46_*) không còn được ghi vào — chỉ giữ cho compat đọc
     """
     trang_thai = "đã" if is_done else "đang"
     label = f"{'da' if is_done else 'dang'}_xu_ly (TT{thu_tuc})"
@@ -634,47 +626,47 @@ def _sync_unified(
 # ---------------------------------------------------------------------------
 @app.post("/sync/tt48-da-xu-ly")
 def sync_tt48_da_xu_ly():
-    return _sync_unified(DaXuLy, TT48DaXuLy, thu_tuc=48, is_done=True)
+    return _sync_unified(DaXuLy, thu_tuc=48, is_done=True)
 
 
 # ---------------------------------------------------------------------------
-# 6. POST /sync/tt48-dang-xu-ly  → dang_xu_ly (thu_tuc=48) + tt48_dang_xu_ly
+# 6. POST /sync/tt48-dang-xu-ly  → dang_xu_ly (thu_tuc=48)
 # ---------------------------------------------------------------------------
 @app.post("/sync/tt48-dang-xu-ly")
 def sync_tt48_dang_xu_ly():
-    return _sync_unified(DangXuLy, TT48DangXuLy, thu_tuc=48, is_done=False)
+    return _sync_unified(DangXuLy, thu_tuc=48, is_done=False)
 
 
 # ---------------------------------------------------------------------------
-# 7. POST /sync/tt47-da-xu-ly  → da_xu_ly (thu_tuc=47) + tt47_da_xu_ly
+# 7. POST /sync/tt47-da-xu-ly  → da_xu_ly (thu_tuc=47)
 # ---------------------------------------------------------------------------
 @app.post("/sync/tt47-da-xu-ly")
 def sync_tt47_da_xu_ly():
-    return _sync_unified(DaXuLy, TT47DaXuLy, thu_tuc=47, is_done=True)
+    return _sync_unified(DaXuLy, thu_tuc=47, is_done=True)
 
 
 # ---------------------------------------------------------------------------
-# 8. POST /sync/tt47-dang-xu-ly  → dang_xu_ly (thu_tuc=47) + tt47_dang_xu_ly
+# 8. POST /sync/tt47-dang-xu-ly  → dang_xu_ly (thu_tuc=47)
 # ---------------------------------------------------------------------------
 @app.post("/sync/tt47-dang-xu-ly")
 def sync_tt47_dang_xu_ly():
-    return _sync_unified(DangXuLy, TT47DangXuLy, thu_tuc=47, is_done=False)
+    return _sync_unified(DangXuLy, thu_tuc=47, is_done=False)
 
 
 # ---------------------------------------------------------------------------
-# 9. POST /sync/tt46-da-xu-ly  → da_xu_ly (thu_tuc=46) + tt46_da_xu_ly
+# 9. POST /sync/tt46-da-xu-ly  → da_xu_ly (thu_tuc=46)
 # ---------------------------------------------------------------------------
 @app.post("/sync/tt46-da-xu-ly")
 def sync_tt46_da_xu_ly():
-    return _sync_unified(DaXuLy, TT46DaXuLy, thu_tuc=46, is_done=True)
+    return _sync_unified(DaXuLy, thu_tuc=46, is_done=True)
 
 
 # ---------------------------------------------------------------------------
-# 10. POST /sync/tt46-dang-xu-ly  → dang_xu_ly (thu_tuc=46) + tt46_dang_xu_ly
+# 10. POST /sync/tt46-dang-xu-ly  → dang_xu_ly (thu_tuc=46)
 # ---------------------------------------------------------------------------
 @app.post("/sync/tt46-dang-xu-ly")
 def sync_tt46_dang_xu_ly():
-    return _sync_unified(DangXuLy, TT46DangXuLy, thu_tuc=46, is_done=False)
+    return _sync_unified(DangXuLy, thu_tuc=46, is_done=False)
 
 
 # ---------------------------------------------------------------------------
@@ -921,13 +913,15 @@ def status():
         return {
             "ok": True,
             "tables": {
-                "tra_cuu_chung": db.query(TraCuuChung).count(),
-                "tt48_da_xu_ly": db.query(TT48DaXuLy).count(),
-                "tt48_dang_xu_ly": db.query(TT48DangXuLy).count(),
-                "tt47_da_xu_ly": db.query(TT47DaXuLy).count(),
-                "tt47_dang_xu_ly": db.query(TT47DangXuLy).count(),
-                "tt46_da_xu_ly": db.query(TT46DaXuLy).count(),
-                "tt46_dang_xu_ly": db.query(TT46DangXuLy).count(),
+                "tra_cuu_chung":    db.query(TraCuuChung).count(),
+                "da_xu_ly":         db.query(DaXuLy).count(),
+                "da_xu_ly_tt46":    db.query(DaXuLy).filter(DaXuLy.thu_tuc == 46).count(),
+                "da_xu_ly_tt47":    db.query(DaXuLy).filter(DaXuLy.thu_tuc == 47).count(),
+                "da_xu_ly_tt48":    db.query(DaXuLy).filter(DaXuLy.thu_tuc == 48).count(),
+                "dang_xu_ly":       db.query(DangXuLy).count(),
+                "dang_xu_ly_tt46":  db.query(DangXuLy).filter(DangXuLy.thu_tuc == 46).count(),
+                "dang_xu_ly_tt47":  db.query(DangXuLy).filter(DangXuLy.thu_tuc == 47).count(),
+                "dang_xu_ly_tt48":  db.query(DangXuLy).filter(DangXuLy.thu_tuc == 48).count(),
             },
         }
     finally:
