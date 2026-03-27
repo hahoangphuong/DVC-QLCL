@@ -610,7 +610,14 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-xs border-collapse" style={{ minWidth: 1100 }}>
+        <table className="w-full text-xs border-collapse" style={{ minWidth: 1100, tableLayout: "fixed" }}>
+          <colgroup>
+            <col style={{ width: 36 }} />
+            <col style={{ width: 160 }} />
+            <col /><col /><col /><col /><col />
+            <col /><col /><col /><col /><col />
+            <col /><col /><col /><col /><col />
+          </colgroup>
           <thead>
             {/* Hàng 1: nhóm cột */}
             <tr className="bg-slate-700 text-white">
@@ -1335,7 +1342,13 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
       {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-xs border-collapse">
+          <table className="w-full text-xs border-collapse" style={{ minWidth: 1050, tableLayout: "fixed" }}>
+            <colgroup>
+              <col style={{ width: 36 }} />
+              <col style={{ width: 160 }} />
+              <col /><col /><col /><col /><col /><col /><col />
+              <col /><col /><col /><col /><col /><col />
+            </colgroup>
             <thead>
               <tr className="bg-slate-700 text-white">
                 <th className="sticky left-0 z-20 bg-slate-700 px-1 py-2 text-center w-9 text-xs" rowSpan={2}>STT</th>
@@ -1495,7 +1508,12 @@ function ChuyenGiaTable({ thuTuc }: { thuTuc: number }) {
         Thống kê hồ sơ đang ở bước Chuyên gia thẩm định — TT{thuTuc}
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-xs border-collapse">
+        <table className="w-full text-xs border-collapse" style={{ minWidth: 820, tableLayout: "fixed" }}>
+          <colgroup>
+            <col style={{ width: 36 }} />
+            <col style={{ width: 160 }} />
+            <col /><col /><col /><col /><col /><col /><col />
+          </colgroup>
           <thead>
             <tr className="bg-slate-700 text-white">
               <th className="px-2 py-2 text-center text-xs w-9" rowSpan={2}>STT</th>
