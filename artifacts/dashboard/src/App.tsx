@@ -1024,8 +1024,8 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
         </div>
       </div>
 
-      {/* Biểu đồ — 3 cột cạnh nhau */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      {/* Biểu đồ — 3 cột cạnh nhau, luôn nằm ngang */}
+      <div className="grid grid-cols-3 gap-4" style={{ minWidth: 720 }}>
         {/* Biểu đồ cột */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
