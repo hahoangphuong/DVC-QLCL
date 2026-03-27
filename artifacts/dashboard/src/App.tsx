@@ -933,13 +933,13 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
         </div>
       </div>
 
-      {/* Biểu đồ + KPI */}
+      {/* Biểu đồ — 3 cột cạnh nhau */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         {/* Biểu đồ cột */}
-        <div className="xl:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-              Tình trạng giải quyết hồ sơ {ttLabel}
+              Tình trạng hồ sơ {ttLabel}
             </h3>
             {isLoading && (
               <span className="text-xs text-blue-500 animate-pulse font-medium">Đang tải...</span>
@@ -950,7 +950,7 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
           </div>
 
           {isLoading ? (
-            <div className="h-64 flex items-center justify-center">
+            <div className="h-48 flex items-center justify-center">
               <div className="w-8 h-8 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
             </div>
           ) : (
@@ -958,7 +958,7 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
           )}
 
           {/* Ghi chú */}
-          <div className="mt-3 flex flex-wrap gap-4 justify-center">
+          <div className="mt-3 flex flex-wrap gap-3 justify-center">
             {Object.values(COLORS).map(({ bar, label }) => (
               <div key={label} className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: bar }} />
@@ -968,38 +968,7 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
           </div>
         </div>
 
-        {/* KPI cards */}
-        <div className="grid grid-cols-2 xl:grid-cols-1 gap-3 content-start">
-          <KpiCard
-            label="Tồn trước"
-            value={data?.ton_truoc ?? 0}
-            color={COLORS.ton_truoc.text}
-            bgColor="#fdf2f8"
-          />
-          <KpiCard
-            label="Đã nhận"
-            value={data?.da_nhan ?? 0}
-            color={COLORS.da_nhan.text}
-            bgColor="#eff6ff"
-          />
-          <KpiCard
-            label="Đã giải quyết"
-            value={data?.da_giai_quyet ?? 0}
-            color={COLORS.da_giai_quyet.text}
-            bgColor="#f0fdf4"
-          />
-          <KpiCard
-            label="Tồn sau"
-            value={data?.ton_sau ?? 0}
-            color={COLORS.ton_sau.text}
-            bgColor="#fffbeb"
-          />
-        </div>
-      </div>
-
-      {/* Hàng biểu đồ tròn */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-        {/* Biểu đồ 1: Đã giải quyết — Đúng hạn / Quá hạn */}
+        {/* Biểu đồ tròn 1: Đã giải quyết — Đúng hạn / Quá hạn */}
         <DonutChart
           title="Đã giải quyết — Đúng hạn / Quá hạn"
           total={gqData?.total ?? 0}
@@ -1013,7 +982,7 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
           spinnerColor="#22c55e"
         />
 
-        {/* Biểu đồ 2: Tồn sau — Còn hạn / Quá hạn */}
+        {/* Biểu đồ tròn 2: Tồn sau — Còn hạn / Quá hạn */}
         <DonutChart
           title="Tồn sau — Còn hạn / Quá hạn"
           total={tsData?.total ?? 0}
