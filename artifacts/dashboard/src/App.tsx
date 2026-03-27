@@ -806,10 +806,22 @@ function MonthlyTrendChart({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
             {showLabels && (
               <LabelList
                 dataKey="da_nhan"
-                position="insideTop"
-                angle={-90}
-                style={{ fontSize: 9, fill: "#1e40af", fontWeight: 600 }}
-                formatter={(v: number) => v || ""}
+                content={(props: any) => {
+                  const { x, y, width, height, value } = props;
+                  if (!value || height < 16) return null;
+                  const cx = (x ?? 0) + (width ?? 0) / 2;
+                  // Đặt center của text cách đỉnh cột một khoảng = nửa chiều dài text
+                  // Tại fontSize 9, mỗi ký tự ≈ 6px; dự phòng 13px là đủ cho 3–4 chữ số
+                  const cy = (y ?? 0) + 13;
+                  return (
+                    <text x={cx} y={cy}
+                      transform={`rotate(-90, ${cx}, ${cy})`}
+                      textAnchor="middle" dominantBaseline="central"
+                      fontSize={9} fill="#1e40af" fontWeight={600}>
+                      {value}
+                    </text>
+                  );
+                }}
               />
             )}
           </Bar>
@@ -817,10 +829,20 @@ function MonthlyTrendChart({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
             {showLabels && (
               <LabelList
                 dataKey="da_giai_quyet"
-                position="insideTop"
-                angle={-90}
-                style={{ fontSize: 9, fill: "#065f46", fontWeight: 600 }}
-                formatter={(v: number) => v || ""}
+                content={(props: any) => {
+                  const { x, y, width, height, value } = props;
+                  if (!value || height < 16) return null;
+                  const cx = (x ?? 0) + (width ?? 0) / 2;
+                  const cy = (y ?? 0) + 13;
+                  return (
+                    <text x={cx} y={cy}
+                      transform={`rotate(-90, ${cx}, ${cy})`}
+                      textAnchor="middle" dominantBaseline="central"
+                      fontSize={9} fill="#065f46" fontWeight={600}>
+                      {value}
+                    </text>
+                  );
+                }}
               />
             )}
           </Bar>
