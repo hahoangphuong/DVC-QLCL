@@ -1477,19 +1477,60 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 
       {/* Charts row */}
       <div className="grid grid-cols-3 gap-4">
-        {/* Donut: Chờ CV / CG / TrP */}
+        {/* Phân loại theo bước xử lý */}
         <div className="bg-white rounded-xl border border-slate-200 p-3">
-          <p className="text-xs font-semibold text-slate-500 mb-1 text-center">Phân loại theo bước xử lý</p>
-          <ResponsiveContainer width="100%" height={180}>
-            <PieChart>
-              <Pie data={catData} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
-                dataKey="value" labelLine={false} label={renderPieLabel}>
-                {catData.map((d, i) => <Cell key={i} fill={d.fill} />)}
-              </Pie>
-              <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-              <Tooltip content={<CatTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
+          <p className="text-xs font-semibold text-slate-500 mb-2 text-center">Phân loại theo bước xử lý</p>
+          {is48 ? (
+            /* TT48: list dạng thanh ngang — rõ hơn donut khi có nhiều bước */
+            <div className="flex flex-col gap-1.5 px-1" style={{ height: 180, overflowY: "auto" }}>
+              {catData.map(d => {
+                const pct = catTotal > 0 ? (d.value / catTotal * 100) : 0;
+                return (
+                  <div key={d.name} className="flex items-center gap-2 min-w-0">
+                    {/* nhãn */}
+                    <span className="text-xs text-slate-600 whitespace-nowrap w-[88px] shrink-0 truncate"
+                          title={d.name}>{d.name}</span>
+                    {/* thanh */}
+                    <div className="flex-1 bg-slate-100 rounded-full h-4 overflow-hidden">
+                      <div className="h-full rounded-full transition-all flex items-center justify-end pr-1.5"
+                           style={{ width: `${Math.max(pct, 2)}%`, background: d.fill }}>
+                        {pct >= 12 && (
+                          <span className="text-[10px] font-bold text-white leading-none">{d.value}</span>
+                        )}
+                      </div>
+                    </div>
+                    {/* số tuyệt đối (hiện khi thanh ngắn) */}
+                    {pct < 12 && (
+                      <span className="text-[11px] font-semibold shrink-0" style={{ color: d.fill }}>
+                        {d.value}
+                      </span>
+                    )}
+                    {/* % */}
+                    <span className="text-[10px] text-slate-400 shrink-0 w-[30px] text-right">
+                      {pct.toFixed(0)}%
+                    </span>
+                  </div>
+                );
+              })}
+              {catData.length === 0 && (
+                <div className="flex items-center justify-center h-full text-slate-300 text-xs">
+                  Không có dữ liệu
+                </div>
+              )}
+            </div>
+          ) : (
+            /* TT47/46: giữ nguyên donut */
+            <ResponsiveContainer width="100%" height={180}>
+              <PieChart>
+                <Pie data={catData} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
+                  dataKey="value" labelLine={false} label={renderPieLabel}>
+                  {catData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                </Pie>
+                <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
+                <Tooltip content={<CatTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Pie: Còn hạn / Quá hạn */}
