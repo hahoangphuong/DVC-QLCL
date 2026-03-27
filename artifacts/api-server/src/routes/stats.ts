@@ -439,7 +439,6 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
     const rows = await query<{
       cv_name:      string;
       tong:         string;
-      cho_pc:       string;
       cho_cv:       string;
       cho_cg:       string;
       cho_to_truong: string;
@@ -481,7 +480,6 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
          SELECT
            cv_name,
            COUNT(*)                                                            AS tong,
-           COUNT(*) FILTER (WHERE don_vi = 'Phòng ban phân công')             AS cho_pc,
            COUNT(*) FILTER (WHERE don_vi = 'Chuyên viên')                     AS cho_cv,
            COUNT(*) FILTER (WHERE don_vi = 'Chuyên gia thẩm định')              AS cho_cg,
            COUNT(*) FILTER (WHERE don_vi = 'Tổ trưởng chuyên gia')            AS cho_to_truong,
@@ -525,7 +523,6 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
     const fmt = (r: (typeof rows)[0]) => ({
       cv_name:       r.cv_name,
       tong:          toN(r.tong),
-      cho_pc:        toN(r.cho_pc),
       cho_cv:        toN(r.cho_cv),
       cho_cg:        toN(r.cho_cg),
       cho_to_truong: toN(r.cho_to_truong),
