@@ -1180,6 +1180,10 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
   const months    = data.months;
   const is48      = thuTuc === 48;
 
+  // Ẩn cột nếu toàn bộ dữ liệu (kể cả hàng chờ phân công) đều bằng 0
+  const showPct    = allRows.some(r => r.cho_pct    > 0) || (cpc?.cho_pct    ?? 0) > 0;
+  const showVanThu = allRows.some(r => r.cho_van_thu > 0) || (cpc?.cho_van_thu ?? 0) > 0;
+
   // Aggregate totals for charts
   const totCon = allRows.reduce((s, r) => s + r.con_han, 0) + (cpc?.con_han ?? 0);
   const totQua = allRows.reduce((s, r) => s + r.qua_han, 0) + (cpc?.qua_han ?? 0);
@@ -1382,14 +1386,18 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
           <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${v(row.cho_cong_bo) > 0 ? "text-emerald-700 font-semibold" : "text-slate-300"}`}>
             {v(row.cho_cong_bo) || ""}
           </td>
-          {/* Chờ PCT */}
-          <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_pct > 0 ? "text-purple-700 font-semibold" : "text-slate-300"}`}>
-            {row.cho_pct || ""}
-          </td>
-          {/* Chờ Văn thư */}
-          <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_van_thu > 0 ? "text-slate-600" : "text-slate-300"}`}>
-            {row.cho_van_thu || ""}
-          </td>
+          {/* Chờ PCT — ẩn nếu không có */}
+          {showPct && (
+            <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_pct > 0 ? "text-purple-700 font-semibold" : "text-slate-300"}`}>
+              {row.cho_pct || ""}
+            </td>
+          )}
+          {/* Chờ Văn thư — ẩn nếu không có */}
+          {showVanThu && (
+            <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_van_thu > 0 ? "text-slate-600" : "text-slate-300"}`}>
+              {row.cho_van_thu || ""}
+            </td>
+          )}
           {hanCells}
           {chamCells}
         </tr>
@@ -1417,14 +1425,18 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
         <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_trp > 0 ? "text-orange-700" : "text-slate-300"}`}>
           {row.cho_trp || ""}
         </td>
-        {/* Chờ PCT */}
-        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_pct > 0 ? "text-purple-700 font-semibold" : "text-slate-300"}`}>
-          {row.cho_pct || ""}
-        </td>
-        {/* Chờ Văn thư */}
-        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_van_thu > 0 ? "text-slate-600" : "text-slate-300"}`}>
-          {row.cho_van_thu || ""}
-        </td>
+        {/* Chờ PCT — ẩn nếu không có */}
+        {showPct && (
+          <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_pct > 0 ? "text-purple-700 font-semibold" : "text-slate-300"}`}>
+            {row.cho_pct || ""}
+          </td>
+        )}
+        {/* Chờ Văn thư — ẩn nếu không có */}
+        {showVanThu && (
+          <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_van_thu > 0 ? "text-slate-600" : "text-slate-300"}`}>
+            {row.cho_van_thu || ""}
+          </td>
+        )}
         {hanCells}
         {chamCells}
       </tr>
@@ -1520,14 +1532,18 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
               <col style={{ width: 160 }} />
               {/* step columns — chia đều */}
               {is48
-                ? <>{/* TT48: TỔNG + 9 bước + Còn hạn + Quá hạn + % */}
-                    <col /><col /><col /><col /><col />
+                ? <>{/* TT48: TỔNG + 7 bước cố định + PCT? + VT? + Còn hạn + Quá hạn + % */}
                     <col /><col /><col /><col /><col />
                     <col /><col /><col />
+                    {showPct    && <col />}
+                    {showVanThu && <col />}
+                    <col /><col /><col />
                   </>
-                : <>{/* TT47/46: TỔNG + 6 bước + Còn hạn + Quá hạn + % */}
+                : <>{/* TT47/46: TỔNG + 4 bước cố định + PCT? + VT? + Còn hạn + Quá hạn + % */}
                     <col /><col /><col /><col /><col />
-                    <col /><col /><col /><col /><col />
+                    {showPct    && <col />}
+                    {showVanThu && <col />}
+                    <col /><col /><col />
                   </>
               }
               {/* 3 cột Hồ sơ chậm nhất */}
@@ -1542,7 +1558,10 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                     rowSpan={2} style={{ boxShadow: "2px 0 4px -1px rgba(0,0,0,0.15)" }}>
                   Chuyên viên
                 </th>
-                <th className="px-2 py-2 text-center text-xs bg-blue-600" colSpan={is48 ? 13 : 10}>ĐANG GIẢI QUYẾT</th>
+                <th className="px-2 py-2 text-center text-xs bg-blue-600"
+                    colSpan={(is48 ? 13 : 10) - (showPct ? 0 : 1) - (showVanThu ? 0 : 1)}>
+                  ĐANG GIẢI QUYẾT
+                </th>
                 <th className="px-2 py-2 text-center text-xs bg-rose-700" colSpan={3}>Hồ sơ chậm nhất</th>
               </tr>
               {is48
@@ -1556,8 +1575,8 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                     <th className="px-2 py-1 text-center text-xs bg-orange-400">Chờ Tổ<br/>trưởng</th>
                     <th className="px-2 py-1 text-center text-xs bg-orange-600">Chờ TrP</th>
                     <th className="px-2 py-1 text-center text-xs bg-emerald-600">Chờ<br/>công bố</th>
-                    <th className="px-2 py-1 text-center text-xs bg-purple-600">Chờ PCT</th>
-                    <th className="px-2 py-1 text-center text-xs bg-slate-500">Chờ<br/>Văn thư</th>
+                    {showPct    && <th className="px-2 py-1 text-center text-xs bg-purple-600">Chờ PCT</th>}
+                    {showVanThu && <th className="px-2 py-1 text-center text-xs bg-slate-500">Chờ<br/>Văn thư</th>}
                     <th className="px-2 py-1 text-center text-xs bg-green-700">Còn<br/>hạn</th>
                     <th className="px-2 py-1 text-center text-xs bg-orange-600">Quá<br/>hạn</th>
                     <th className="px-2 py-1 text-center text-xs bg-orange-700">% quá<br/>hạn</th>
@@ -1572,8 +1591,8 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                     <th className="px-2 py-1 text-center text-xs bg-green-600">Chờ CG</th>
                     <th className="px-2 py-1 text-center text-xs bg-orange-400">Chờ Tổ<br/>trưởng</th>
                     <th className="px-2 py-1 text-center text-xs bg-orange-600">Chờ TrP</th>
-                    <th className="px-2 py-1 text-center text-xs bg-purple-600">Chờ PCT</th>
-                    <th className="px-2 py-1 text-center text-xs bg-slate-500">Chờ<br/>Văn thư</th>
+                    {showPct    && <th className="px-2 py-1 text-center text-xs bg-purple-600">Chờ PCT</th>}
+                    {showVanThu && <th className="px-2 py-1 text-center text-xs bg-slate-500">Chờ<br/>Văn thư</th>}
                     <th className="px-2 py-1 text-center text-xs bg-green-700">Còn<br/>hạn</th>
                     <th className="px-2 py-1 text-center text-xs bg-orange-600">Quá<br/>hạn</th>
                     <th className="px-2 py-1 text-center text-xs bg-orange-700">% quá<br/>hạn</th>
@@ -1604,8 +1623,8 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                     <td className="px-2 py-2 text-center text-xs text-orange-500">{sumToTruong || ""}</td>
                     <td className="px-2 py-2 text-center text-xs text-orange-700">{sumTrp || ""}</td>
                     <td className="px-2 py-2 text-center text-xs text-emerald-700">{sum48_ccb || ""}</td>
-                    <td className="px-2 py-2 text-center text-xs text-purple-700">{sumPct || ""}</td>
-                    <td className="px-2 py-2 text-center text-xs text-slate-600">{sumVanThu || ""}</td>
+                    {showPct    && <td className="px-2 py-2 text-center text-xs text-purple-700">{sumPct || ""}</td>}
+                    {showVanThu && <td className="px-2 py-2 text-center text-xs text-slate-600">{sumVanThu || ""}</td>}
                   </>
                 ) : (
                   <>
@@ -1613,8 +1632,8 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                     <td className="px-2 py-2 text-center text-xs text-green-700">{sumCg || ""}</td>
                     <td className="px-2 py-2 text-center text-xs text-emerald-700">{sumToTruong || ""}</td>
                     <td className="px-2 py-2 text-center text-xs text-orange-700">{sumTrp || ""}</td>
-                    <td className="px-2 py-2 text-center text-xs text-purple-700">{sumPct || ""}</td>
-                    <td className="px-2 py-2 text-center text-xs text-slate-600">{sumVanThu || ""}</td>
+                    {showPct    && <td className="px-2 py-2 text-center text-xs text-purple-700">{sumPct || ""}</td>}
+                    {showVanThu && <td className="px-2 py-2 text-center text-xs text-slate-600">{sumVanThu || ""}</td>}
                   </>
                 )}
                 <td className="px-2 py-2 text-center text-xs text-blue-600">{sumCon}</td>
@@ -1641,8 +1660,8 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                     <td className="px-2 py-1 text-center">{sh_c("cho_to_truong_con") || ""}</td>
                     <td className="px-2 py-1 text-center">{sh_c("cho_trp_con") || ""}</td>
                     <td className="px-2 py-1 text-center">{sh_c("cho_cong_bo_con") || ""}</td>
-                    <td className="px-2 py-1 text-center">{sh_c("cho_pct_con") || ""}</td>
-                    <td className="px-2 py-1 text-center">{sh_c("cho_van_thu_con") || ""}</td>
+                    {showPct    && <td className="px-2 py-1 text-center">{sh_c("cho_pct_con") || ""}</td>}
+                    {showVanThu && <td className="px-2 py-1 text-center">{sh_c("cho_van_thu_con") || ""}</td>}
                     <td className="px-2 py-1 text-center font-bold">{sh_c("con_han") || ""}</td>
                     <td className="px-2 py-1 text-center" />
                     <td className="px-2 py-1 text-center" />
@@ -1662,8 +1681,8 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                     <td className="px-2 py-1 text-center">{sh_c("cho_to_truong_qua") || ""}</td>
                     <td className="px-2 py-1 text-center">{sh_c("cho_trp_qua") || ""}</td>
                     <td className="px-2 py-1 text-center">{sh_c("cho_cong_bo_qua") || ""}</td>
-                    <td className="px-2 py-1 text-center">{sh_c("cho_pct_qua") || ""}</td>
-                    <td className="px-2 py-1 text-center">{sh_c("cho_van_thu_qua") || ""}</td>
+                    {showPct    && <td className="px-2 py-1 text-center">{sh_c("cho_pct_qua") || ""}</td>}
+                    {showVanThu && <td className="px-2 py-1 text-center">{sh_c("cho_van_thu_qua") || ""}</td>}
                     <td className="px-2 py-1 text-center" />
                     <td className="px-2 py-1 text-center font-bold">{sh_c("qua_han") || ""}</td>
                     <td className="px-2 py-1 text-center" />
