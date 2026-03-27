@@ -266,6 +266,31 @@ function isoToDisplay(iso: string | null): string {
 }
 
 // ---------------------------------------------------------------------------
+// Chuyên gia data model
+// ---------------------------------------------------------------------------
+interface ChuyenGiaRow {
+  ten:          string;
+  tong:         number;
+  con_han:      number;
+  qua_han:      number;
+  cham_so_ngay: number;
+  cham_ma:      string | null;
+  cham_ngay:    string | null;
+  cham_cv:      string | null;
+}
+interface ChuyenGiaData {
+  thu_tuc:        number;
+  chuyen_gia:     ChuyenGiaRow[];
+  chuyen_vien_cg: ChuyenGiaRow[];
+}
+async function fetchChuyenGia(thuTuc: number): Promise<ChuyenGiaData> {
+  const url = `${API}/stats/chuyen-gia?thu_tuc=${thuTuc}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
 // Bar chart component
 // ---------------------------------------------------------------------------
 interface BarData { name: string; value: number; color: string; }
@@ -1327,6 +1352,160 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
             </tfoot>
           </table>
         </div>
+      </div>
+      {thuTuc === 48 && <ChuyenGiaTable thuTuc={thuTuc} />}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ChuyenGiaTable — bảng thống kê chuyên gia (chỉ dùng cho TT48)
+// ---------------------------------------------------------------------------
+function ChuyenGiaTable({ thuTuc }: { thuTuc: number }) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["chuyen-gia", thuTuc],
+    queryFn:  () => fetchChuyenGia(thuTuc),
+    retry: 2,
+  });
+
+  if (isLoading) return (
+    <div className="flex items-center justify-center h-20 text-slate-400 text-sm gap-2">
+      <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+      Đang tải thống kê chuyên gia...
+    </div>
+  );
+  if (isError || !data) return (
+    <div className="flex items-center justify-center h-20 text-red-400 text-sm">
+      Không thể tải dữ liệu chuyên gia TT{thuTuc}
+    </div>
+  );
+
+  const cleanCv = (name: string | null) =>
+    name ? name.replace(/^CV thụ lý\s*:\s*/, "") : "";
+
+  const tgDisplay = (row: ChuyenGiaRow) => {
+    if (row.tong === 0) return { val: 0, label: "" };
+    if (row.cham_so_ngay > 0) return { val: row.cham_so_ngay, label: `${row.cham_so_ngay} ngày` };
+    if (row.cham_ngay) {
+      const days = Math.floor((Date.now() - new Date(row.cham_ngay).getTime()) / 86400000);
+      return { val: days, label: days > 0 ? `${days} ngày` : "" };
+    }
+    return { val: 0, label: "" };
+  };
+
+  const tgColor = (val: number, isOverdue: boolean) => {
+    if (!isOverdue) return "text-slate-500";
+    if (val >= 500) return "bg-red-100 text-red-700 font-bold";
+    if (val >= 300) return "bg-yellow-100 text-orange-700 font-bold";
+    return "text-orange-600 font-semibold";
+  };
+
+  const renderRow = (row: ChuyenGiaRow, idx: number, bgBase: string) => {
+    const tg = tgDisplay(row);
+    const isOverdue = row.cham_so_ngay > 0;
+    const rowBg = row.tong === 0 ? bgBase : idx % 2 === 0 ? "bg-white" : "bg-slate-50";
+    return (
+      <tr key={row.ten} className={`${rowBg} hover:bg-blue-50 transition-colors`}>
+        <td className="px-2 py-1.5 text-center text-xs text-slate-400">{idx + 1}</td>
+        <td className="px-3 py-1.5 text-xs font-medium text-slate-700 min-w-[160px]">
+          {row.ten}
+        </td>
+        {/* TỔNG */}
+        <td className={`px-2 py-1.5 text-center text-xs font-bold ${row.tong > 15 ? "text-pink-700 bg-pink-50" : row.tong > 0 ? "text-slate-700" : "text-slate-300"}`}>
+          {row.tong || ""}
+        </td>
+        {/* Còn hạn */}
+        <td className={`px-2 py-1.5 text-center text-xs ${row.con_han > 0 ? "text-blue-600" : "text-slate-300"}`}>
+          {row.con_han || ""}
+        </td>
+        {/* Quá hạn */}
+        <td className={`px-2 py-1.5 text-center text-xs font-bold ${row.qua_han > 15 ? "bg-orange-100 text-orange-800" : row.qua_han > 0 ? "text-orange-600" : "text-slate-300"}`}>
+          {row.qua_han || ""}
+        </td>
+        {/* Thời gian chờ */}
+        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap bg-rose-50 ${tgColor(tg.val, isOverdue)}`}>
+          {tg.label}
+        </td>
+        {/* Nộp từ */}
+        <td className="px-2 py-1.5 text-center text-xs whitespace-nowrap bg-rose-50 text-slate-600">
+          {isoToDisplay(row.cham_ngay)}
+        </td>
+        {/* Mã hs */}
+        <td className="px-2 py-1.5 text-center text-xs whitespace-nowrap bg-rose-50 text-slate-600 font-mono">
+          {row.cham_ma ?? ""}
+        </td>
+        {/* CV thụ lý */}
+        <td className="px-2 py-1.5 text-xs whitespace-nowrap bg-rose-50 text-slate-600">
+          {cleanCv(row.cham_cv)}
+        </td>
+      </tr>
+    );
+  };
+
+  const allRows = [...data.chuyen_gia, ...data.chuyen_vien_cg];
+  const grandTong  = allRows.reduce((s, r) => s + r.tong,    0);
+  const grandCon   = allRows.reduce((s, r) => s + r.con_han, 0);
+  const grandQua   = allRows.reduce((s, r) => s + r.qua_han, 0);
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-2 bg-green-700 text-white text-xs font-bold uppercase tracking-wide">
+        Thống kê hồ sơ đang ở bước Chuyên gia thẩm định — TT{thuTuc}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="bg-slate-700 text-white">
+              <th className="px-2 py-2 text-center text-xs w-9" rowSpan={2}>STT</th>
+              <th className="px-3 py-2 text-left text-xs min-w-[160px]" rowSpan={2}>Chuyên gia</th>
+              <th className="px-2 py-2 text-center text-xs bg-green-600" colSpan={3}>ĐANG GIẢI QUYẾT</th>
+              <th className="px-2 py-2 text-center text-xs bg-rose-700" colSpan={4}>Hồ sơ chậm nhất</th>
+            </tr>
+            <tr className="bg-slate-600 text-white">
+              <th className="px-2 py-1 text-center text-xs bg-slate-600 font-bold">TỔNG</th>
+              <th className="px-2 py-1 text-center text-xs bg-green-700">Còn hạn</th>
+              <th className="px-2 py-1 text-center text-xs bg-orange-600">Quá hạn</th>
+              <th className="px-2 py-1 text-center text-xs bg-rose-600">Thời gian chờ</th>
+              <th className="px-2 py-1 text-center text-xs bg-rose-600">Nộp từ</th>
+              <th className="px-2 py-1 text-center text-xs bg-rose-600">Mã hs</th>
+              <th className="px-2 py-1 text-center text-xs bg-rose-600">Chuyên viên thụ lý</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {/* Section 1: Chuyên gia */}
+            <tr className="bg-green-600 text-white">
+              <td colSpan={9} className="px-3 py-1 text-xs font-bold uppercase tracking-wide">
+                Chuyên gia
+              </td>
+            </tr>
+            {data.chuyen_gia.length === 0 ? (
+              <tr><td colSpan={9} className="px-3 py-2 text-xs text-slate-400 italic text-center">Không có hồ sơ đang ở bước chuyên gia</td></tr>
+            ) : (
+              data.chuyen_gia.map((row, idx) => renderRow(row, idx, "bg-green-50"))
+            )}
+            {/* Section 2: Chuyên viên đóng vai chuyên gia */}
+            <tr className="bg-amber-500 text-white">
+              <td colSpan={9} className="px-3 py-1 text-xs font-bold uppercase tracking-wide">
+                Chuyên viên đóng vai chuyên gia
+              </td>
+            </tr>
+            {data.chuyen_vien_cg.map((row, idx) => renderRow(row, idx, "bg-amber-50"))}
+          </tbody>
+          <tfoot>
+            <tr className="bg-slate-100 font-bold text-slate-700 border-t-2 border-slate-300">
+              <td />
+              <td className="px-3 py-2 text-xs font-bold">TỔNG</td>
+              <td className="px-2 py-2 text-center text-xs font-bold">{grandTong}</td>
+              <td className="px-2 py-2 text-center text-xs text-blue-700">{grandCon}</td>
+              <td className="px-2 py-2 text-center text-xs text-orange-700 font-bold">{grandQua}</td>
+              <td className="bg-rose-50" />
+              <td className="bg-rose-50" />
+              <td className="bg-rose-50" />
+              <td className="bg-rose-50" />
+            </tr>
+          </tfoot>
+        </table>
       </div>
     </div>
   );

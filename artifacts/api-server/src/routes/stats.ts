@@ -568,6 +568,109 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// GET /stats/chuyen-gia
+// Thống kê hồ sơ đang ở bước "Chuyên gia thẩm định", nhóm theo nguoiXuLy
+// ---------------------------------------------------------------------------
+const CV_BARE_NAMES = PRIORITY.map(p => p.replace("CV thụ lý : ", ""));
+const CV_BARE_SET   = new Set(CV_BARE_NAMES);
+
+router.get("/stats/chuyen-gia", async (req, res) => {
+  const thuTuc = validateThuTuc(req.query["thu_tuc"]);
+  if (!thuTuc) return void res.status(400).json({ detail: "thu_tuc phải là 46, 47, hoặc 48" });
+  try {
+    const rows = await query<{
+      nguoi_xu_ly:  string;
+      tong:         string;
+      con_han:      string;
+      qua_han:      string;
+      cham_so_ngay: string;
+      cham_ma:      string | null;
+      cham_ngay:    string | null;
+      cham_cv:      string | null;
+    }>(
+      `WITH cg_base AS (
+         SELECT
+           d.data->>'nguoiXuLy'                                               AS nguoi_xu_ly,
+           COALESCE(NULLIF(d.data->>'soNgayQuaHan', ''), '0')::int             AS qua_han_ngay,
+           d.data->>'ngayTiepNhan'                                             AS ngay_nhan,
+           d.data->>'maHoSo'                                                   AS ma_ho_so,
+           COALESCE(NULLIF(TRIM(t.cv_name), ''), '')                           AS cv_thu_ly
+         FROM dang_xu_ly d
+         LEFT JOIN (
+           SELECT DISTINCT ON (data->>'maHoSo')
+             data->>'maHoSo'                        AS ma_ho_so,
+             TRIM(data->>'chuyenVienThuLyName')      AS cv_name
+           FROM tra_cuu_chung
+           WHERE (data->>'thuTucId')::int = $1
+             AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
+           ORDER BY data->>'maHoSo', (data->>'ngayTiepNhan')::timestamptz DESC
+         ) t ON t.ma_ho_so = d.data->>'maHoSo'
+         WHERE d.thu_tuc = $1
+           AND d.data->>'tenDonViXuLy' = 'Chuyên gia thẩm định'
+           AND NULLIF(d.data->>'nguoiXuLy', '') IS NOT NULL
+       ),
+       stats AS (
+         SELECT
+           nguoi_xu_ly,
+           COUNT(*)                                      AS tong,
+           COUNT(*) FILTER (WHERE qua_han_ngay <= 0)    AS con_han,
+           COUNT(*) FILTER (WHERE qua_han_ngay > 0)     AS qua_han
+         FROM cg_base
+         GROUP BY nguoi_xu_ly
+       ),
+       cham_nhat AS (
+         SELECT DISTINCT ON (nguoi_xu_ly)
+           nguoi_xu_ly,
+           qua_han_ngay   AS cham_so_ngay,
+           ma_ho_so       AS cham_ma,
+           ngay_nhan      AS cham_ngay,
+           cv_thu_ly      AS cham_cv
+         FROM cg_base
+         ORDER BY nguoi_xu_ly, qua_han_ngay DESC
+       )
+       SELECT s.*, cn.cham_so_ngay, cn.cham_ma, cn.cham_ngay, cn.cham_cv
+       FROM stats s
+       JOIN cham_nhat cn ON cn.nguoi_xu_ly = s.nguoi_xu_ly`,
+      [thuTuc]
+    );
+
+    const toN = (v: unknown) => Number(v) || 0;
+    const fmt = (r: (typeof rows)[0]) => ({
+      ten:          r.nguoi_xu_ly,
+      tong:         toN(r.tong),
+      con_han:      toN(r.con_han),
+      qua_han:      toN(r.qua_han),
+      cham_so_ngay: toN(r.cham_so_ngay),
+      cham_ma:      r.cham_ma   ?? null,
+      cham_ngay:    r.cham_ngay ?? null,
+      cham_cv:      r.cham_cv   ?? null,
+    });
+
+    const resultMap = new Map(rows.map(r => [r.nguoi_xu_ly, r]));
+
+    // Nửa trên: Chuyên gia thật (không phải CV trong PRIORITY), sort alpha
+    const cgRows = rows
+      .filter(r => !CV_BARE_SET.has(r.nguoi_xu_ly))
+      .map(fmt)
+      .sort((a, b) => a.ten.localeCompare(b.ten, "vi"));
+
+    // Nửa dưới: CV đóng vai CG — hiển thị tất cả PRIORITY CV (kể cả 0 hồ sơ)
+    const EMPTY_FMT = (name: string) => ({
+      ten: name, tong: 0, con_han: 0, qua_han: 0,
+      cham_so_ngay: 0, cham_ma: null, cham_ngay: null, cham_cv: null,
+    });
+    const cvCgRows = CV_BARE_NAMES.map(name => {
+      const r = resultMap.get(name);
+      return r ? fmt(r) : EMPTY_FMT(name);
+    });
+
+    res.json({ thu_tuc: thuTuc, chuyen_gia: cgRows, chuyen_vien_cg: cvCgRows });
+  } catch (e: unknown) {
+    res.status(500).json({ detail: String(e) });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // GET /sync-status — thời gian sync gần nhất + tổng dung lượng data
 // ---------------------------------------------------------------------------
 router.get("/sync-status", async (_req, res) => {
