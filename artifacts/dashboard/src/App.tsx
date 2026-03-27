@@ -62,6 +62,11 @@ function getPreset(key: string): { from: string; to: string } {
   if (key === "nam_nay") {
     return { from: toYMD(new Date(y, 0, 1)), to: toYMD(new Date(y, 11, 31)) };
   }
+  if (key === "12_thang") {
+    const d = new Date(now);
+    d.setMonth(d.getMonth() - 11);
+    return { from: toYMD(new Date(d.getFullYear(), d.getMonth(), 1)), to: toYMD(new Date(y, m + 1, 0)) };
+  }
   if (key === "6_thang") {
     const d = new Date(now);
     d.setMonth(d.getMonth() - 5);
@@ -78,6 +83,7 @@ function getPreset(key: string): { from: string; to: string } {
 // Thứ tự nút lọc khớp với thiết kế Excel (Cộng dồn xử lý riêng vì cần API)
 const QUICK_FILTERS = [
   { key: "nam_nay",   label: "Năm nay" },
+  { key: "12_thang",  label: "12 tháng gần nhất" },
   { key: "6_thang",   label: "6 tháng gần nhất" },
   { key: "3_thang",   label: "3 tháng gần nhất" },
   { key: "thang_nay", label: "Tháng này" },
