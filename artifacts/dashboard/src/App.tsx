@@ -232,6 +232,7 @@ async function fetchMonthly(thuTuc: number): Promise<MonthlyData> {
 interface DangXuLyRow {
   cv_name:       string;
   tong:          number;
+  cho_pc:        number;
   cho_cv:        number;
   cho_cg:        number;
   cho_to_truong: number;
@@ -1017,6 +1018,7 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 // ---------------------------------------------------------------------------
 
 const CHO_COLORS = {
+  cho_pc:        { fill: "#f59e0b", label: "Chờ PC",           text: "#92400e" },
   cho_cv:        { fill: "#3b82f6", label: "Chờ CV",          text: "#1d4ed8" },
   cho_cg:        { fill: "#22c55e", label: "Chờ CG",          text: "#15803d" },
   cho_to_truong: { fill: "#fb923c", label: "Chờ Tổ trưởng",  text: "#c2410c" },
@@ -1049,6 +1051,7 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
   const months    = data.months;
 
   // Aggregate totals for charts
+  const totPc       = allRows.reduce((s, r) => s + r.cho_pc,        0) + (cpc?.cho_pc ?? 0);
   const totCv       = allRows.reduce((s, r) => s + r.cho_cv,        0);
   const totCg       = allRows.reduce((s, r) => s + r.cho_cg,        0);
   const totToTruong = allRows.reduce((s, r) => s + r.cho_to_truong, 0);
@@ -1062,6 +1065,7 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
   const pctCon = 100 - pctQua;
 
   const catData = [
+    { name: "Chờ PC",         value: totPc,       fill: CHO_COLORS.cho_pc.fill        },
     { name: "Chờ CV",         value: totCv,       fill: CHO_COLORS.cho_cv.fill        },
     { name: "Chờ CG",         value: totCg,       fill: CHO_COLORS.cho_cg.fill        },
     { name: "Chờ Tổ trưởng", value: totToTruong, fill: CHO_COLORS.cho_to_truong.fill },
@@ -1147,6 +1151,10 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
         <td className={`px-2 py-1.5 text-center text-xs font-bold whitespace-nowrap ${row.tong > 100 ? "text-pink-700 bg-pink-50" : "text-slate-700"}`}>
           {row.tong}
         </td>
+        {/* Chờ PC (Phòng ban phân công) */}
+        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_pc > 0 ? "text-amber-700 font-semibold bg-amber-50" : "text-slate-300"}`}>
+          {row.cho_pc || ""}
+        </td>
         {/* Chờ CV */}
         <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_cv > 50 ? "bg-blue-100 text-blue-800 font-bold" : row.cho_cv > 0 ? "text-blue-700" : "text-slate-300"}`}>
           {row.cho_cv || ""}
@@ -1198,6 +1206,7 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
   // Summary totals row
   const totRow      = [...allRows, ...(cpc ? [cpc] : [])];
   const sumTong     = totRow.reduce((s, r) => s + r.tong,          0);
+  const sumPc       = totRow.reduce((s, r) => s + r.cho_pc,        0);
   const sumCv       = totRow.reduce((s, r) => s + r.cho_cv,        0);
   const sumCg       = totRow.reduce((s, r) => s + r.cho_cg,        0);
   const sumToTruong = totRow.reduce((s, r) => s + r.cho_to_truong, 0);
@@ -1277,11 +1286,12 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                     rowSpan={2} style={{ boxShadow: "2px 0 4px -1px rgba(0,0,0,0.15)" }}>
                   Chuyên viên
                 </th>
-                <th className="px-2 py-2 text-center text-xs bg-blue-600" colSpan={10}>ĐANG GIẢI QUYẾT</th>
+                <th className="px-2 py-2 text-center text-xs bg-blue-600" colSpan={11}>ĐANG GIẢI QUYẾT</th>
                 <th className="px-2 py-2 text-center text-xs bg-rose-700" colSpan={3}>Hồ sơ chậm nhất</th>
               </tr>
               <tr className="bg-slate-600 text-white">
                 <th className="px-2 py-1 text-center text-xs bg-slate-600 font-bold">TỔNG</th>
+                <th className="px-2 py-1 text-center text-xs bg-amber-500">Chờ PC</th>
                 <th className="px-2 py-1 text-center text-xs bg-blue-700">Chờ CV</th>
                 <th className="px-2 py-1 text-center text-xs bg-green-600">Chờ CG</th>
                 <th className="px-2 py-1 text-center text-xs bg-orange-400">Chờ Tổ<br/>trưởng</th>
@@ -1309,6 +1319,7 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                 <td className="sticky left-9 z-10 bg-slate-100 px-3 py-2 text-xs font-bold"
                     style={{ boxShadow: "2px 0 4px -1px rgba(0,0,0,0.08)" }}>TỔNG</td>
                 <td className="px-2 py-2 text-center text-xs font-bold text-slate-700">{sumTong}</td>
+                <td className="px-2 py-2 text-center text-xs text-amber-700 font-semibold">{sumPc || ""}</td>
                 <td className="px-2 py-2 text-center text-xs text-blue-700">{sumCv}</td>
                 <td className="px-2 py-2 text-center text-xs text-green-700">{sumCg}</td>
                 <td className="px-2 py-2 text-center text-xs text-emerald-700">{sumToTruong || ""}</td>

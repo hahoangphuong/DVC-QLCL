@@ -439,6 +439,7 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
     const rows = await query<{
       cv_name:      string;
       tong:         string;
+      cho_pc:       string;
       cho_cv:       string;
       cho_cg:       string;
       cho_to_truong: string;
@@ -462,7 +463,12 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
        ),
        base AS (
          SELECT
-           COALESCE(c.cv_name, '__CHUA_PHAN__')                          AS cv_name,
+           -- Nếu đang ở bước "Phòng ban phân công" thì luôn xếp vào __CHUA_PHAN__
+           -- bất kể chuyenVienThuLyName trong TCC có giá trị hay không.
+           CASE
+             WHEN d.data->>'tenDonViXuLy' = 'Phòng ban phân công' THEN '__CHUA_PHAN__'
+             ELSE COALESCE(c.cv_name, '__CHUA_PHAN__')
+           END                                                            AS cv_name,
            d.data->>'tenDonViXuLy'                                        AS don_vi,
            d.data->>'maHoSo'                                              AS ma_ho_so,
            COALESCE(NULLIF(d.data->>'soNgayQuaHan', ''), '0')::int        AS qua_han_ngay,
@@ -475,6 +481,7 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
          SELECT
            cv_name,
            COUNT(*)                                                            AS tong,
+           COUNT(*) FILTER (WHERE don_vi = 'Phòng ban phân công')             AS cho_pc,
            COUNT(*) FILTER (WHERE don_vi = 'Chuyên viên')                     AS cho_cv,
            COUNT(*) FILTER (WHERE don_vi = 'Chuyên gia thẩm định')              AS cho_cg,
            COUNT(*) FILTER (WHERE don_vi = 'Tổ trưởng chuyên gia')            AS cho_to_truong,
@@ -518,6 +525,7 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
     const fmt = (r: (typeof rows)[0]) => ({
       cv_name:       r.cv_name,
       tong:          toN(r.tong),
+      cho_pc:        toN(r.cho_pc),
       cho_cv:        toN(r.cho_cv),
       cho_cg:        toN(r.cho_cg),
       cho_to_truong: toN(r.cho_to_truong),
