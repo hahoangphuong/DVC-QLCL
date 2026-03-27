@@ -425,15 +425,15 @@ function DonutChart({ title, segments, total, isLoading, isError, emptyMessage, 
           <div>{emptyMessage ?? "Không có dữ liệu"}</div>
         </div>
       ) : (
-        <div className="flex items-center justify-center gap-4">
-          <ResponsiveContainer width={200} height={200}>
+        <div className="flex flex-col items-center gap-3">
+          <ResponsiveContainer width="100%" height={190}>
             <PieChart>
               <Pie
                 data={segments}
                 cx="50%"
                 cy="50%"
-                innerRadius={60}
-                outerRadius={90}
+                innerRadius={58}
+                outerRadius={88}
                 dataKey="value"
                 startAngle={90}
                 endAngle={-270}
@@ -448,20 +448,18 @@ function DonutChart({ title, segments, total, isLoading, isError, emptyMessage, 
             </PieChart>
           </ResponsiveContainer>
 
-          {/* Legend */}
-          <div className="flex flex-col gap-3 justify-center">
+          {/* Legend — nằm bên dưới, căn giữa, cân xứng */}
+          <div className="flex gap-8 justify-center flex-wrap pb-1">
             {segments.map((s) => {
               const pct = total > 0 ? ((s.value / total) * 100).toFixed(1) : "0.0";
               return (
-                <div key={s.name} className="flex items-start gap-2">
-                  <div className="mt-1 w-3 h-3 rounded-full flex-shrink-0" style={{ background: s.color }} />
-                  <div>
-                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{s.name}</div>
-                    <div className="text-lg font-bold" style={{ color: s.color }}>
-                      {s.value.toLocaleString("vi-VN")}
-                    </div>
-                    <div className="text-xs text-slate-400">{pct}%</div>
+                <div key={s.name} className="flex flex-col items-center gap-0.5">
+                  <div className="w-3 h-3 rounded-full" style={{ background: s.color }} />
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mt-0.5">{s.name}</div>
+                  <div className="text-xl font-bold leading-tight" style={{ color: s.color }}>
+                    {s.value.toLocaleString("vi-VN")}
                   </div>
+                  <div className="text-xs text-slate-400">{pct}%</div>
                 </div>
               );
             })}
