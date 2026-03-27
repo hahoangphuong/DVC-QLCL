@@ -88,3 +88,16 @@ class DangXuLy(_HoSoBase, Base):
     """
     __tablename__ = "dang_xu_ly"
     thu_tuc = Column(Integer, nullable=False, index=True)
+
+
+class Tt48CvBuoc(Base):
+    """
+    Bảng phụ TT48: phân loại hồ sơ đang ở bước Chuyên viên theo từng sub-bước.
+    Được rebuild hoàn toàn mỗi lần sync từ 3 API phụ (formCase 2, 3, 5).
+    Chỉ lưu 2 trường cần thiết — không lưu toàn bộ JSON để tiết kiệm bộ nhớ.
+
+    buoc: "chua_xu_ly" | "bi_tra_lai" | "cho_tong_hop" | "cho_ket_thuc"
+    """
+    __tablename__ = "tt48_cv_buoc"
+    ma_ho_so = Column(String(100), primary_key=True)
+    buoc     = Column(String(50),  nullable=False)

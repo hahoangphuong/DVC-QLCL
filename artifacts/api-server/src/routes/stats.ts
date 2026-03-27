@@ -432,10 +432,174 @@ router.get("/stats/monthly", async (req, res) => {
 
 // GET /stats/dang-xu-ly
 // Hồ sơ đang xử lý: nhóm theo CV, phân loại theo tenDonViXuLy, tìm hồ sơ chậm nhất
+// Với TT48: JOIN thêm tt48_cv_buoc để phân loại 4 sub-bước của Chuyên viên
 router.get("/stats/dang-xu-ly", async (req, res) => {
   const thuTuc = validateThuTuc(req.query["thu_tuc"]);
   if (!thuTuc) return void res.status(400).json({ detail: "thu_tuc phải là 46, 47, hoặc 48" });
   try {
+    const toN = (v: unknown) => Number(v) || 0;
+
+    // ----------------------------------------------------------------
+    // TT48: query mở rộng với buoc JOIN
+    // ----------------------------------------------------------------
+    if (thuTuc === 48) {
+      type R48 = {
+        cv_name: string;
+        tong: string;
+        chua_xu_ly: string; bi_tra_lai: string;
+        cho_cg: string; cho_tong_hop: string;
+        cho_to_truong: string;
+        cho_trp: string; cho_cong_bo: string;
+        cho_pct: string; cho_van_thu: string;
+        con_han: string; qua_han: string;
+        chua_xu_ly_con: string; chua_xu_ly_qua: string;
+        bi_tra_lai_con: string; bi_tra_lai_qua: string;
+        cho_cg_con: string; cho_cg_qua: string;
+        cho_tong_hop_con: string; cho_tong_hop_qua: string;
+        cho_to_truong_con: string; cho_to_truong_qua: string;
+        cho_trp_con: string; cho_trp_qua: string;
+        cho_cong_bo_con: string; cho_cong_bo_qua: string;
+        cho_pct_con: string; cho_pct_qua: string;
+        cho_van_thu_con: string; cho_van_thu_qua: string;
+        cham_so_ngay: string; cham_ma: string; cham_ngay: string;
+      };
+
+      const rows48 = await query<R48>(
+        `WITH cv_from_tcc AS (
+           SELECT DISTINCT ON (data->>'maHoSo')
+             data->>'maHoSo'                                                          AS ma_ho_so,
+             COALESCE(NULLIF(TRIM(data->>'chuyenVienThuLyName'), ''), '__CHUA_PHAN__') AS cv_name
+           FROM tra_cuu_chung
+           WHERE (data->>'thuTucId')::int = 48
+             AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
+           ORDER BY data->>'maHoSo', (data->>'ngayTiepNhan')::timestamptz DESC
+         ),
+         base AS (
+           SELECT
+             CASE
+               WHEN d.data->>'tenDonViXuLy' = 'Phòng ban phân công' THEN '__CHUA_PHAN__'
+               ELSE COALESCE(c.cv_name, '__CHUA_PHAN__')
+             END                                                            AS cv_name,
+             d.data->>'tenDonViXuLy'                                        AS don_vi,
+             d.data->>'maHoSo'                                              AS ma_ho_so,
+             COALESCE(NULLIF(d.data->>'soNgayQuaHan', ''), '0')::int        AS qua_han_ngay,
+             d.data->>'ngayTiepNhan'                                        AS ngay_nhan,
+             COALESCE(b.buoc, '')                                           AS buoc
+           FROM dang_xu_ly d
+           LEFT JOIN cv_from_tcc c ON c.ma_ho_so = d.data->>'maHoSo'
+           LEFT JOIN tt48_cv_buoc b ON b.ma_ho_so = d.data->>'maHoSo'
+           WHERE d.thu_tuc = 48
+         ),
+         stats AS (
+           SELECT
+             cv_name,
+             COUNT(*)                                                                            AS tong,
+             COUNT(*) FILTER (WHERE buoc = 'chua_xu_ly')                                        AS chua_xu_ly,
+             COUNT(*) FILTER (WHERE buoc = 'bi_tra_lai')                                        AS bi_tra_lai,
+             COUNT(*) FILTER (WHERE don_vi = 'Chuyên gia thẩm định')                           AS cho_cg,
+             COUNT(*) FILTER (WHERE buoc = 'cho_tong_hop')                                      AS cho_tong_hop,
+             COUNT(*) FILTER (WHERE don_vi = 'Tổ trưởng chuyên gia')                           AS cho_to_truong,
+             COUNT(*) FILTER (WHERE don_vi = 'Trưởng phòng')                                   AS cho_trp,
+             COUNT(*) FILTER (WHERE buoc = 'cho_ket_thuc')                                      AS cho_cong_bo,
+             COUNT(*) FILTER (WHERE don_vi = 'Phó Cục trưởng')                                 AS cho_pct,
+             COUNT(*) FILTER (WHERE don_vi LIKE 'Văn thư%')                                    AS cho_van_thu,
+             COUNT(*) FILTER (WHERE qua_han_ngay <= 0)                                          AS con_han,
+             COUNT(*) FILTER (WHERE qua_han_ngay > 0)                                           AS qua_han,
+             COUNT(*) FILTER (WHERE buoc = 'chua_xu_ly'          AND qua_han_ngay <= 0)         AS chua_xu_ly_con,
+             COUNT(*) FILTER (WHERE buoc = 'chua_xu_ly'          AND qua_han_ngay >  0)         AS chua_xu_ly_qua,
+             COUNT(*) FILTER (WHERE buoc = 'bi_tra_lai'          AND qua_han_ngay <= 0)         AS bi_tra_lai_con,
+             COUNT(*) FILTER (WHERE buoc = 'bi_tra_lai'          AND qua_han_ngay >  0)         AS bi_tra_lai_qua,
+             COUNT(*) FILTER (WHERE don_vi = 'Chuyên gia thẩm định' AND qua_han_ngay <= 0)     AS cho_cg_con,
+             COUNT(*) FILTER (WHERE don_vi = 'Chuyên gia thẩm định' AND qua_han_ngay >  0)     AS cho_cg_qua,
+             COUNT(*) FILTER (WHERE buoc = 'cho_tong_hop'        AND qua_han_ngay <= 0)         AS cho_tong_hop_con,
+             COUNT(*) FILTER (WHERE buoc = 'cho_tong_hop'        AND qua_han_ngay >  0)         AS cho_tong_hop_qua,
+             COUNT(*) FILTER (WHERE don_vi = 'Tổ trưởng chuyên gia' AND qua_han_ngay <= 0)     AS cho_to_truong_con,
+             COUNT(*) FILTER (WHERE don_vi = 'Tổ trưởng chuyên gia' AND qua_han_ngay >  0)     AS cho_to_truong_qua,
+             COUNT(*) FILTER (WHERE don_vi = 'Trưởng phòng'      AND qua_han_ngay <= 0)         AS cho_trp_con,
+             COUNT(*) FILTER (WHERE don_vi = 'Trưởng phòng'      AND qua_han_ngay >  0)         AS cho_trp_qua,
+             COUNT(*) FILTER (WHERE buoc = 'cho_ket_thuc'        AND qua_han_ngay <= 0)         AS cho_cong_bo_con,
+             COUNT(*) FILTER (WHERE buoc = 'cho_ket_thuc'        AND qua_han_ngay >  0)         AS cho_cong_bo_qua,
+             COUNT(*) FILTER (WHERE don_vi = 'Phó Cục trưởng'   AND qua_han_ngay <= 0)         AS cho_pct_con,
+             COUNT(*) FILTER (WHERE don_vi = 'Phó Cục trưởng'   AND qua_han_ngay >  0)         AS cho_pct_qua,
+             COUNT(*) FILTER (WHERE don_vi LIKE 'Văn thư%'       AND qua_han_ngay <= 0)         AS cho_van_thu_con,
+             COUNT(*) FILTER (WHERE don_vi LIKE 'Văn thư%'       AND qua_han_ngay >  0)         AS cho_van_thu_qua
+           FROM base
+           GROUP BY cv_name
+         ),
+         cham_nhat AS (
+           SELECT DISTINCT ON (cv_name)
+             cv_name,
+             qua_han_ngay AS cham_so_ngay,
+             ma_ho_so     AS cham_ma,
+             ngay_nhan    AS cham_ngay
+           FROM base
+           ORDER BY cv_name, qua_han_ngay DESC
+         )
+         SELECT s.*, cn.cham_so_ngay, cn.cham_ma, cn.cham_ngay
+         FROM stats s
+         LEFT JOIN cham_nhat cn ON cn.cv_name = s.cv_name
+         ORDER BY s.tong DESC`
+      );
+
+      const fmt48 = (r: R48) => ({
+        cv_name:       r.cv_name,
+        tong:          toN(r.tong),
+        cho_cv:        toN(r.chua_xu_ly), // backward compat alias
+        chua_xu_ly:    toN(r.chua_xu_ly),
+        bi_tra_lai:    toN(r.bi_tra_lai),
+        cho_cg:        toN(r.cho_cg),
+        cho_tong_hop:  toN(r.cho_tong_hop),
+        cho_to_truong: toN(r.cho_to_truong),
+        cho_trp:       toN(r.cho_trp),
+        cho_cong_bo:   toN(r.cho_cong_bo),
+        cho_pct:       toN(r.cho_pct),
+        cho_van_thu:   toN(r.cho_van_thu),
+        con_han:       toN(r.con_han),
+        qua_han:       toN(r.qua_han),
+        chua_xu_ly_con: toN(r.chua_xu_ly_con), chua_xu_ly_qua: toN(r.chua_xu_ly_qua),
+        bi_tra_lai_con: toN(r.bi_tra_lai_con), bi_tra_lai_qua: toN(r.bi_tra_lai_qua),
+        cho_cg_con:     toN(r.cho_cg_con),     cho_cg_qua:     toN(r.cho_cg_qua),
+        cho_tong_hop_con: toN(r.cho_tong_hop_con), cho_tong_hop_qua: toN(r.cho_tong_hop_qua),
+        cho_to_truong_con: toN(r.cho_to_truong_con), cho_to_truong_qua: toN(r.cho_to_truong_qua),
+        cho_trp_con:    toN(r.cho_trp_con),    cho_trp_qua:    toN(r.cho_trp_qua),
+        cho_cong_bo_con: toN(r.cho_cong_bo_con), cho_cong_bo_qua: toN(r.cho_cong_bo_qua),
+        cho_pct_con:    toN(r.cho_pct_con),    cho_pct_qua:    toN(r.cho_pct_qua),
+        cho_van_thu_con: toN(r.cho_van_thu_con), cho_van_thu_qua: toN(r.cho_van_thu_qua),
+        cham_so_ngay:  toN(r.cham_so_ngay),
+        cham_ma:       r.cham_ma  ?? null,
+        cham_ngay:     r.cham_ngay ?? null,
+      });
+
+      const monthRows48 = await query<{ yr: string; mo: string; cnt: string }>(
+        `SELECT
+           EXTRACT(YEAR  FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
+           EXTRACT(MONTH FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS mo,
+           COUNT(*) AS cnt
+         FROM dang_xu_ly WHERE thu_tuc = 48
+           AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
+         GROUP BY 1, 2 ORDER BY 1, 2`
+      );
+
+      const choPhanCong48 = rows48.find(r => r.cv_name === "__CHUA_PHAN__");
+      const cvRows48      = rows48.filter(r => r.cv_name !== "__CHUA_PHAN__");
+      const resultMap48   = Object.fromEntries(cvRows48.map(r => [r.cv_name, r]));
+      const sortedCv48: typeof cvRows48 = [];
+      for (const name of PRIORITY) { if (resultMap48[name]) sortedCv48.push(resultMap48[name]); }
+      const extras48 = cvRows48.filter(r => !KNOWN_SET.has(r.cv_name));
+      extras48.sort((a, b) => a.cv_name.localeCompare(b.cv_name));
+      sortedCv48.push(...extras48);
+
+      return void res.json({
+        thu_tuc:       48,
+        cho_phan_cong: choPhanCong48 ? fmt48(choPhanCong48) : null,
+        rows:          sortedCv48.map(fmt48),
+        months:        monthRows48.map(r => ({ label: `T${r.mo}-${r.yr}`, year: Number(r.yr), month: Number(r.mo), cnt: Number(r.cnt) })),
+      });
+    }
+
+    // ----------------------------------------------------------------
+    // TT47 / TT46: query gốc (không thay đổi)
+    // ----------------------------------------------------------------
     const rows = await query<{
       cv_name:      string;
       tong:         string;
@@ -462,8 +626,6 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
        ),
        base AS (
          SELECT
-           -- Nếu đang ở bước "Phòng ban phân công" thì luôn xếp vào __CHUA_PHAN__
-           -- bất kể chuyenVienThuLyName trong TCC có giá trị hay không.
            CASE
              WHEN d.data->>'tenDonViXuLy' = 'Phòng ban phân công' THEN '__CHUA_PHAN__'
              ELSE COALESCE(c.cv_name, '__CHUA_PHAN__')
@@ -481,7 +643,7 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
            cv_name,
            COUNT(*)                                                            AS tong,
            COUNT(*) FILTER (WHERE don_vi = 'Chuyên viên')                     AS cho_cv,
-           COUNT(*) FILTER (WHERE don_vi = 'Chuyên gia thẩm định')              AS cho_cg,
+           COUNT(*) FILTER (WHERE don_vi = 'Chuyên gia thẩm định')            AS cho_cg,
            COUNT(*) FILTER (WHERE don_vi = 'Tổ trưởng chuyên gia')            AS cho_to_truong,
            COUNT(*) FILTER (WHERE don_vi = 'Trưởng phòng')                    AS cho_trp,
            COUNT(*) FILTER (WHERE don_vi = 'Phó Cục trưởng')                  AS cho_pct,
@@ -519,7 +681,6 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
       [thuTuc]
     );
 
-    const toN = (v: unknown) => Number(v) || 0;
     const fmt = (r: (typeof rows)[0]) => ({
       cv_name:       r.cv_name,
       tong:          toN(r.tong),
@@ -539,7 +700,6 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
     const choPhanCong = rows.find(r => r.cv_name === "__CHUA_PHAN__");
     const cvRows      = rows.filter(r => r.cv_name !== "__CHUA_PHAN__");
 
-    // Sắp xếp theo PRIORITY (giống Thống kê TT48), extras sort alpha
     const resultMap = Object.fromEntries(cvRows.map(r => [r.cv_name, r]));
     const sortedCv: typeof cvRows = [];
     for (const name of PRIORITY) {

@@ -20,7 +20,7 @@ from models import (
     SyncMeta,
     RemoteFetchLog,
     TraCuuChung,
-    DaXuLy, DangXuLy,
+    DaXuLy, DangXuLy, Tt48CvBuoc,
 )
 from auth_client import RemoteClient, RemoteAuthError
 
@@ -127,6 +127,12 @@ def _migrate_schema():
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_dxl_trang_thai "
             "ON da_xu_ly ((data->>'trangThaiHoSo'))"
+        ))
+
+        # tt48_cv_buoc — index trên cột buoc (để GROUP BY / FILTER nhanh)
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_tt48_buoc "
+            "ON tt48_cv_buoc (buoc)"
         ))
 
 
@@ -733,6 +739,172 @@ def sync_tt46_dang_xu_ly():
 
 
 # ---------------------------------------------------------------------------
+# Helper: fetch TẤT CẢ bản ghi từ ABP paging API (tự động phân trang)
+# Dùng maxResultCount lớn để lấy 1 lần; nếu totalCount > count thì lặp thêm.
+# ---------------------------------------------------------------------------
+def _fetch_all_paged(client, api_url: str, body: dict, referer: str | None = None) -> list[dict]:
+    """
+    Gọi ABP paging API với body đã cho, lấy toàn bộ bản ghi (phân trang nếu cần).
+    Trả về list[dict] — danh sách record thô từ API.
+    """
+    PAGE_SIZE = 5000
+    body = {**body, "skipCount": 0, "maxResultCount": PAGE_SIZE, "pageSize": PAGE_SIZE, "page": 1}
+    resp = client.post_json(api_url, body, referer=referer)
+    payload = resp.json()
+    if not payload.get("success", True):
+        raise ValueError(f"API trả về lỗi: {payload.get('error', 'unknown')}")
+    result = payload.get("result", payload)
+    if isinstance(result, dict):
+        items = result.get("items", result.get("data", []))
+        total = result.get("totalCount", len(items))
+    elif isinstance(result, list):
+        items = result
+        total = len(items)
+    else:
+        raise ValueError(f"Không parse được result: type={type(result)}")
+    # Phân trang thêm nếu cần
+    while len(items) < total:
+        body = {**body, "skipCount": len(items)}
+        resp = client.post_json(api_url, body, referer=referer)
+        pl = resp.json()
+        res = pl.get("result", pl)
+        chunk = res.get("items", res.get("data", [])) if isinstance(res, dict) else res
+        if not chunk:
+            break
+        items.extend(chunk)
+    return items
+
+
+# ---------------------------------------------------------------------------
+# 11. POST /sync/tt48-cv-buoc
+#     Fetch 3 API phụ (formCase 2/3/5) → classify → lưu vào tt48_cv_buoc
+#     Mỗi record chỉ lưu (ma_ho_so, buoc) — tối giản bộ nhớ
+# ---------------------------------------------------------------------------
+def _sync_tt48_cv_buoc_inner() -> dict:
+    """
+    Core logic sync tt48_cv_buoc — dùng chung cho endpoint và scheduler.
+
+    Luồng xử lý hồ sơ TT48 ở bước Chuyên viên có 4 sub-bước:
+      (a) formCase=2: Đã phân công, chưa xử lý         → buoc = "chua_xu_ly"
+      (b) formCase=3: Đang xử lý — classify theo strDonViGui/strDonViXuLy:
+          - strDonViGui in (Tổ trưởng chuyên gia, Trưởng phòng) + strDonViXuLy = Chuyên viên thẩm định
+            → buoc = "bi_tra_lai"
+          - strDonViGui = Chuyên gia + strDonViXuLy = Chuyên viên thẩm định
+            → buoc = "cho_tong_hop"
+      (c) formCase=5 (formId=4): Đạt, chờ kết thúc     → buoc = "cho_ket_thuc"
+    """
+    base_url = os.environ.get("BASE_URL", "").rstrip("/")
+    api_url  = f"{base_url}/api/services/app/xuLyHoSoGridView48/GetListHoSoPaging"
+    referer  = f"{base_url}/Application"
+
+    # Body chung cho cả 3 table
+    _common = {
+        "keyword": None, "ngayGuiTu": None, "ngayGuiToi": None,
+        "loaiHoSoId": 50, "tinhId": None, "doanhNghiepId": None,
+        "phongBanId": 5, "ngayNopTu": None, "ngayNopToi": None,
+        "sorting": None,
+    }
+
+    db = SessionLocal()
+    try:
+        t0 = _time.monotonic()
+        client = RemoteClient()
+        client.login()
+
+        buoc_rows: dict[str, str] = {}  # ma_ho_so → buoc
+
+        # ----- (a) Đã phân công, chưa xử lý -----
+        body_a = {**_common, "formId": 21, "formCase": 2, "formCase2": 0}
+        items_a = _fetch_all_paged(client, api_url, body_a, referer=referer)
+        for item in items_a:
+            ma = item.get("maHoSo") or item.get("strSoHieuHoSo") or ""
+            if ma:
+                buoc_rows[ma] = "chua_xu_ly"
+        _sync_log.info(f"[tt48_cv_buoc] (a) chua_xu_ly: {len(items_a)} records")
+
+        # ----- (b) Đang xử lý — classify theo strDonViGui/strDonViXuLy -----
+        body_b = {**_common, "formId": 21, "formCase": 3, "formCase2": 0}
+        items_b = _fetch_all_paged(client, api_url, body_b, referer=referer)
+        cnt_bi_tra = 0
+        cnt_cho_th = 0
+        for item in items_b:
+            ma          = item.get("maHoSo") or item.get("strSoHieuHoSo") or ""
+            don_vi_gui  = (item.get("strDonViGui")  or "").strip()
+            don_vi_xuly = (item.get("strDonViXuLy") or "").strip()
+            if not ma:
+                continue
+            if don_vi_xuly == "Chuyên viên thẩm định":
+                if don_vi_gui in ("Tổ trưởng chuyên gia", "Trưởng phòng"):
+                    buoc_rows[ma] = "bi_tra_lai"
+                    cnt_bi_tra += 1
+                elif don_vi_gui == "Chuyên gia":
+                    buoc_rows[ma] = "cho_tong_hop"
+                    cnt_cho_th += 1
+        _sync_log.info(
+            f"[tt48_cv_buoc] (b) dang_xu_ly {len(items_b)} records → "
+            f"bi_tra_lai={cnt_bi_tra}, cho_tong_hop={cnt_cho_th}"
+        )
+
+        # ----- (c) Đạt, chờ kết thúc -----
+        body_c = {**_common, "formId": 4, "formCase": 5}
+        items_c = _fetch_all_paged(client, api_url, body_c, referer=referer)
+        for item in items_c:
+            ma = item.get("maHoSo") or item.get("strSoHieuHoSo") or ""
+            if ma:
+                buoc_rows[ma] = "cho_ket_thuc"
+        _sync_log.info(f"[tt48_cv_buoc] (c) cho_ket_thuc: {len(items_c)} records")
+
+        # ----- Ghi DB -----
+        t_insert = _time.monotonic()
+        synced_at = datetime.now(timezone.utc)
+        db.execute(text('TRUNCATE TABLE "tt48_cv_buoc" RESTART IDENTITY'))
+        if buoc_rows:
+            db.execute(
+                Tt48CvBuoc.__table__.insert(),
+                [{"ma_ho_so": k, "buoc": v} for k, v in buoc_rows.items()],
+            )
+        fetch_sec = t_insert - t0
+        _upsert_sync_meta(
+            db, "tt48_cv_buoc", synced_at, len(buoc_rows),
+            fetch_sec=fetch_sec, insert_sec=_time.monotonic() - t_insert,
+        )
+        db.commit()
+        _sync_log.info(
+            f"[tt48_cv_buoc] Tổng: {len(buoc_rows)} records → DB | "
+            f"fetch={fetch_sec:.1f}s"
+        )
+        return {
+            "ok": True,
+            "dataset": "tt48_cv_buoc",
+            "inserted": len(buoc_rows),
+            "synced_at": synced_at.isoformat(),
+        }
+
+    except RemoteAuthError as e:
+        db.rollback()
+        raise HTTPException(status_code=401, detail=str(e))
+    except EnvironmentError as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Thiếu cấu hình: {e}")
+    except requests.HTTPError as e:
+        db.rollback()
+        raise HTTPException(status_code=502, detail=f"Lỗi HTTP từ API: {e}")
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=502, detail=str(e))
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@app.post("/sync/tt48-cv-buoc")
+def sync_tt48_cv_buoc():
+    return _sync_tt48_cv_buoc_inner()
+
+
+# ---------------------------------------------------------------------------
 # _run_sync_all_job — hàm core: chạy 7 dataset, log từng bước
 # Dùng chung cho cả scheduler (tự động) và endpoint /sync/all (thủ công)
 #
@@ -773,6 +945,12 @@ def _run_sync_all_job(triggered_by: str = "scheduler") -> dict:
                 sync_tt48_dang_xu_ly,
                 f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc"
                 " [ThuTucEnum=48, isDone=False]",
+            ),
+            (
+                "tt48_cv_buoc",
+                sync_tt48_cv_buoc,
+                f"{base_url}/api/services/app/xuLyHoSoGridView48/GetListHoSoPaging"
+                " [formCase 2/3/5]",
             ),
             (
                 "tt47_da_xu_ly",
