@@ -742,7 +742,11 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
 // ---------------------------------------------------------------------------
 // Biểu đồ xu hướng theo tháng (bar + line, giống thiết kế Excel)
 // ---------------------------------------------------------------------------
-function MonthlyTrendChart({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
+function MonthlyTrendChart({ thuTuc, fromDate, toDate }: {
+  thuTuc: 48 | 47 | 46;
+  fromDate: string;
+  toDate:   string;
+}) {
   const [showLabels, setShowLabels] = useState(false);
 
   const { data, isLoading, isError } = useQuery({
@@ -752,7 +756,15 @@ function MonthlyTrendChart({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
     staleTime: 5 * 60 * 1000,
   });
 
-  const months = data?.months ?? [];
+  // Lọc các tháng nằm trong kỳ fromDate..toDate
+  const allMonths = data?.months ?? [];
+  const [fy, fm] = fromDate ? [+fromDate.slice(0,4), +fromDate.slice(5,7)] : [0, 0];
+  const [ty, tm] = toDate   ? [+toDate.slice(0,4),   +toDate.slice(5,7)]   : [9999, 12];
+  const months = allMonths.filter(m => {
+    const after  = m.year > fy  || (m.year === fy  && m.month >= fm);
+    const before = m.year < ty  || (m.year === ty  && m.month <= tm);
+    return after && before;
+  });
 
   if (isLoading) return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
@@ -1092,7 +1104,7 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
       <ChuyenVienTable thuTuc={thuTuc} fromDate={fromDate} toDate={toDate} />
 
       {/* Biểu đồ xu hướng theo tháng */}
-      <MonthlyTrendChart thuTuc={thuTuc} />
+      <MonthlyTrendChart thuTuc={thuTuc} fromDate={fromDate} toDate={toDate} />
     </div>
   );
 }
