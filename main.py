@@ -154,6 +154,59 @@ def _upsert_sync_meta(
     )
 
 
+# ===========================================================================
+# LOG ROTATION — giới hạn kích thước bảng remote_fetch_logs trong PostgreSQL
+# ===========================================================================
+# Mặc định giữ lại 10 000 bản ghi mới nhất, xoá phần còn lại.
+# Số dòng này đủ để debug nhưng không để bảng phình vô hạn.
+_PRUNE_KEEP_ROWS: int = 10_000
+
+
+def _prune_remote_fetch_logs(keep_rows: int = _PRUNE_KEEP_ROWS) -> dict:
+    """
+    Xoá các bản ghi cũ trong remote_fetch_logs, chỉ giữ lại `keep_rows` mới nhất.
+    Trả về dict với số dòng trước/sau và số dòng đã xoá.
+    """
+    db = SessionLocal()
+    try:
+        total_before = db.query(RemoteFetchLog).count()
+        deleted = 0
+        if total_before > keep_rows:
+            # Tìm id ngưỡng: id nhỏ hơn ngưỡng này sẽ bị xoá
+            cutoff_row = (
+                db.query(RemoteFetchLog.id)
+                .order_by(RemoteFetchLog.id.desc())
+                .offset(keep_rows - 1)
+                .limit(1)
+                .scalar()
+            )
+            if cutoff_row is not None:
+                deleted = (
+                    db.query(RemoteFetchLog)
+                    .filter(RemoteFetchLog.id < cutoff_row)
+                    .delete(synchronize_session=False)
+                )
+                db.commit()
+        total_after = db.query(RemoteFetchLog).count()
+        result = {
+            "rows_before": total_before,
+            "rows_after":  total_after,
+            "rows_deleted": deleted,
+            "keep_rows": keep_rows,
+        }
+        _sync_log.info(
+            f"[log-prune] remote_fetch_logs: {total_before} → {total_after} "
+            f"(đã xoá {deleted} dòng, giữ {keep_rows})"
+        )
+        return result
+    except Exception as exc:
+        db.rollback()
+        _sync_log.error(f"[log-prune] Lỗi khi prune remote_fetch_logs: {exc}")
+        raise
+    finally:
+        db.close()
+
+
 # Tạo tất cả bảng + khởi động scheduler khi server start
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -169,9 +222,19 @@ async def lifespan(app: FastAPI):
         replace_existing=True,
         next_run_time=datetime.now(timezone.utc),
     )
+    # Prune log DB mỗi 24h; lần đầu chạy ngay khi server khởi động
+    _scheduler.add_job(
+        _prune_remote_fetch_logs,
+        trigger="interval",
+        hours=24,
+        id="prune_logs_24h",
+        replace_existing=True,
+        next_run_time=datetime.now(timezone.utc),
+    )
     _scheduler.start()
     _sync_log.info("=" * 70)
     _sync_log.info("SERVER KHỞI ĐỘNG — sync ngay lập tức + scheduler mỗi 3h")
+    _sync_log.info(f"LOG ROTATION — remote_fetch_logs giữ tối đa {_PRUNE_KEEP_ROWS} dòng, prune mỗi 24h")
     _sync_log.info("=" * 70)
     yield
     _scheduler.shutdown(wait=False)
@@ -842,6 +905,86 @@ def logs_sync(lines: int = Query(default=100, ge=1, le=5000)):
         "showing_last": len(tail),
         "lines": tail,
     }
+
+
+# ---------------------------------------------------------------------------
+# GET /logs/db-stats — thống kê kích thước log file + DB log table
+# ---------------------------------------------------------------------------
+@app.get("/logs/db-stats")
+def logs_db_stats():
+    """
+    Trả về:
+      - Kích thước từng file log trên disk (sync.log + các bản backup)
+      - Số dòng trong bảng remote_fetch_logs (+ oldest/newest record)
+      - Giới hạn giữ lại hiện tại (_PRUNE_KEEP_ROWS)
+    """
+    # --- File log stats ---
+    file_stats = []
+    for path in sorted(_LOG_DIR.glob("sync.log*")):
+        size_bytes = path.stat().st_size
+        file_stats.append({
+            "file": path.name,
+            "size_bytes": size_bytes,
+            "size_kb": round(size_bytes / 1024, 1),
+        })
+
+    # --- DB log stats ---
+    db = SessionLocal()
+    try:
+        db_count = db.query(RemoteFetchLog).count()
+        oldest = (
+            db.query(RemoteFetchLog.created_at)
+            .order_by(RemoteFetchLog.created_at.asc())
+            .limit(1)
+            .scalar()
+        )
+        newest = (
+            db.query(RemoteFetchLog.created_at)
+            .order_by(RemoteFetchLog.created_at.desc())
+            .limit(1)
+            .scalar()
+        )
+    finally:
+        db.close()
+
+    return {
+        "ok": True,
+        "log_files": file_stats,
+        "log_files_total_kb": round(sum(f["size_bytes"] for f in file_stats) / 1024, 1),
+        "db_remote_fetch_logs": {
+            "row_count": db_count,
+            "keep_limit": _PRUNE_KEEP_ROWS,
+            "over_limit": max(0, db_count - _PRUNE_KEEP_ROWS),
+            "oldest_record": oldest.isoformat() if oldest else None,
+            "newest_record": newest.isoformat() if newest else None,
+        },
+        "note": (
+            "Log file: RotatingFileHandler 5×10 MB = tối đa 50 MB. "
+            f"DB table: prune tự động mỗi 24h, giữ tối đa {_PRUNE_KEEP_ROWS} dòng."
+        ),
+    }
+
+
+# ---------------------------------------------------------------------------
+# POST /admin/logs/prune — xoá thủ công log DB (keep_rows tùy chọn)
+# ---------------------------------------------------------------------------
+@app.post("/admin/logs/prune")
+def admin_logs_prune(
+    keep_rows: int = Query(default=_PRUNE_KEEP_ROWS, ge=100, le=100_000),
+    token: str = Query(default=""),
+):
+    """
+    Xoá thủ công các bản ghi cũ trong remote_fetch_logs.
+    Yêu cầu token = ADMIN_EXPORT_TOKEN (query param hoặc header X-Admin-Token).
+    """
+    import os
+    expected = os.environ.get("ADMIN_EXPORT_TOKEN", "")
+    if not expected or token != expected:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Token không hợp lệ")
+
+    result = _prune_remote_fetch_logs(keep_rows=keep_rows)
+    return {"ok": True, **result}
 
 
 # ---------------------------------------------------------------------------
