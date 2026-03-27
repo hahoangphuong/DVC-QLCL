@@ -377,16 +377,32 @@ interface DonutChartProps {
 }
 
 function DonutChart({ title, segments, total, isLoading, isError, emptyMessage, spinnerColor = "#22c55e" }: DonutChartProps) {
-  const CenterLabel = ({ cx, cy }: any) => (
-    <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
-      <tspan x={cx} dy="-0.4em" fontSize={26} fontWeight={700} fill="#1e293b">
-        {total.toLocaleString("vi-VN")}
-      </tspan>
-      <tspan x={cx} dy="1.5em" fontSize={11} fill="#64748b" fontWeight={500}>
-        hồ sơ
-      </tspan>
-    </text>
-  );
+  // Renders center count (index=0 only) + % inside each slice
+  const CombinedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }: any) => {
+    const RADIAN = Math.PI / 180;
+    const r = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const sx = cx + r * Math.cos(-midAngle * RADIAN);
+    const sy = cy + r * Math.sin(-midAngle * RADIAN);
+    const pct = Math.round((percent ?? 0) * 100);
+    return (
+      <g>
+        {index === 0 && (
+          <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
+            <tspan x={cx} dy="-0.4em" fontSize={26} fontWeight={700} fill="#1e293b">
+              {total.toLocaleString("vi-VN")}
+            </tspan>
+            <tspan x={cx} dy="1.5em" fontSize={11} fill="#64748b" fontWeight={500}>
+              hồ sơ
+            </tspan>
+          </text>
+        )}
+        {pct >= 5 && (
+          <text x={sx} y={sy} fill="#fff" textAnchor="middle" dominantBaseline="central"
+            fontSize={13} fontWeight={700}>{pct}%</text>
+        )}
+      </g>
+    );
+  };
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload?.length) {
@@ -438,7 +454,7 @@ function DonutChart({ title, segments, total, isLoading, isError, emptyMessage, 
                 startAngle={90}
                 endAngle={-270}
                 labelLine={false}
-                label={CenterLabel}
+                label={CombinedLabel}
               >
                 {segments.map((s, i) => (
                   <Cell key={i} fill={s.color} stroke="none" />
@@ -450,19 +466,15 @@ function DonutChart({ title, segments, total, isLoading, isError, emptyMessage, 
 
           {/* Legend — nằm bên dưới, căn giữa, cân xứng */}
           <div className="flex gap-8 justify-center flex-wrap pb-1">
-            {segments.map((s) => {
-              const pct = total > 0 ? ((s.value / total) * 100).toFixed(1) : "0.0";
-              return (
-                <div key={s.name} className="flex flex-col items-center gap-0.5">
-                  <div className="w-3 h-3 rounded-full" style={{ background: s.color }} />
-                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mt-0.5">{s.name}</div>
-                  <div className="text-xl font-bold leading-tight" style={{ color: s.color }}>
-                    {s.value.toLocaleString("vi-VN")}
-                  </div>
-                  <div className="text-xs text-slate-400">{pct}%</div>
+            {segments.map((s) => (
+              <div key={s.name} className="flex flex-col items-center gap-0.5">
+                <div className="w-3 h-3 rounded-full" style={{ background: s.color }} />
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mt-0.5">{s.name}</div>
+                <div className="text-xl font-bold leading-tight" style={{ color: s.color }}>
+                  {s.value.toLocaleString("vi-VN")}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -642,7 +654,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
               <th className={`${thC} bg-green-50`}>Hoàn thành</th>
               <th className={`${thC} bg-green-50 text-green-700`}>Đúng hạn</th>
               <th className={`${thC} bg-red-50 text-red-700`}>Quá hạn</th>
-              <th className={`${thC} bg-slate-50`}>TG TB</th>
+              <th className={`${thC} bg-slate-50`}>Thời gian TB</th>
               <th className={`${thC} bg-green-50 text-green-700`}>%&nbsp;GQ<br />đúng hạn</th>
               <th className={`${thC} bg-slate-50 text-slate-600`}>%&nbsp;đã<br />GQ</th>
               <th className={`${thC} bg-amber-50`}>Tổng</th>
@@ -1149,6 +1161,40 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
   ];
 
   const catTotal = catData.reduce((s, d) => s + d.value, 0);
+
+  // Custom tooltip giống DonutChart
+  const CatTooltip = ({ active, payload }: any) => {
+    if (!active || !payload?.length) return null;
+    const item = payload[0];
+    const pct = catTotal > 0 ? ((item.value / catTotal) * 100).toFixed(1) : "0.0";
+    return (
+      <div className="bg-white border border-slate-200 rounded-lg shadow-md px-3 py-2 text-sm">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full" style={{ background: item.payload.fill }} />
+          <span className="font-semibold text-slate-700">{item.name}</span>
+        </div>
+        <div className="mt-1 font-bold text-slate-900">{item.value.toLocaleString("vi-VN")} hồ sơ</div>
+        <div className="text-slate-500">{pct}%</div>
+      </div>
+    );
+  };
+
+  const HanTooltip = ({ active, payload }: any) => {
+    if (!active || !payload?.length) return null;
+    const item = payload[0];
+    const pct = grandTotal > 0 ? ((item.value / grandTotal) * 100).toFixed(1) : "0.0";
+    return (
+      <div className="bg-white border border-slate-200 rounded-lg shadow-md px-3 py-2 text-sm">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full" style={{ background: item.payload.fill }} />
+          <span className="font-semibold text-slate-700">{item.name.replace(/ \(\d+%\)$/, "")}</span>
+        </div>
+        <div className="mt-1 font-bold text-slate-900">{item.value.toLocaleString("vi-VN")} hồ sơ</div>
+        <div className="text-slate-500">{pct}%</div>
+      </div>
+    );
+  };
+
   const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, value }: any) => {
     if (catTotal === 0) return null;
     const RADIAN = Math.PI / 180;
@@ -1304,7 +1350,7 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                 {catData.map((d, i) => <Cell key={i} fill={d.fill} />)}
               </Pie>
               <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => [v.toLocaleString("vi-VN"), ""]} />
+              <Tooltip content={<CatTooltip />} />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -1319,7 +1365,7 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                 {hanData.map((d, i) => <Cell key={i} fill={d.fill} />)}
               </Pie>
               <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => [v.toLocaleString("vi-VN"), ""]} />
+              <Tooltip content={<HanTooltip />} />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -1342,12 +1388,17 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
       {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-xs border-collapse" style={{ minWidth: 1050, tableLayout: "fixed" }}>
+          <table className="w-full text-xs border-collapse" style={{ minWidth: 1100, tableLayout: "fixed" }}>
             <colgroup>
               <col style={{ width: 36 }} />
               <col style={{ width: 160 }} />
-              <col /><col /><col /><col /><col /><col /><col />
-              <col /><col /><col /><col /><col /><col />
+              {/* 10 cột ĐANG GIẢI QUYẾT — chia đều */}
+              <col /><col /><col /><col /><col />
+              <col /><col /><col /><col /><col />
+              {/* 3 cột Hồ sơ chậm nhất — độ rộng cố định đủ hiển thị nội dung */}
+              <col style={{ width: 90 }} />
+              <col style={{ width: 90 }} />
+              <col style={{ width: 120 }} />
             </colgroup>
             <thead>
               <tr className="bg-slate-700 text-white">
@@ -1508,11 +1559,17 @@ function ChuyenGiaTable({ thuTuc }: { thuTuc: number }) {
         Thống kê hồ sơ đang ở bước Chuyên gia thẩm định — TT{thuTuc}
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-xs border-collapse" style={{ minWidth: 820, tableLayout: "fixed" }}>
+        <table className="w-full text-xs border-collapse" style={{ minWidth: 900, tableLayout: "fixed" }}>
           <colgroup>
             <col style={{ width: 36 }} />
             <col style={{ width: 160 }} />
-            <col /><col /><col /><col /><col /><col /><col />
+            {/* 3 cột ĐANG GIẢI QUYẾT — chia đều */}
+            <col /><col /><col />
+            {/* 4 cột Hồ sơ chậm nhất — độ rộng cố định */}
+            <col style={{ width: 90 }} />
+            <col style={{ width: 90 }} />
+            <col style={{ width: 120 }} />
+            <col style={{ width: 150 }} />
           </colgroup>
           <thead>
             <tr className="bg-slate-700 text-white">
