@@ -1459,7 +1459,7 @@ function ChuyenGiaTable({ thuTuc }: { thuTuc: number }) {
             <tr className="bg-slate-700 text-white">
               <th className="px-2 py-2 text-center text-xs w-9" rowSpan={2}>STT</th>
               <th className="px-3 py-2 text-left text-xs min-w-[160px]" rowSpan={2}>Chuyên gia</th>
-              <th className="px-2 py-2 text-center text-xs bg-green-600" colSpan={3}>ĐANG GIẢI QUYẾT</th>
+              <th className="px-2 py-2 text-center text-xs bg-blue-600" colSpan={3}>ĐANG GIẢI QUYẾT</th>
               <th className="px-2 py-2 text-center text-xs bg-rose-700" colSpan={4}>Hồ sơ chậm nhất</th>
             </tr>
             <tr className="bg-slate-600 text-white">
@@ -1474,7 +1474,7 @@ function ChuyenGiaTable({ thuTuc }: { thuTuc: number }) {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {/* Section 1: Chuyên gia */}
-            <tr className="bg-green-600 text-white">
+            <tr className="bg-cyan-600 text-white">
               <td colSpan={9} className="px-3 py-1 text-xs font-bold uppercase tracking-wide">
                 Chuyên gia
               </td>
