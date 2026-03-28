@@ -331,7 +331,7 @@ function SummaryBarChart({ data }: { data: BarData[] }) {
 
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={data} margin={{ top: 32, right: 20, left: 10, bottom: 8 }}>
+      <BarChart data={data} margin={{ top: 32, right: 20, left: -10, bottom: 8 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
         <XAxis
           dataKey="name"
@@ -343,6 +343,7 @@ function SummaryBarChart({ data }: { data: BarData[] }) {
           tick={{ fontSize: 11, fill: "#94a3b8" }}
           axisLine={false}
           tickLine={false}
+          width={44}
           tickFormatter={(v) => v.toLocaleString("vi-VN")}
         />
         <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
@@ -445,10 +446,10 @@ function DonutChart({ title, segments, total, isLoading, isError, emptyMessage, 
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">{title}</h3>
-        {isLoading && <span className="text-xs text-blue-500 animate-pulse font-medium">Đang tải...</span>}
-        {isError   && <span className="text-xs text-red-500 font-medium">Lỗi tải dữ liệu</span>}
+      <div className="relative flex items-center justify-center mb-4">
+        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide text-center">{title}</h3>
+        {isLoading && <span className="text-xs text-blue-500 animate-pulse font-medium absolute right-0">Đang tải...</span>}
+        {isError   && <span className="text-xs text-red-500 font-medium absolute right-0">Lỗi tải dữ liệu</span>}
       </div>
 
       {isLoading ? (
@@ -1063,15 +1064,15 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
       <div className="grid gap-4" style={{ gridTemplateColumns: "4fr 3fr 3fr" }}>
         {/* Biểu đồ cột */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+          <div className="relative flex items-center justify-center mb-4">
+            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide text-center">
               Tình trạng hồ sơ {ttLabel}
             </h3>
             {isLoading && (
-              <span className="text-xs text-blue-500 animate-pulse font-medium">Đang tải...</span>
+              <span className="text-xs text-blue-500 animate-pulse font-medium absolute right-0">Đang tải...</span>
             )}
             {isError && (
-              <span className="text-xs text-red-500 font-medium">Lỗi tải dữ liệu</span>
+              <span className="text-xs text-red-500 font-medium absolute right-0">Lỗi tải dữ liệu</span>
             )}
           </div>
 
@@ -1096,7 +1097,7 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 
         {/* Biểu đồ tròn 1: Đã giải quyết — Đúng hạn / Quá hạn */}
         <DonutChart
-          title="Đã giải quyết — Đúng hạn / Quá hạn"
+          title="ĐÃ GIẢI QUYẾT"
           total={gqData?.total ?? 0}
           segments={[
             { name: "Đúng hạn", value: gqData?.dung_han ?? 0, color: "#22c55e" },
@@ -1110,7 +1111,7 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 
         {/* Biểu đồ tròn 2: Tồn sau — Còn hạn / Quá hạn */}
         <DonutChart
-          title="Tồn sau — Còn hạn / Quá hạn"
+          title="TỒN SAU"
           total={tsData?.total ?? 0}
           segments={[
             { name: "Còn hạn", value: tsData?.con_han ?? 0, color: "#60a5fa" },
@@ -1490,7 +1491,7 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                 return (
                   <div key={d.name} className="flex items-center gap-2 min-w-0">
                     {/* nhãn */}
-                    <span className="text-xs text-slate-600 whitespace-nowrap w-[88px] shrink-0 truncate"
+                    <span className="text-xs text-slate-600 whitespace-nowrap w-[124px] shrink-0 truncate"
                           title={d.name}>{d.name}</span>
                     {/* thanh + số — dùng positioning để số sát cạnh phải thanh */}
                     <div className="flex-1 relative h-4">
