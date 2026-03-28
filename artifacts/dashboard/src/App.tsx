@@ -1147,10 +1147,10 @@ const CHO_COLORS = {
 const CHO_COLORS_48 = [
   { key: "chua_xu_ly",   fill: "#3b82f6", label: "Chưa xử lý"   },
   { key: "bi_tra_lai",   fill: "#ef4444", label: "Bị trả lại"   },
-  { key: "cho_cg",       fill: "#22c55e", label: "Chờ CG"       },
+  { key: "cho_cg",       fill: "#22c55e", label: "Chờ chuyên gia" },
   { key: "cho_tong_hop", fill: "#06b6d4", label: "Chờ tổng hợp" },
   { key: "cho_to_truong",fill: "#fb923c", label: "Chờ Tổ trưởng"},
-  { key: "cho_trp",      fill: "#f97316", label: "Chờ TrP"      },
+  { key: "cho_trp",      fill: "#f97316", label: "Chờ Trưởng phòng" },
   { key: "cho_cong_bo",  fill: "#10b981", label: "Chờ công bố"  },
   { key: "cho_pct",      fill: "#a855f7", label: "Chờ PCT"      },
   { key: "cho_van_thu",  fill: "#64748b", label: "Chờ Văn thư"  },
