@@ -1490,21 +1490,25 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                     {/* nhãn */}
                     <span className="text-xs text-slate-600 whitespace-nowrap w-[88px] shrink-0 truncate"
                           title={d.name}>{d.name}</span>
-                    {/* thanh */}
-                    <div className="flex-1 bg-slate-100 rounded-full h-4 overflow-hidden">
-                      <div className="h-full rounded-full transition-all flex items-center justify-end pr-1.5"
-                           style={{ width: `${Math.max(pct, 2)}%`, background: d.fill }}>
-                        {pct >= 12 && (
-                          <span className="text-[10px] font-bold text-white leading-none">{d.value}</span>
-                        )}
+                    {/* thanh + số — dùng positioning để số sát cạnh phải thanh */}
+                    <div className="flex-1 relative h-4">
+                      {/* track (overflow:hidden để bar clip đúng) */}
+                      <div className="absolute inset-0 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full flex items-center justify-end pr-1.5"
+                             style={{ width: `${Math.max(pct, 2)}%`, background: d.fill }}>
+                          {pct >= 12 && (
+                            <span className="text-[10px] font-bold text-white leading-none">{d.value}</span>
+                          )}
+                        </div>
                       </div>
+                      {/* số ngoài — căn trái theo cạnh phải của thanh */}
+                      {pct < 12 && (
+                        <span className="absolute top-0 h-full flex items-center text-[11px] font-semibold leading-none pl-1"
+                              style={{ left: `${Math.max(pct, 2)}%`, color: d.fill }}>
+                          {d.value}
+                        </span>
+                      )}
                     </div>
-                    {/* số tuyệt đối (hiện khi thanh ngắn) */}
-                    {pct < 12 && (
-                      <span className="text-[11px] font-semibold shrink-0" style={{ color: d.fill }}>
-                        {d.value}
-                      </span>
-                    )}
                     {/* % */}
                     <span className="text-[10px] text-slate-400 shrink-0 w-[30px] text-right">
                       {pct.toFixed(0)}%
