@@ -1191,8 +1191,6 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
   const totCon = allRows.reduce((s, r) => s + r.con_han, 0) + (cpc?.con_han ?? 0);
   const totQua = allRows.reduce((s, r) => s + r.qua_han, 0) + (cpc?.qua_han ?? 0);
   const grandTotal = totCon + totQua;
-  const pctQua = grandTotal > 0 ? Math.round(totQua / grandTotal * 100) : 0;
-  const pctCon = 100 - pctQua;
 
   // Aggregate cho TT47/46
   const totCv       = allRows.reduce((s, r) => s + r.cho_cv,        0);
@@ -1222,8 +1220,8 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
       ].filter(d => d.value > 0);
 
   const hanData = [
-    { name: `Còn hạn (${pctCon}%)`, value: totCon, fill: "#3b82f6" },
-    { name: `Quá hạn (${pctQua}%)`, value: totQua, fill: "#f97316" },
+    { name: "Còn hạn", value: totCon, fill: "#3b82f6" },
+    { name: "Quá hạn", value: totQua, fill: "#f97316" },
   ];
 
   const catTotal = catData.reduce((s, d) => s + d.value, 0);
@@ -1479,7 +1477,7 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
       </div>
 
       {/* Charts row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid gap-4" style={{ gridTemplateColumns: "1fr auto 1fr" }}>
         {/* Phân loại theo bước xử lý */}
         <div className="bg-white rounded-xl border border-slate-200 p-3">
           <p className="text-xs font-semibold text-slate-500 mb-2 text-center">Phân loại theo bước xử lý</p>
@@ -1540,13 +1538,14 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
           )}
         </div>
 
-        {/* Pie: Còn hạn / Quá hạn */}
-        <div className="bg-white rounded-xl border border-slate-200 p-3">
-          <p className="text-xs font-semibold text-slate-500 mb-1 text-center">Còn hạn / Quá hạn</p>
+        {/* Pie: Tình trạng (Còn hạn / Quá hạn) */}
+        <div className="bg-white rounded-xl border border-slate-200 p-3" style={{ width: 220 }}>
+          <p className="text-xs font-semibold text-slate-500 mb-1 text-center">Tình trạng</p>
           <ResponsiveContainer width="100%" height={180}>
             <PieChart>
-              <Pie data={hanData} cx="50%" cy="50%" outerRadius={80}
-                dataKey="value" labelLine={false} label={renderHanLabel}>
+              <Pie data={hanData} cx="50%" cy="50%" outerRadius={72}
+                dataKey="value" labelLine={false} label={renderHanLabel}
+                startAngle={270} endAngle={-90}>
                 {hanData.map((d, i) => <Cell key={i} fill={d.fill} />)}
               </Pie>
               <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
