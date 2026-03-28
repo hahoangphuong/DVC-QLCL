@@ -548,6 +548,8 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
 
   const thC  = "px-2 py-2 text-center text-xs font-bold uppercase tracking-wide";
   const thL  = "px-2 py-2 text-left   text-xs font-bold uppercase tracking-wide";
+  // Sub-header không uppercase (cho cột con — trừ TỔNG)
+  const thS  = "px-2 py-2 text-center text-xs font-semibold";
   const tdC  = "px-2 py-2 text-center text-xs";
   const tdL  = "px-2 py-2 text-left   text-xs";
   const totRow = "bg-slate-200 font-bold border-t-2 border-slate-400";
@@ -670,17 +672,17 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
             </tr>
             <tr className="bg-slate-100">
               <th className={`${thC} bg-green-50`}>Tổng</th>
-              <th className={`${thC} bg-amber-50`}>Cần bổ sung</th>
-              <th className={`${thC} bg-red-50`}>Không đạt</th>
-              <th className={`${thC} bg-green-50`}>Hoàn thành</th>
-              <th className={`${thC} bg-green-50 text-green-700`}>Đúng hạn</th>
-              <th className={`${thC} bg-red-50 text-red-700`}>Quá hạn</th>
-              <th className={`${thC} bg-slate-50`}>Thời gian TB</th>
-              <th className={`${thC} bg-green-50 text-green-700`}>%&nbsp;GQ<br />đúng hạn</th>
-              <th className={`${thC} bg-slate-50 text-slate-600`}>%&nbsp;đã<br />GQ</th>
+              <th className={`${thS} bg-amber-50`}>Cần bổ sung</th>
+              <th className={`${thS} bg-red-50`}>Không đạt</th>
+              <th className={`${thS} bg-green-50`}>Hoàn thành</th>
+              <th className={`${thS} bg-green-50 text-green-700`}>Đúng hạn</th>
+              <th className={`${thS} bg-red-50 text-red-700`}>Quá hạn</th>
+              <th className={`${thS} bg-slate-50`}>Thời gian TB</th>
+              <th className={`${thS} bg-green-50 text-green-700`}>% Đúng hạn</th>
+              <th className={`${thS} bg-slate-50 text-slate-600`}>% Đã GQ</th>
               <th className={`${thC} bg-amber-50`}>Tổng</th>
-              <th className={`${thC} bg-blue-50 text-blue-700`}>Còn hạn</th>
-              <th className={`${thC} bg-red-50 text-red-700`}>Quá hạn</th>
+              <th className={`${thS} bg-blue-50 text-blue-700`}>Còn hạn</th>
+              <th className={`${thS} bg-red-50 text-red-700`}>Quá hạn</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
