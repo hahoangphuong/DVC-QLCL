@@ -546,10 +546,10 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
   const rows = data?.rows ?? [];
   const cpc  = data?.cho_phan_cong ?? null;
 
-  const thC  = "px-2 py-2 text-center text-xs font-bold uppercase tracking-wide border border-slate-300";
-  const thL  = "px-2 py-2 text-left   text-xs font-bold uppercase tracking-wide border border-slate-300";
-  const tdC  = "px-2 py-2 text-center text-xs border border-slate-200";
-  const tdL  = "px-2 py-2 text-left   text-xs border border-slate-200";
+  const thC  = "px-2 py-2 text-center text-xs font-bold uppercase tracking-wide";
+  const thL  = "px-2 py-2 text-left   text-xs font-bold uppercase tracking-wide";
+  const tdC  = "px-2 py-2 text-center text-xs";
+  const tdL  = "px-2 py-2 text-left   text-xs";
   const totRow = "bg-slate-200 font-bold border-t-2 border-slate-400";
 
   // Sticky column helpers — STT fixed at left:0, CV fixed at left:36px
@@ -683,7 +683,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
               <th className={`${thC} bg-red-50 text-red-700`}>Quá hạn</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-100">
             {isLoading ? (
               <tr><td colSpan={colSpan} className="py-10 text-center text-slate-400">
                 <div className="flex items-center justify-center gap-2">
@@ -1615,10 +1615,10 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                     <th className="px-2 py-1 text-center text-xs bg-slate-600 font-bold">TỔNG</th>
                     <th className="px-2 py-1 text-center text-xs bg-blue-700">Chưa<br/>xử lý</th>
                     <th className="px-2 py-1 text-center text-xs bg-red-600">Bị<br/>trả lại</th>
-                    <th className="px-2 py-1 text-center text-xs bg-green-600">Chờ CG</th>
+                    <th className="px-2 py-1 text-center text-xs bg-green-600">Chờ<br/>chuyên gia</th>
                     <th className="px-2 py-1 text-center text-xs bg-cyan-600">Chờ<br/>tổng hợp</th>
                     <th className="px-2 py-1 text-center text-xs bg-orange-400">Chờ Tổ<br/>trưởng</th>
-                    <th className="px-2 py-1 text-center text-xs bg-orange-600">Chờ TrP</th>
+                    <th className="px-2 py-1 text-center text-xs bg-orange-600">Chờ<br/>Trưởng phòng</th>
                     <th className="px-2 py-1 text-center text-xs bg-emerald-600">Chờ<br/>công bố</th>
                     {showPct    && <th className="px-2 py-1 text-center text-xs bg-purple-600">Chờ PCT</th>}
                     {showVanThu && <th className="px-2 py-1 text-center text-xs bg-slate-500">Chờ<br/>Văn thư</th>}
