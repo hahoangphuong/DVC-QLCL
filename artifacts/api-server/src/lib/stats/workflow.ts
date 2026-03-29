@@ -482,6 +482,7 @@ type PendingLookupRow = {
   ngay_tiep_nhan: string | null;
   ngay_hen_tra: string | null;
   loai_ho_so: string | null;
+  submission_kind: string | null;
   tinh_trang: string;
   chuyen_vien: string | null;
   chuyen_gia: string | null;
@@ -493,6 +494,7 @@ const PENDING_LOOKUP_BASE_CTE = `WITH latest_case_facts AS (
     thu_tuc,
     ma_ho_so,
     loai_ho_so,
+    submission_kind,
     nhan_hen_tra
   FROM mv_stats_case_facts
   WHERE ($1::int IS NULL OR thu_tuc = $1)
@@ -505,6 +507,7 @@ workflow_base AS (
     w.ngay_nhan AS ngay_tiep_nhan,
     cf.nhan_hen_tra AS ngay_hen_tra,
     cf.loai_ho_so,
+    cf.submission_kind,
     CASE
       WHEN w.don_vi = 'Chuyên gia thẩm định' THEN 'Chờ chuyên gia'
       WHEN w.don_vi = 'Tổ trưởng chuyên gia' THEN 'Chờ Tổ trưởng'
@@ -563,6 +566,7 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
        ngay_tiep_nhan,
        ngay_hen_tra,
        loai_ho_so,
+       submission_kind,
        tinh_trang,
        chuyen_vien,
        chuyen_gia,
@@ -606,6 +610,7 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
       ngay_tiep_nhan: row.ngay_tiep_nhan,
       ngay_hen_tra: row.ngay_hen_tra,
       loai_ho_so: row.loai_ho_so,
+      submission_kind: row.submission_kind,
       tinh_trang: row.tinh_trang,
       chuyen_vien: row.chuyen_vien,
       chuyen_gia: row.chuyen_gia,

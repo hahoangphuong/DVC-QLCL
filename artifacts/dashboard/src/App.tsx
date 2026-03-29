@@ -369,6 +369,7 @@ interface TraCuuDangXuLyRow {
   ngay_tiep_nhan: string | null;
   ngay_hen_tra: string | null;
   loai_ho_so: string | null;
+  submission_kind: string | null;
   tinh_trang: LookupTinhTrang;
   chuyen_vien: string | null;
   chuyen_gia: string | null;
@@ -2468,12 +2469,20 @@ function displayLookupCv(raw: string | null): string {
   return cleanCvName(raw);
 }
 
+function displaySubmissionKind(value: string | null): string {
+  if (value === "first") return "Lần đầu";
+  if (value === "supplement") return "Lần bổ sung";
+  return "";
+}
+
 function TraCuuDangXuLyTab() {
   const [thuTuc, setThuTuc] = useState<LookupThuTuc | "all">("all");
   const [chuyenVien, setChuyenVien] = useState("");
   const [chuyenGia, setChuyenGia] = useState("");
   const [tinhTrang, setTinhTrang] = useState<LookupTinhTrang | "all">("all");
   const [maHoSo, setMaHoSo] = useState("");
+  const [sortBy, setSortBy] = useState<"stt" | "ma_ho_so" | "ngay_tiep_nhan" | "ngay_hen_tra" | "loai_ho_so" | "submission_kind" | "tinh_trang" | "chuyen_vien" | "chuyen_gia" | "thoi_gian_cho_ngay">("stt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const deferredMaHoSo = useDeferredValue(maHoSo);
 
   const { data, isLoading, isError } = useQuery({
@@ -2498,6 +2507,77 @@ function TraCuuDangXuLyTab() {
   useEffect(() => {
     if (chuyenGia && !chuyenGiaOptions.includes(chuyenGia)) setChuyenGia("");
   }, [chuyenGia, chuyenGiaOptions]);
+
+  const sortedRows = useMemo(() => {
+    const rows = [...(data?.rows ?? [])];
+    if (sortBy === "stt") {
+      return sortDir === "asc" ? rows : rows.reverse();
+    }
+    const getValue = (row: TraCuuDangXuLyRow) => {
+      switch (sortBy) {
+        case "ma_ho_so":
+          return row.ma_ho_so;
+        case "ngay_tiep_nhan":
+          return row.ngay_tiep_nhan ?? "";
+        case "ngay_hen_tra":
+          return row.ngay_hen_tra ?? "";
+        case "loai_ho_so":
+          return row.loai_ho_so ?? "";
+        case "submission_kind":
+          return row.submission_kind === "first" ? "0" : row.submission_kind === "supplement" ? "1" : "2";
+        case "tinh_trang":
+          return row.tinh_trang;
+        case "chuyen_vien":
+          return displayLookupCv(row.chuyen_vien);
+        case "chuyen_gia":
+          return row.chuyen_gia ?? "";
+        case "thoi_gian_cho_ngay":
+          return row.thoi_gian_cho_ngay;
+        case "stt":
+          return 0;
+      }
+    };
+
+    rows.sort((left, right) => {
+      const a = getValue(left);
+      const b = getValue(right);
+      let result = 0;
+      if (typeof a === "number" && typeof b === "number") {
+        result = a - b;
+      } else {
+        result = String(a).localeCompare(String(b), "vi", { numeric: true, sensitivity: "base" });
+      }
+      if (result === 0) result = left.ma_ho_so.localeCompare(right.ma_ho_so, "vi", { numeric: true, sensitivity: "base" });
+      return sortDir === "asc" ? result : -result;
+    });
+    return rows;
+  }, [data?.rows, sortBy, sortDir]);
+
+  const toggleSort = (key: typeof sortBy) => {
+    if (sortBy === key) {
+      setSortDir((prev) => prev === "asc" ? "desc" : "asc");
+      return;
+    }
+    setSortBy(key);
+    setSortDir(key === "stt" ? "asc" : "desc");
+  };
+
+  const SortableHeader = ({ label, sortKey }: { label: string; sortKey: typeof sortBy }) => {
+    const active = sortBy === sortKey;
+    const arrow = !active ? "↕" : sortDir === "asc" ? "↑" : "↓";
+    return (
+      <th className="px-3 py-3 text-left font-semibold uppercase tracking-wide whitespace-nowrap">
+        <button
+          type="button"
+          onClick={() => toggleSort(sortKey)}
+          className={`inline-flex items-center gap-1 transition-colors ${active ? "text-blue-700" : "text-slate-600 hover:text-slate-800"}`}
+        >
+          <span>{label}</span>
+          <span className={`text-[10px] ${active ? "text-blue-600" : "text-slate-400"}`}>{arrow}</span>
+        </button>
+      </th>
+    );
+  };
 
   const SelectField = ({
     label,
@@ -2595,6 +2675,7 @@ function TraCuuDangXuLyTab() {
                 <col style={{ width: 120 }} />
                 <col style={{ width: 120 }} />
                 <col style={{ width: 120 }} />
+                <col style={{ width: 120 }} />
                 <col style={{ width: 150 }} />
                 <col style={{ width: 200 }} />
                 <col style={{ width: 170 }} />
@@ -2602,27 +2683,33 @@ function TraCuuDangXuLyTab() {
               </colgroup>
               <thead>
                 <tr className="bg-slate-100 text-slate-600">
-                  {["STT", "Mã hồ sơ", "Ngày tiếp nhận", "Ngày hẹn trả", "Loại hồ sơ", "Tình trạng", "Chuyên viên", "Chuyên gia", "Thời gian chờ"].map((header) => (
-                    <th key={header} className="px-3 py-3 text-left font-semibold uppercase tracking-wide whitespace-nowrap">
-                      {header}
-                    </th>
-                  ))}
+                  <SortableHeader label="STT" sortKey="stt" />
+                  <SortableHeader label="Mã hồ sơ" sortKey="ma_ho_so" />
+                  <SortableHeader label="Ngày tiếp nhận" sortKey="ngay_tiep_nhan" />
+                  <SortableHeader label="Ngày hẹn trả" sortKey="ngay_hen_tra" />
+                  <SortableHeader label="Loại hồ sơ" sortKey="loai_ho_so" />
+                  <SortableHeader label="Lần nộp" sortKey="submission_kind" />
+                  <SortableHeader label="Tình trạng" sortKey="tinh_trang" />
+                  <SortableHeader label="Chuyên viên" sortKey="chuyen_vien" />
+                  <SortableHeader label="Chuyên gia" sortKey="chuyen_gia" />
+                  <SortableHeader label="Thời gian chờ" sortKey="thoi_gian_cho_ngay" />
                 </tr>
               </thead>
               <tbody>
-                {data.rows.length === 0 ? (
+                {sortedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-10 text-center text-sm text-slate-400">
+                    <td colSpan={10} className="px-4 py-10 text-center text-sm text-slate-400">
                       Không có hồ sơ phù hợp với điều kiện lọc.
                     </td>
                   </tr>
-                ) : data.rows.map((row, index) => (
+                ) : sortedRows.map((row, index) => (
                   <tr key={`${row.thu_tuc}-${row.ma_ho_so}-${index}`} className={index % 2 === 0 ? "bg-white hover:bg-blue-50" : "bg-slate-50 hover:bg-blue-50"}>
                     <td className="px-3 py-2.5 text-center text-slate-500">{index + 1}</td>
                     <td className="px-3 py-2.5 font-mono text-slate-700">{row.ma_ho_so}</td>
                     <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_tiep_nhan)}</td>
                     <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_hen_tra)}</td>
                     <td className="px-3 py-2.5 text-slate-700">{row.loai_ho_so || ""}</td>
+                    <td className="px-3 py-2.5 text-slate-700">{displaySubmissionKind(row.submission_kind)}</td>
                     <td className="px-3 py-2.5 text-slate-700 font-medium">{row.tinh_trang}</td>
                     <td className="px-3 py-2.5 text-slate-700">{displayLookupCv(row.chuyen_vien)}</td>
                     <td className="px-3 py-2.5 text-slate-700">{row.chuyen_gia || ""}</td>
