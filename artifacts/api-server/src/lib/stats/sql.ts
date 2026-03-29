@@ -4,6 +4,8 @@ export function buildCaseFactsCte(thuTucParam: string): string {
       ma_ho_so,
       loai_ho_so,
       submission_kind,
+      country_alpha2,
+      hinh_thuc_danh_gia,
       cv_name_raw,
       ngay_nhan,
       nhan_hen_tra,

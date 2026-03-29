@@ -223,15 +223,23 @@ interface Tt48LoaiHoSoRow {
   ton_truoc_total: number;
   ton_truoc_first: number;
   ton_truoc_supplement: number;
+  ton_truoc_hinh_thuc_1: number;
+  ton_truoc_hinh_thuc_2: number;
   da_nhan_total: number;
   da_nhan_first: number;
   da_nhan_supplement: number;
+  da_nhan_hinh_thuc_1: number;
+  da_nhan_hinh_thuc_2: number;
   giai_quyet_total: number;
   giai_quyet_first: number;
   giai_quyet_supplement: number;
+  giai_quyet_hinh_thuc_1: number;
+  giai_quyet_hinh_thuc_2: number;
   ton_total: number;
   ton_first: number;
   ton_supplement: number;
+  ton_hinh_thuc_1: number;
+  ton_hinh_thuc_2: number;
   treo: number;
 }
 
@@ -1381,15 +1389,23 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
       ton_truoc_total: 0,
       ton_truoc_first: 0,
       ton_truoc_supplement: 0,
+      ton_truoc_hinh_thuc_1: 0,
+      ton_truoc_hinh_thuc_2: 0,
       da_nhan_total: 0,
       da_nhan_first: 0,
       da_nhan_supplement: 0,
+      da_nhan_hinh_thuc_1: 0,
+      da_nhan_hinh_thuc_2: 0,
       giai_quyet_total: 0,
       giai_quyet_first: 0,
       giai_quyet_supplement: 0,
+      giai_quyet_hinh_thuc_1: 0,
+      giai_quyet_hinh_thuc_2: 0,
       ton_total: 0,
       ton_first: 0,
       ton_supplement: 0,
+      ton_hinh_thuc_1: 0,
+      ton_hinh_thuc_2: 0,
       treo: 0,
     }
   ));
@@ -1398,29 +1414,45 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
     ton_truoc_total: acc.ton_truoc_total + row.ton_truoc_total,
     ton_truoc_first: acc.ton_truoc_first + row.ton_truoc_first,
     ton_truoc_supplement: acc.ton_truoc_supplement + row.ton_truoc_supplement,
+    ton_truoc_hinh_thuc_1: acc.ton_truoc_hinh_thuc_1 + row.ton_truoc_hinh_thuc_1,
+    ton_truoc_hinh_thuc_2: acc.ton_truoc_hinh_thuc_2 + row.ton_truoc_hinh_thuc_2,
     da_nhan_total: acc.da_nhan_total + row.da_nhan_total,
     da_nhan_first: acc.da_nhan_first + row.da_nhan_first,
     da_nhan_supplement: acc.da_nhan_supplement + row.da_nhan_supplement,
+    da_nhan_hinh_thuc_1: acc.da_nhan_hinh_thuc_1 + row.da_nhan_hinh_thuc_1,
+    da_nhan_hinh_thuc_2: acc.da_nhan_hinh_thuc_2 + row.da_nhan_hinh_thuc_2,
     giai_quyet_total: acc.giai_quyet_total + row.giai_quyet_total,
     giai_quyet_first: acc.giai_quyet_first + row.giai_quyet_first,
     giai_quyet_supplement: acc.giai_quyet_supplement + row.giai_quyet_supplement,
+    giai_quyet_hinh_thuc_1: acc.giai_quyet_hinh_thuc_1 + row.giai_quyet_hinh_thuc_1,
+    giai_quyet_hinh_thuc_2: acc.giai_quyet_hinh_thuc_2 + row.giai_quyet_hinh_thuc_2,
     ton_total: acc.ton_total + row.ton_total,
     ton_first: acc.ton_first + row.ton_first,
     ton_supplement: acc.ton_supplement + row.ton_supplement,
+    ton_hinh_thuc_1: acc.ton_hinh_thuc_1 + row.ton_hinh_thuc_1,
+    ton_hinh_thuc_2: acc.ton_hinh_thuc_2 + row.ton_hinh_thuc_2,
     treo: acc.treo + row.treo,
   }), {
     ton_truoc_total: 0,
     ton_truoc_first: 0,
     ton_truoc_supplement: 0,
+    ton_truoc_hinh_thuc_1: 0,
+    ton_truoc_hinh_thuc_2: 0,
     da_nhan_total: 0,
     da_nhan_first: 0,
     da_nhan_supplement: 0,
+    da_nhan_hinh_thuc_1: 0,
+    da_nhan_hinh_thuc_2: 0,
     giai_quyet_total: 0,
     giai_quyet_first: 0,
     giai_quyet_supplement: 0,
+    giai_quyet_hinh_thuc_1: 0,
+    giai_quyet_hinh_thuc_2: 0,
     ton_total: 0,
     ton_first: 0,
     ton_supplement: 0,
+    ton_hinh_thuc_1: 0,
+    ton_hinh_thuc_2: 0,
     treo: 0,
   });
 
@@ -1441,6 +1473,7 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
   const tdL = "px-3 py-2 text-left text-xs font-semibold text-slate-800";
   const totalRow = "bg-slate-200 font-bold border-t-2 border-slate-400";
   const ratioRow = "bg-slate-50 text-slate-600 border-t border-slate-200";
+  const subgroupLabels = ["TỔNG", "Lần đầu", "Bổ sung", "H.thức 1", "H.thức 2"];
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
@@ -1450,37 +1483,39 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
         </h3>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-xs border-collapse" style={{ minWidth: 1320 }}>
+        <table className="w-full text-xs border-collapse" style={{ minWidth: 1680 }}>
           <colgroup>
             <col style={{ width: 260 }} />
-            <col style={{ width: 130 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} />
-            <col style={{ width: 130 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} />
-            <col style={{ width: 130 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} />
-            <col style={{ width: 130 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} />
+            <col style={{ width: 130 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} />
+            <col style={{ width: 130 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} />
+            <col style={{ width: 130 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} />
+            <col style={{ width: 130 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} />
             <col style={{ width: 92 }} />
           </colgroup>
           <thead>
             <tr>
               <th rowSpan={2} className={`${thL} bg-slate-700 text-white`}>Phân loại hồ sơ</th>
-              <th colSpan={3} className={`${thC} bg-pink-700 text-white`}>TỒN TRƯỚC</th>
-              <th colSpan={3} className={`${thC} bg-blue-700 text-white`}>HỒ SƠ ĐÃ TIẾP NHẬN</th>
-              <th colSpan={3} className={`${thC} bg-green-700 text-white`}>HỒ SƠ ĐÃ GIẢI QUYẾT</th>
-              <th colSpan={3} className={`${thC} bg-amber-700 text-white`}>HỒ SƠ TỒN</th>
+              <th colSpan={5} className={`${thC} bg-pink-700 text-white`}>TỒN TRƯỚC</th>
+              <th colSpan={5} className={`${thC} bg-blue-700 text-white`}>HỒ SƠ ĐÃ TIẾP NHẬN</th>
+              <th colSpan={5} className={`${thC} bg-green-700 text-white`}>HỒ SƠ ĐÃ GIẢI QUYẾT</th>
+              <th colSpan={5} className={`${thC} bg-amber-700 text-white`}>HỒ SƠ TỒN</th>
               <th rowSpan={2} className={`${thC} bg-orange-600 text-white`}>HỒ SƠ TREO</th>
             </tr>
             <tr>
-              {["TỔNG", "Lần đầu", "Bổ sung", "TỔNG", "Lần đầu", "Bổ sung", "TỔNG", "Lần đầu", "Bổ sung", "TỔNG", "Lần đầu", "Bổ sung"].map((label, index) => (
-                <th
-                  key={`${label}-${index}`}
-                  className={`${thS} ${
-                    index < 3 ? "bg-pink-50 text-pink-700" :
-                    index < 6 ? "bg-blue-50 text-blue-700" :
-                    index < 9 ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"
-                  }`}
-                >
-                  {label}
-                </th>
-              ))}
+              {[0, 1, 2, 3].flatMap((groupIndex) =>
+                subgroupLabels.map((label, labelIndex) => (
+                  <th
+                    key={`${groupIndex}-${labelIndex}-${label}`}
+                    className={`${thS} ${
+                      groupIndex === 0 ? "bg-pink-50 text-pink-700" :
+                      groupIndex === 1 ? "bg-blue-50 text-blue-700" :
+                      groupIndex === 2 ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    {label}
+                  </th>
+                ))
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -1490,15 +1525,23 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
                 <td className={`${tdC} bg-pink-50/70`}>{renderGroupTotal(row.ton_truoc_total, totals.ton_truoc_total, "text-pink-700")}</td>
                 {num(row.ton_truoc_first, `${tdC} bg-pink-50/70 text-slate-700`)}
                 {num(row.ton_truoc_supplement, `${tdC} bg-pink-50/70 text-slate-700`)}
+                {num(row.ton_truoc_hinh_thuc_1, `${tdC} bg-pink-50/70 text-slate-700`)}
+                {num(row.ton_truoc_hinh_thuc_2, `${tdC} bg-pink-50/70 text-slate-700`)}
                 <td className={`${tdC} bg-blue-50/70`}>{renderGroupTotal(row.da_nhan_total, totals.da_nhan_total, "text-blue-700")}</td>
                 {num(row.da_nhan_first, `${tdC} bg-blue-50/70 text-slate-700`)}
                 {num(row.da_nhan_supplement, `${tdC} bg-blue-50/70 text-slate-700`)}
+                {num(row.da_nhan_hinh_thuc_1, `${tdC} bg-blue-50/70 text-slate-700`)}
+                {num(row.da_nhan_hinh_thuc_2, `${tdC} bg-blue-50/70 text-slate-700`)}
                 <td className={`${tdC} bg-green-50/80`}>{renderGroupTotal(row.giai_quyet_total, totals.giai_quyet_total, "text-green-700")}</td>
                 {num(row.giai_quyet_first, `${tdC} bg-green-50/80 text-slate-700`)}
                 {num(row.giai_quyet_supplement, `${tdC} bg-green-50/80 text-slate-700`)}
+                {num(row.giai_quyet_hinh_thuc_1, `${tdC} bg-green-50/80 text-slate-700`)}
+                {num(row.giai_quyet_hinh_thuc_2, `${tdC} bg-green-50/80 text-slate-700`)}
                 <td className={`${tdC} bg-amber-50/80`}>{renderGroupTotal(row.ton_total, totals.ton_total, "text-amber-700")}</td>
                 {num(row.ton_first, `${tdC} bg-amber-50/80 text-slate-700`)}
                 {num(row.ton_supplement, `${tdC} bg-amber-50/80 text-slate-700`)}
+                {num(row.ton_hinh_thuc_1, `${tdC} bg-amber-50/80 text-slate-700`)}
+                {num(row.ton_hinh_thuc_2, `${tdC} bg-amber-50/80 text-slate-700`)}
                 {num(row.treo, `${tdC} bg-orange-50 font-bold text-orange-700`)}
               </tr>
             ))}
@@ -1509,15 +1552,23 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
               {num(totals.ton_truoc_total, `${tdC} text-pink-700 font-bold`)}
               {num(totals.ton_truoc_first, `${tdC} text-pink-700 font-bold`)}
               {num(totals.ton_truoc_supplement, `${tdC} text-pink-700 font-bold`)}
+              {num(totals.ton_truoc_hinh_thuc_1, `${tdC} text-pink-700 font-bold`)}
+              {num(totals.ton_truoc_hinh_thuc_2, `${tdC} text-pink-700 font-bold`)}
               {num(totals.da_nhan_total, `${tdC} text-blue-700 font-bold`)}
               {num(totals.da_nhan_first, `${tdC} text-blue-700 font-bold`)}
               {num(totals.da_nhan_supplement, `${tdC} text-blue-700 font-bold`)}
+              {num(totals.da_nhan_hinh_thuc_1, `${tdC} text-blue-700 font-bold`)}
+              {num(totals.da_nhan_hinh_thuc_2, `${tdC} text-blue-700 font-bold`)}
               {num(totals.giai_quyet_total, `${tdC} text-green-700 font-bold`)}
               {num(totals.giai_quyet_first, `${tdC} text-green-700 font-bold`)}
               {num(totals.giai_quyet_supplement, `${tdC} text-green-700 font-bold`)}
+              {num(totals.giai_quyet_hinh_thuc_1, `${tdC} text-green-700 font-bold`)}
+              {num(totals.giai_quyet_hinh_thuc_2, `${tdC} text-green-700 font-bold`)}
               {num(totals.ton_total, `${tdC} text-amber-700 font-bold`)}
               {num(totals.ton_first, `${tdC} text-amber-700 font-bold`)}
               {num(totals.ton_supplement, `${tdC} text-amber-700 font-bold`)}
+              {num(totals.ton_hinh_thuc_1, `${tdC} text-amber-700 font-bold`)}
+              {num(totals.ton_hinh_thuc_2, `${tdC} text-amber-700 font-bold`)}
               {num(totals.treo, `${tdC} text-orange-700 font-bold`)}
             </tr>
             <tr className={ratioRow}>
@@ -1526,14 +1577,22 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
               <td className={`${tdC} text-pink-700 font-semibold`}>{pct(totals.ton_truoc_first, totals.ton_truoc_total)}</td>
               <td className={`${tdC} text-pink-700 font-semibold`}>{pct(totals.ton_truoc_supplement, totals.ton_truoc_total)}</td>
               <td />
+              <td />
+              <td />
               <td className={`${tdC} text-blue-700 font-semibold`}>{pct(totals.da_nhan_first, totals.da_nhan_total)}</td>
               <td className={`${tdC} text-blue-700 font-semibold`}>{pct(totals.da_nhan_supplement, totals.da_nhan_total)}</td>
+              <td />
+              <td />
               <td />
               <td className={`${tdC} text-green-700 font-semibold`}>{pct(totals.giai_quyet_first, totals.giai_quyet_total)}</td>
               <td className={`${tdC} text-green-700 font-semibold`}>{pct(totals.giai_quyet_supplement, totals.giai_quyet_total)}</td>
               <td />
+              <td />
+              <td />
               <td className={`${tdC} text-amber-700 font-semibold`}>{pct(totals.ton_first, totals.ton_total)}</td>
               <td className={`${tdC} text-amber-700 font-semibold`}>{pct(totals.ton_supplement, totals.ton_total)}</td>
+              <td />
+              <td />
               <td />
             </tr>
           </tfoot>
@@ -2916,5 +2975,6 @@ export default function App() {
     </QueryClientProvider>
   );
 }
+
 
 

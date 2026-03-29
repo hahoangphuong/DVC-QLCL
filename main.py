@@ -81,6 +81,66 @@ _STATS_MATERIALIZED_VIEWS = {
     "tt48_treo_by_loai": "mv_stats_tt48_treo_by_loai",
 }
 
+_HT2_ALPHA2_CODES = (
+    "AT", "AU", "BE", "BG", "CA", "CH", "CY", "CZ", "DE", "DK", "EE", "ES",
+    "FI", "FR", "GR", "HR", "HU", "ID", "IE", "IS", "IT", "JP", "LI", "LT",
+    "LU", "LV", "MT", "MY", "NL", "NO", "PH", "PL", "PT", "RO", "SE", "SG",
+    "SI", "SK", "TH", "US",
+)
+
+_COUNTRY_NAME_PATTERNS = {
+    "AT": ["%Áo%", "%Ao%", "%Austria%"],
+    "AU": ["%Úc%", "%Uc%", "%Australia%"],
+    "BE": ["%Bỉ%", "%Bi%", "%Belgium%"],
+    "BG": ["%Bulgaria%", "%Bun-ga-ri%", "%Bungari%"],
+    "CA": ["%Canada%", "%Ca-na-đa%"],
+    "CH": ["%Thụy Sĩ%", "%Thuy Si%", "%Switzerland%"],
+    "CY": ["%Síp%", "%Sip%", "%Cyprus%"],
+    "CZ": ["%Séc%", "%Sec%", "%Czech%"],
+    "DE": ["%Đức%", "%Duc%", "%Germany%"],
+    "DK": ["%Đan Mạch%", "%Dan Mach%", "%Denmark%"],
+    "EE": ["%Estonia%"],
+    "ES": ["%Tây Ban Nha%", "%Tay Ban Nha%", "%Spain%"],
+    "FI": ["%Phần Lan%", "%Phan Lan%", "%Finland%"],
+    "FR": ["%Pháp%", "%Phap%", "%France%"],
+    "GR": ["%Hy Lạp%", "%Hy Lap%", "%Greece%"],
+    "HR": ["%Croatia%"],
+    "HU": ["%Hungary%", "%Hungari%"],
+    "ID": ["%Indonesia%", "%In-đô-nê-xi-a%", "%Indonexia%"],
+    "IE": ["%Ireland%", "%Ai-len%"],
+    "IS": ["%Iceland%", "%Ai-xơ-len%", "%Ai-xo-len%"],
+    "IT": ["%Ý%", "%Italia%", "%Italy%"],
+    "JP": ["%Nhật Bản%", "%Nhat Ban%", "%Japan%"],
+    "LI": ["%Liechtenstein%"],
+    "LT": ["%Lithuania%", "%Litva%"],
+    "LU": ["%Luxembourg%", "%Lúc-xăm-bua%", "%Luc-xam-bua%"],
+    "LV": ["%Latvia%"],
+    "MT": ["%Malta%"],
+    "MY": ["%Malaysia%", "%Ma-lai-xi-a%"],
+    "NL": ["%Hà Lan%", "%Ha Lan%", "%Netherlands%"],
+    "NO": ["%Na Uy%", "%Norway%"],
+    "PH": ["%Philippines%", "%Philippine%", "%Phi-líp-pin%", "%Phi lip pin%"],
+    "PL": ["%Ba Lan%", "%Poland%"],
+    "PT": ["%Bồ Đào Nha%", "%Bo Dao Nha%", "%Portugal%"],
+    "RO": ["%Romania%"],
+    "SE": ["%Thụy Điển%", "%Thuy Dien%", "%Sweden%"],
+    "SG": ["%Singapore%", "%Xin-ga-po%", "%Xingapo%"],
+    "SI": ["%Slovenia%"],
+    "SK": ["%Slovakia%"],
+    "TH": ["%Thái Lan%", "%Thai Lan%", "%Thailand%"],
+    "US": ["%Hoa Kỳ%", "%Hoa Ky%", "%Hiệp chủng quốc Hoa Kỳ%", "%Hiep chung quoc Hoa Ky%", "%Mỹ%", "%My%", "%United States%", "%USA%"],
+}
+
+
+def _build_country_name_to_alpha2_case(expr: str) -> str:
+    lines = ["CASE"]
+    for alpha2, patterns in _COUNTRY_NAME_PATTERNS.items():
+        pats = ", ".join("'" + p.replace("'", "''") + "'" for p in patterns)
+        lines.append(f"    WHEN COALESCE({expr}, '') ILIKE ANY (ARRAY[{pats}]) THEN '{alpha2}'")
+    lines.append("    ELSE NULL")
+    lines.append("END")
+    return "\n".join(lines)
+
 
 def _migrate_schema():
     """
@@ -389,6 +449,12 @@ def _migrate_schema():
                     THEN (t.data->>'ngayHenTra')::timestamptz
                     ELSE NULL
                 END AS nhan_hen_tra,
+                COALESCE(ctry.country_alpha2_name, ctry.country_alpha2_id) AS country_alpha2,
+                CASE
+                    WHEN COALESCE(ctry.country_alpha2_name, ctry.country_alpha2_id) IN ({", ".join(f"'{code}'" for code in _HT2_ALPHA2_CODES)})
+                    THEN 2
+                    ELSE 1
+                END AS hinh_thuc_danh_gia,
                 NULLIF(d.data->>'id', '') AS da_xu_ly_id,
                 CASE
                     WHEN NULLIF(d.data->>'ngayTraKetQua', '') IS NOT NULL
@@ -413,6 +479,19 @@ def _migrate_schema():
             LEFT JOIN dxl_cho_pc dcp
               ON dcp.thu_tuc = (t.data->>'thuTucId')::int
              AND dcp.ma_ho_so = t.data->>'maHoSo'
+            LEFT JOIN LATERAL (
+                SELECT
+                    {_build_country_name_to_alpha2_case("t.data->>'nuocSoTai'")} AS country_alpha2_name,
+                    NULLIF(
+                        UPPER(
+                            SUBSTRING(
+                                REGEXP_REPLACE(COALESCE(t.data->>'idCongTy', ''), '<[^>]+>', '', 'g')
+                                FROM '([A-Z]{{2}})-\\d{{3}}'
+                            )
+                        ),
+                        ''
+                    ) AS country_alpha2_id
+            ) ctry ON TRUE
             WHERE NULLIF(t.data->>'thuTucId', '') IS NOT NULL
         """))
 
@@ -435,6 +514,10 @@ def _migrate_schema():
         conn.execute(text(
             f"CREATE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['case_facts']}_loai_submit "
             f"ON {_STATS_MATERIALIZED_VIEWS['case_facts']} (thu_tuc, loai_ho_so, submission_kind)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['case_facts']}_hinh_thuc "
+            f"ON {_STATS_MATERIALIZED_VIEWS['case_facts']} (thu_tuc, hinh_thuc_danh_gia, loai_ho_so, submission_kind)"
         ))
         conn.execute(text(
             f"CREATE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['case_facts']}_active "

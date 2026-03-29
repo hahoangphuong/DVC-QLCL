@@ -258,26 +258,35 @@ export async function getTt48LoaiHoSoStats(fromDate: string, toDate: string) {
     ton_truoc_total: string;
     ton_truoc_first: string;
     ton_truoc_supplement: string;
+    ton_truoc_hinh_thuc_1: string;
+    ton_truoc_hinh_thuc_2: string;
     da_nhan_total: string;
     da_nhan_first: string;
     da_nhan_supplement: string;
+    da_nhan_hinh_thuc_1: string;
+    da_nhan_hinh_thuc_2: string;
     giai_quyet_total: string;
     giai_quyet_first: string;
     giai_quyet_supplement: string;
+    giai_quyet_hinh_thuc_1: string;
+    giai_quyet_hinh_thuc_2: string;
     ton_total: string;
     ton_first: string;
     ton_supplement: string;
+    ton_hinh_thuc_1: string;
+    ton_hinh_thuc_2: string;
     treo: string;
   }>(
     `WITH
      ${buildCaseFactsCte("48")},
-     base AS (
-       SELECT
-         loai_ho_so,
-         submission_kind,
-         ngay_nhan,
-         nhan_hen_tra,
-         da_xu_ly_id,
+       base AS (
+         SELECT
+           loai_ho_so,
+           hinh_thuc_danh_gia,
+           submission_kind,
+           ngay_nhan,
+           nhan_hen_tra,
+           da_xu_ly_id,
          ngay_tra,
          kq_hen_tra,
          trang_thai,
@@ -292,15 +301,23 @@ export async function getTt48LoaiHoSoStats(fromDate: string, toDate: string) {
          COUNT(*) FILTER (WHERE ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1)) AS ton_truoc_total,
          COUNT(*) FILTER (WHERE submission_kind = 'first' AND ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1)) AS ton_truoc_first,
          COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1)) AS ton_truoc_supplement,
+         COUNT(*) FILTER (WHERE hinh_thuc_danh_gia = 1 AND ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1)) AS ton_truoc_hinh_thuc_1,
+         COUNT(*) FILTER (WHERE hinh_thuc_danh_gia = 2 AND ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1)) AS ton_truoc_hinh_thuc_2,
          COUNT(*) FILTER (WHERE ngay_nhan >= $1 AND ngay_nhan <= $2) AS da_nhan_total,
          COUNT(*) FILTER (WHERE submission_kind = 'first' AND ngay_nhan >= $1 AND ngay_nhan <= $2) AS da_nhan_first,
          COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND ngay_nhan >= $1 AND ngay_nhan <= $2) AS da_nhan_supplement,
+         COUNT(*) FILTER (WHERE hinh_thuc_danh_gia = 1 AND ngay_nhan >= $1 AND ngay_nhan <= $2) AS da_nhan_hinh_thuc_1,
+         COUNT(*) FILTER (WHERE hinh_thuc_danh_gia = 2 AND ngay_nhan >= $1 AND ngay_nhan <= $2) AS da_nhan_hinh_thuc_2,
          COUNT(*) FILTER (WHERE ngay_tra >= $1 AND ngay_tra <= $2) AS giai_quyet_total,
          COUNT(*) FILTER (WHERE submission_kind = 'first' AND ngay_tra >= $1 AND ngay_tra <= $2) AS giai_quyet_first,
          COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND ngay_tra >= $1 AND ngay_tra <= $2) AS giai_quyet_supplement,
+         COUNT(*) FILTER (WHERE hinh_thuc_danh_gia = 1 AND ngay_tra >= $1 AND ngay_tra <= $2) AS giai_quyet_hinh_thuc_1,
+         COUNT(*) FILTER (WHERE hinh_thuc_danh_gia = 2 AND ngay_tra >= $1 AND ngay_tra <= $2) AS giai_quyet_hinh_thuc_2,
          COUNT(*) FILTER (WHERE ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_total,
          COUNT(*) FILTER (WHERE submission_kind = 'first' AND ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_first,
-         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_supplement
+         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_supplement,
+         COUNT(*) FILTER (WHERE hinh_thuc_danh_gia = 1 AND ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_hinh_thuc_1,
+         COUNT(*) FILTER (WHERE hinh_thuc_danh_gia = 2 AND ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_hinh_thuc_2
        FROM base
        GROUP BY loai_ho_so
      ),
@@ -324,15 +341,23 @@ export async function getTt48LoaiHoSoStats(fromDate: string, toDate: string) {
       ton_truoc_total: toCount(row.ton_truoc_total),
       ton_truoc_first: toCount(row.ton_truoc_first),
       ton_truoc_supplement: toCount(row.ton_truoc_supplement),
+      ton_truoc_hinh_thuc_1: toCount(row.ton_truoc_hinh_thuc_1),
+      ton_truoc_hinh_thuc_2: toCount(row.ton_truoc_hinh_thuc_2),
       da_nhan_total: toCount(row.da_nhan_total),
       da_nhan_first: toCount(row.da_nhan_first),
       da_nhan_supplement: toCount(row.da_nhan_supplement),
+      da_nhan_hinh_thuc_1: toCount(row.da_nhan_hinh_thuc_1),
+      da_nhan_hinh_thuc_2: toCount(row.da_nhan_hinh_thuc_2),
       giai_quyet_total: toCount(row.giai_quyet_total),
       giai_quyet_first: toCount(row.giai_quyet_first),
       giai_quyet_supplement: toCount(row.giai_quyet_supplement),
+      giai_quyet_hinh_thuc_1: toCount(row.giai_quyet_hinh_thuc_1),
+      giai_quyet_hinh_thuc_2: toCount(row.giai_quyet_hinh_thuc_2),
       ton_total: toCount(row.ton_total),
       ton_first: toCount(row.ton_first),
       ton_supplement: toCount(row.ton_supplement),
+      ton_hinh_thuc_1: toCount(row.ton_hinh_thuc_1),
+      ton_hinh_thuc_2: toCount(row.ton_hinh_thuc_2),
       treo: toCount(row.treo),
     })),
   };
