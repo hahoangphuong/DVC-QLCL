@@ -5,6 +5,7 @@ import {
   getGiaiQuyetStats,
   getMonthlyStats,
   getSummaryStats,
+  getTt48LoaiHoSoStats,
   getTonSauStats,
 } from "../lib/stats/overview";
 import {
@@ -94,6 +95,18 @@ router.get("/stats/monthly", async (req, res) => {
   if (!thuTuc) return void res.status(400).json({ detail: "thu_tuc phải là 46, 47, hoặc 48" });
   try {
     res.json(await getMonthlyStats(thuTuc));
+  } catch (e: unknown) {
+    res.status(500).json({ detail: String(e) });
+  }
+});
+
+// GET /stats/tt48-phan-loai
+router.get("/stats/tt48-phan-loai", async (req, res) => {
+  const fromDate = String(req.query["from_date"] ?? "");
+  const toDate = String(req.query["to_date"] ?? "");
+  if (!fromDate || !toDate) return void res.status(400).json({ detail: "from_date và to_date là bắt buộc" });
+  try {
+    res.json(await getTt48LoaiHoSoStats(fromDate, toDate));
   } catch (e: unknown) {
     res.status(500).json({ detail: String(e) });
   }

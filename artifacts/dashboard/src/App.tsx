@@ -218,6 +218,37 @@ async function fetchChuyenVien(thuTuc: number, fromDate: string, toDate: string)
   return res.json();
 }
 
+interface Tt48LoaiHoSoRow {
+  loai_ho_so: string;
+  ton_truoc_total: number;
+  ton_truoc_first: number;
+  ton_truoc_supplement: number;
+  da_nhan_total: number;
+  da_nhan_first: number;
+  da_nhan_supplement: number;
+  giai_quyet_total: number;
+  giai_quyet_first: number;
+  giai_quyet_supplement: number;
+  ton_total: number;
+  ton_first: number;
+  ton_supplement: number;
+  treo: number;
+}
+
+interface Tt48LoaiHoSoData {
+  thu_tuc: 48;
+  from_date: string;
+  to_date: string;
+  rows: Tt48LoaiHoSoRow[];
+}
+
+async function fetchTt48LoaiHoSo(fromDate: string, toDate: string): Promise<Tt48LoaiHoSoData> {
+  const url = `${API}/stats/tt48-phan-loai?from_date=${fromDate}&to_date=${toDate}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 interface MonthData {
   label:          string;
   year:           number;
@@ -1133,6 +1164,195 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 
       {/* Biểu đồ xu hướng theo tháng */}
       <MonthlyTrendChart thuTuc={thuTuc} fromDate={fromDate} toDate={toDate} />
+
+      {thuTuc === 48 && <Tt48LoaiHoSoTable fromDate={fromDate} toDate={toDate} />}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// TT48 — Bảng phân loại hồ sơ theo A/B/C/D và lần nộp
+// ---------------------------------------------------------------------------
+
+const TT48_LOAI_LABELS: Record<string, string> = {
+  A: "A - Hồ sơ mới",
+  B: "B - Hồ sơ cập nhật/duy trì",
+  C: "C - Hồ sơ điều chỉnh",
+  D: "D - Hồ sơ đính chính",
+};
+
+function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: string }) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["tt48-phan-loai", fromDate, toDate],
+    queryFn: () => fetchTt48LoaiHoSo(fromDate, toDate),
+    enabled: !!fromDate && !!toDate,
+    retry: 2,
+  });
+
+  if (isLoading) return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+      <div className="flex items-center justify-center h-24 text-slate-400 text-sm gap-2">
+        <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+        Đang tải bảng phân loại hồ sơ TT48...
+      </div>
+    </div>
+  );
+
+  if (isError || !data) return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 text-sm text-red-500 text-center">
+      Không thể tải bảng phân loại hồ sơ TT48
+    </div>
+  );
+
+  const rows = ["A", "B", "C", "D"].map((key) => (
+    data.rows.find((row) => row.loai_ho_so === key) ?? {
+      loai_ho_so: key,
+      ton_truoc_total: 0,
+      ton_truoc_first: 0,
+      ton_truoc_supplement: 0,
+      da_nhan_total: 0,
+      da_nhan_first: 0,
+      da_nhan_supplement: 0,
+      giai_quyet_total: 0,
+      giai_quyet_first: 0,
+      giai_quyet_supplement: 0,
+      ton_total: 0,
+      ton_first: 0,
+      ton_supplement: 0,
+      treo: 0,
+    }
+  ));
+
+  const totals = rows.reduce((acc, row) => ({
+    ton_truoc_total: acc.ton_truoc_total + row.ton_truoc_total,
+    ton_truoc_first: acc.ton_truoc_first + row.ton_truoc_first,
+    ton_truoc_supplement: acc.ton_truoc_supplement + row.ton_truoc_supplement,
+    da_nhan_total: acc.da_nhan_total + row.da_nhan_total,
+    da_nhan_first: acc.da_nhan_first + row.da_nhan_first,
+    da_nhan_supplement: acc.da_nhan_supplement + row.da_nhan_supplement,
+    giai_quyet_total: acc.giai_quyet_total + row.giai_quyet_total,
+    giai_quyet_first: acc.giai_quyet_first + row.giai_quyet_first,
+    giai_quyet_supplement: acc.giai_quyet_supplement + row.giai_quyet_supplement,
+    ton_total: acc.ton_total + row.ton_total,
+    ton_first: acc.ton_first + row.ton_first,
+    ton_supplement: acc.ton_supplement + row.ton_supplement,
+    treo: acc.treo + row.treo,
+  }), {
+    ton_truoc_total: 0,
+    ton_truoc_first: 0,
+    ton_truoc_supplement: 0,
+    da_nhan_total: 0,
+    da_nhan_first: 0,
+    da_nhan_supplement: 0,
+    giai_quyet_total: 0,
+    giai_quyet_first: 0,
+    giai_quyet_supplement: 0,
+    ton_total: 0,
+    ton_first: 0,
+    ton_supplement: 0,
+    treo: 0,
+  });
+
+  const pct = (value: number, total: number) => total > 0 ? `${Math.round(value / total * 100)}%` : "0%";
+  const renderGroupTotal = (value: number, total: number, textColor: string) => (
+    <div className="flex items-baseline justify-center gap-2">
+      <span className={`font-bold ${textColor}`}>{value.toLocaleString("vi-VN")}</span>
+      <span className="text-slate-600">({pct(value, total)})</span>
+    </div>
+  );
+  const num = (value: number, cls = "") => (
+    <td className={`px-2 py-2 text-center text-sm ${cls}`}>{value ? value.toLocaleString("vi-VN") : ""}</td>
+  );
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-slate-200">
+        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+          Phân loại hồ sơ TT48 theo mã A/B/C/D và lần nộp
+        </h3>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-sm" style={{ minWidth: 1500, tableLayout: "fixed" }}>
+          <thead>
+            <tr>
+              <th rowSpan={2} className="px-3 py-3 border border-slate-300 bg-slate-300/80 text-slate-900 font-bold">Phân loại hồ sơ</th>
+              <th colSpan={3} className="px-3 py-2 border border-slate-300 bg-indigo-100 text-slate-900 font-bold">TỒN TRƯỚC</th>
+              <th colSpan={3} className="px-3 py-2 border border-slate-300 bg-emerald-100 text-slate-900 font-bold">HỒ SƠ ĐÃ TIẾP NHẬN</th>
+              <th colSpan={3} className="px-3 py-2 border border-slate-300 bg-sky-300 text-slate-900 font-bold">HỒ SƠ ĐÃ GIẢI QUYẾT</th>
+              <th colSpan={3} className="px-3 py-2 border border-slate-300 bg-orange-100 text-slate-900 font-bold">HỒ SƠ TỒN</th>
+              <th rowSpan={2} className="px-3 py-3 border border-slate-300 bg-yellow-300 text-slate-900 font-bold">HỒ SƠ TREO</th>
+            </tr>
+            <tr>
+              {["TỔNG", "Lần đầu", "Bổ sung", "TỔNG", "Lần đầu", "Bổ sung", "TỔNG", "Lần đầu", "Bổ sung", "TỔNG", "Lần đầu", "Bổ sung"].map((label, index) => (
+                <th
+                  key={`${label}-${index}`}
+                  className={`px-2 py-2 border border-slate-300 font-semibold ${
+                    index < 3 ? "bg-indigo-50" :
+                    index < 6 ? "bg-emerald-50" :
+                    index < 9 ? "bg-sky-100" : "bg-orange-50"
+                  }`}
+                >
+                  {label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.loai_ho_so} className="hover:bg-slate-50">
+                <td className="px-3 py-2 border border-slate-300 font-medium bg-slate-100 text-slate-800">{TT48_LOAI_LABELS[row.loai_ho_so] ?? row.loai_ho_so}</td>
+                <td className="px-2 py-2 border border-slate-300 bg-indigo-50">{renderGroupTotal(row.ton_truoc_total, totals.ton_truoc_total, "text-indigo-800")}</td>
+                {num(row.ton_truoc_first, "border border-slate-300 bg-indigo-50")}
+                {num(row.ton_truoc_supplement, "border border-slate-300 bg-indigo-50")}
+                <td className="px-2 py-2 border border-slate-300 bg-emerald-50">{renderGroupTotal(row.da_nhan_total, totals.da_nhan_total, "text-emerald-800")}</td>
+                {num(row.da_nhan_first, "border border-slate-300 bg-emerald-50")}
+                {num(row.da_nhan_supplement, "border border-slate-300 bg-emerald-50")}
+                <td className="px-2 py-2 border border-slate-300 bg-sky-100">{renderGroupTotal(row.giai_quyet_total, totals.giai_quyet_total, "text-sky-800")}</td>
+                {num(row.giai_quyet_first, "border border-slate-300 bg-sky-100")}
+                {num(row.giai_quyet_supplement, "border border-slate-300 bg-sky-100")}
+                <td className="px-2 py-2 border border-slate-300 bg-orange-50">{renderGroupTotal(row.ton_total, totals.ton_total, "text-orange-800")}</td>
+                {num(row.ton_first, "border border-slate-300 bg-orange-50")}
+                {num(row.ton_supplement, "border border-slate-300 bg-orange-50")}
+                {num(row.treo, "border border-slate-300 bg-yellow-200 font-bold text-slate-900")}
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="font-bold">
+              <td className="px-3 py-3 border border-slate-300 bg-slate-200 text-slate-900">TỔNG</td>
+              {num(totals.ton_truoc_total, "border border-slate-300 bg-indigo-50 font-bold")}
+              {num(totals.ton_truoc_first, "border border-slate-300 bg-indigo-50 font-bold")}
+              {num(totals.ton_truoc_supplement, "border border-slate-300 bg-indigo-50 font-bold")}
+              {num(totals.da_nhan_total, "border border-slate-300 bg-emerald-50 font-bold")}
+              {num(totals.da_nhan_first, "border border-slate-300 bg-emerald-50 font-bold")}
+              {num(totals.da_nhan_supplement, "border border-slate-300 bg-emerald-50 font-bold")}
+              {num(totals.giai_quyet_total, "border border-slate-300 bg-sky-100 font-bold")}
+              {num(totals.giai_quyet_first, "border border-slate-300 bg-sky-100 font-bold")}
+              {num(totals.giai_quyet_supplement, "border border-slate-300 bg-sky-100 font-bold")}
+              {num(totals.ton_total, "border border-slate-300 bg-orange-50 font-bold")}
+              {num(totals.ton_first, "border border-slate-300 bg-orange-50 font-bold")}
+              {num(totals.ton_supplement, "border border-slate-300 bg-orange-50 font-bold")}
+              {num(totals.treo, "border border-slate-300 bg-yellow-200 font-bold")}
+            </tr>
+            <tr className="text-emerald-900 font-semibold">
+              <td className="border-none" />
+              <td className="border-none" />
+              <td className="px-2 py-2 text-center bg-indigo-50 border border-slate-300">{pct(totals.ton_truoc_first, totals.ton_truoc_total)}</td>
+              <td className="px-2 py-2 text-center bg-indigo-50 border border-slate-300">{pct(totals.ton_truoc_supplement, totals.ton_truoc_total)}</td>
+              <td className="border-none" />
+              <td className="px-2 py-2 text-center bg-emerald-50 border border-slate-300">{pct(totals.da_nhan_first, totals.da_nhan_total)}</td>
+              <td className="px-2 py-2 text-center bg-emerald-50 border border-slate-300">{pct(totals.da_nhan_supplement, totals.da_nhan_total)}</td>
+              <td className="border-none" />
+              <td className="px-2 py-2 text-center bg-sky-100 border border-slate-300">{pct(totals.giai_quyet_first, totals.giai_quyet_total)}</td>
+              <td className="px-2 py-2 text-center bg-sky-100 border border-slate-300">{pct(totals.giai_quyet_supplement, totals.giai_quyet_total)}</td>
+              <td className="border-none" />
+              <td className="px-2 py-2 text-center bg-orange-50 border border-slate-300">{pct(totals.ton_first, totals.ton_total)}</td>
+              <td className="px-2 py-2 text-center bg-orange-50 border border-slate-300">{pct(totals.ton_supplement, totals.ton_total)}</td>
+              <td className="border-none" />
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
   );
 }

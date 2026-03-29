@@ -191,3 +191,90 @@ export async function getMonthlyStats(thuTuc: number) {
 
   return { thu_tuc: thuTuc, months };
 }
+
+export async function getTt48LoaiHoSoStats(fromDate: string, toDate: string) {
+  const { fromDt, toDt } = toDateRange(fromDate, toDate);
+  const rows = await query<{
+    loai_ho_so: string;
+    ton_truoc_total: string;
+    ton_truoc_first: string;
+    ton_truoc_supplement: string;
+    da_nhan_total: string;
+    da_nhan_first: string;
+    da_nhan_supplement: string;
+    giai_quyet_total: string;
+    giai_quyet_first: string;
+    giai_quyet_supplement: string;
+    ton_total: string;
+    ton_first: string;
+    ton_supplement: string;
+    treo: string;
+  }>(
+    `WITH
+     ${buildCaseFactsCte("48")},
+     base AS (
+       SELECT
+         loai_ho_so,
+         submission_kind,
+         ngay_nhan,
+         nhan_hen_tra,
+         da_xu_ly_id,
+         ngay_tra,
+         kq_hen_tra,
+         trang_thai,
+         is_active
+       FROM case_facts
+       WHERE loai_ho_so IN ('A', 'B', 'C', 'D')
+         AND (is_active OR da_xu_ly_id IS NOT NULL)
+     ),
+     stats AS (
+       SELECT
+         loai_ho_so,
+         COUNT(*) FILTER (WHERE ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1)) AS ton_truoc_total,
+         COUNT(*) FILTER (WHERE submission_kind = 'first' AND ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1)) AS ton_truoc_first,
+         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1)) AS ton_truoc_supplement,
+         COUNT(*) FILTER (WHERE ngay_nhan >= $1 AND ngay_nhan <= $2) AS da_nhan_total,
+         COUNT(*) FILTER (WHERE submission_kind = 'first' AND ngay_nhan >= $1 AND ngay_nhan <= $2) AS da_nhan_first,
+         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND ngay_nhan >= $1 AND ngay_nhan <= $2) AS da_nhan_supplement,
+         COUNT(*) FILTER (WHERE ngay_tra >= $1 AND ngay_tra <= $2) AS giai_quyet_total,
+         COUNT(*) FILTER (WHERE submission_kind = 'first' AND ngay_tra >= $1 AND ngay_tra <= $2) AS giai_quyet_first,
+         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND ngay_tra >= $1 AND ngay_tra <= $2) AS giai_quyet_supplement,
+         COUNT(*) FILTER (WHERE ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_total,
+         COUNT(*) FILTER (WHERE submission_kind = 'first' AND ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_first,
+         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_supplement
+       FROM base
+       GROUP BY loai_ho_so
+     ),
+     treo AS (
+       SELECT loai_ho_so, treo
+       FROM mv_stats_tt48_treo_by_loai
+     )
+     SELECT s.*, COALESCE(t.treo, 0) AS treo
+     FROM stats s
+     LEFT JOIN treo t ON t.loai_ho_so = s.loai_ho_so
+     ORDER BY s.loai_ho_so`,
+    [fromDt, toDt]
+  );
+
+  return {
+    thu_tuc: 48,
+    from_date: fromDate,
+    to_date: toDate,
+    rows: rows.map((row) => ({
+      loai_ho_so: row.loai_ho_so,
+      ton_truoc_total: toCount(row.ton_truoc_total),
+      ton_truoc_first: toCount(row.ton_truoc_first),
+      ton_truoc_supplement: toCount(row.ton_truoc_supplement),
+      da_nhan_total: toCount(row.da_nhan_total),
+      da_nhan_first: toCount(row.da_nhan_first),
+      da_nhan_supplement: toCount(row.da_nhan_supplement),
+      giai_quyet_total: toCount(row.giai_quyet_total),
+      giai_quyet_first: toCount(row.giai_quyet_first),
+      giai_quyet_supplement: toCount(row.giai_quyet_supplement),
+      ton_total: toCount(row.ton_total),
+      ton_first: toCount(row.ton_first),
+      ton_supplement: toCount(row.ton_supplement),
+      treo: toCount(row.treo),
+    })),
+  };
+}
