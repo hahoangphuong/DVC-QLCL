@@ -77,35 +77,10 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
        FROM cv_case_facts
        GROUP BY cv_name
      ),
-     latest_dxl_treo AS (
-       SELECT DISTINCT ON (data->>'maHoSo')
-         data->>'maHoSo' AS ma_ho_so,
-         data->>'trangThaiHoSo' AS trang_thai,
-         (data->>'ngayTiepNhan')::timestamptz AS ngay_nhan_dxl
-       FROM da_xu_ly
-       WHERE thu_tuc = $1
-         AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
-       ORDER BY data->>'maHoSo', (data->>'ngayTiepNhan')::timestamptz DESC
-     ),
-     latest_tcc_treo AS (
-       SELECT DISTINCT ON (data->>'maHoSo')
-         data->>'maHoSo' AS ma_ho_so,
-         TRIM(data->>'chuyenVienThuLyName') AS cv_name,
-         (data->>'ngayTiepNhan')::timestamptz AS ngay_nhan_tcc
-       FROM tra_cuu_chung
-       WHERE (data->>'thuTucId')::int = $1
-         AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
-       ORDER BY data->>'maHoSo', (data->>'ngayTiepNhan')::timestamptz DESC
-     ),
      treo_by_cv AS (
-       SELECT
-         COALESCE(NULLIF(lt.cv_name, ''), '__CHUA_PHAN__') AS cv_name,
-         COUNT(*) AS treo
-       FROM latest_dxl_treo ld
-       JOIN latest_tcc_treo lt ON lt.ma_ho_so = ld.ma_ho_so
-       WHERE ld.trang_thai = '4'
-         AND lt.ngay_nhan_tcc <= ld.ngay_nhan_dxl
-       GROUP BY cv_name
+       SELECT cv_name, treo
+       FROM mv_stats_treo_by_cv
+       WHERE thu_tuc = $1
      )
      SELECT s.*, COALESCE(t.treo, 0) AS treo
      FROM stats s

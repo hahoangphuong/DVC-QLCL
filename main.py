@@ -70,10 +70,13 @@ _DATA_TABLES = [
 
 _STATS_MATERIALIZED_VIEWS = {
     "received": "mv_stats_received_monthly",
+    "received_bounds": "mv_stats_received_bounds",
     "resolved": "mv_stats_resolved_monthly",
+    "resolved_facts": "mv_stats_resolved_facts",
     "inflight": "mv_stats_inflight_monthly",
     "case_facts": "mv_stats_case_facts",
     "workflow_cases": "mv_stats_workflow_cases",
+    "treo_by_cv": "mv_stats_treo_by_cv",
 }
 
 
@@ -232,6 +235,16 @@ def _migrate_schema():
             GROUP BY 1, 2, 3
         """))
         conn.execute(text(f"""
+            CREATE MATERIALIZED VIEW IF NOT EXISTS {_STATS_MATERIALIZED_VIEWS["received_bounds"]} AS
+            SELECT
+                (data->>'thuTucId')::int AS thu_tuc,
+                MIN((data->>'ngayTiepNhan')::timestamptz) AS earliest_ngay_nhan
+            FROM tra_cuu_chung
+            WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
+              AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
+            GROUP BY 1
+        """))
+        conn.execute(text(f"""
             CREATE MATERIALIZED VIEW IF NOT EXISTS {_STATS_MATERIALIZED_VIEWS["resolved"]} AS
             SELECT
                 thu_tuc,
@@ -241,6 +254,29 @@ def _migrate_schema():
             FROM da_xu_ly
             WHERE NULLIF(data->>'ngayTraKetQua', '') IS NOT NULL
             GROUP BY 1, 2, 3
+        """))
+        conn.execute(text(f"""
+            CREATE MATERIALIZED VIEW IF NOT EXISTS {_STATS_MATERIALIZED_VIEWS["resolved_facts"]} AS
+            SELECT
+                thu_tuc,
+                data->>'maHoSo' AS ma_ho_so,
+                CASE
+                    WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
+                    THEN (data->>'ngayTiepNhan')::timestamptz
+                    ELSE NULL
+                END AS ngay_nhan,
+                CASE
+                    WHEN NULLIF(data->>'ngayTraKetQua', '') IS NOT NULL
+                    THEN (data->>'ngayTraKetQua')::timestamptz
+                    ELSE NULL
+                END AS ngay_tra,
+                CASE
+                    WHEN NULLIF(data->>'ngayHenTra', '') IS NOT NULL
+                    THEN (data->>'ngayHenTra')::timestamptz
+                    ELSE NULL
+                END AS kq_hen_tra,
+                data->>'trangThaiHoSo' AS trang_thai
+            FROM da_xu_ly
         """))
         conn.execute(text(f"""
             CREATE MATERIALIZED VIEW IF NOT EXISTS {_STATS_MATERIALIZED_VIEWS["inflight"]} AS
@@ -259,8 +295,20 @@ def _migrate_schema():
             f"ON {_STATS_MATERIALIZED_VIEWS['received']} (thu_tuc, yr, mo)"
         ))
         conn.execute(text(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['received_bounds']}_key "
+            f"ON {_STATS_MATERIALIZED_VIEWS['received_bounds']} (thu_tuc)"
+        ))
+        conn.execute(text(
             f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['resolved']}_key "
             f"ON {_STATS_MATERIALIZED_VIEWS['resolved']} (thu_tuc, yr, mo)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['resolved_facts']}_ngay_tra "
+            f"ON {_STATS_MATERIALIZED_VIEWS['resolved_facts']} (thu_tuc, ngay_tra)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['resolved_facts']}_ma_ho_so "
+            f"ON {_STATS_MATERIALIZED_VIEWS['resolved_facts']} (thu_tuc, ma_ho_so, ngay_nhan)"
         ))
         conn.execute(text(
             f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['inflight']}_key "
@@ -406,6 +454,46 @@ def _migrate_schema():
         conn.execute(text(
             f"CREATE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['workflow_cases']}_buoc "
             f"ON {_STATS_MATERIALIZED_VIEWS['workflow_cases']} (thu_tuc, buoc)"
+        ))
+
+        conn.execute(text(f"""
+            CREATE MATERIALIZED VIEW IF NOT EXISTS {_STATS_MATERIALIZED_VIEWS["treo_by_cv"]} AS
+            WITH
+            latest_dxl_treo AS (
+                SELECT DISTINCT ON (thu_tuc, ma_ho_so)
+                    thu_tuc,
+                    ma_ho_so,
+                    trang_thai,
+                    ngay_nhan AS ngay_nhan_dxl
+                FROM {_STATS_MATERIALIZED_VIEWS["resolved_facts"]}
+                WHERE ngay_nhan IS NOT NULL
+                ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC
+            ),
+            latest_tcc_treo AS (
+                SELECT DISTINCT ON (thu_tuc, ma_ho_so)
+                    thu_tuc,
+                    ma_ho_so,
+                    cv_name_raw AS cv_name,
+                    ngay_nhan AS ngay_nhan_tcc
+                FROM {_STATS_MATERIALIZED_VIEWS["case_facts"]}
+                WHERE ngay_nhan IS NOT NULL
+                ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC
+            )
+            SELECT
+                ld.thu_tuc,
+                COALESCE(NULLIF(lt.cv_name, ''), '__CHUA_PHAN__') AS cv_name,
+                COUNT(*)::bigint AS treo
+            FROM latest_dxl_treo ld
+            JOIN latest_tcc_treo lt
+              ON lt.thu_tuc = ld.thu_tuc
+             AND lt.ma_ho_so = ld.ma_ho_so
+            WHERE ld.trang_thai = '4'
+              AND lt.ngay_nhan_tcc <= ld.ngay_nhan_dxl
+            GROUP BY 1, 2
+        """))
+        conn.execute(text(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['treo_by_cv']}_key "
+            f"ON {_STATS_MATERIALIZED_VIEWS['treo_by_cv']} (thu_tuc, cv_name)"
         ))
 
 
@@ -723,7 +811,14 @@ def _do_sync(model_class, api_url: str, body: dict, label: str, referer: str | N
             _batched_insert(db, model_class.__table__, rows, batch_size)
         _upsert_sync_meta(db, tbl, synced_at, len(items),
                           fetch_sec=fetch_sec, insert_sec=_time.monotonic() - t_insert)
-        _refresh_stats_materialized_views(db, "received", "case_facts", "workflow_cases")
+        _refresh_stats_materialized_views(
+            db,
+            "received",
+            "received_bounds",
+            "case_facts",
+            "workflow_cases",
+            "treo_by_cv",
+        )
         db.commit()
 
         return {
@@ -943,6 +1038,8 @@ def _sync_unified(
         refresh_kinds = ["resolved" if is_done else "inflight", "case_facts"]
         if not is_done:
             refresh_kinds.append("workflow_cases")
+        if is_done:
+            refresh_kinds.extend(["resolved_facts", "treo_by_cv"])
         _refresh_stats_materialized_views(db, *refresh_kinds)
         db.commit()
 

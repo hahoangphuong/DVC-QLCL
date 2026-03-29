@@ -20,10 +20,9 @@ function toPercent(part: number, total: number): number {
 
 export async function getEarliestDate(thuTuc: number): Promise<string | null> {
   const row = await queryOne<{ min: Date | null }>(
-    `SELECT MIN((data->>'ngayTiepNhan')::timestamptz) AS min
-     FROM tra_cuu_chung
-     WHERE (data->>'thuTucId')::int = $1
-       AND data->>'ngayTiepNhan' IS NOT NULL`,
+    `SELECT earliest_ngay_nhan AS min
+     FROM mv_stats_received_bounds
+     WHERE thu_tuc = $1`,
     [thuTuc]
   );
 
@@ -40,11 +39,11 @@ export async function getSummaryStats(thuTuc: number, fromDate: string, toDate: 
      ${buildCaseFactsCte("$1")},
      gq AS (
        SELECT COUNT(*) AS cnt
-       FROM da_xu_ly
+       FROM mv_stats_resolved_facts
        WHERE thu_tuc = $1
-         AND NULLIF(data->>'ngayTraKetQua', '') IS NOT NULL
-         AND (data->>'ngayTraKetQua')::timestamptz >= $2
-         AND (data->>'ngayTraKetQua')::timestamptz <= $3
+         AND ngay_tra IS NOT NULL
+         AND ngay_tra >= $2
+         AND ngay_tra <= $3
      )
      SELECT
        COUNT(*) FILTER (
@@ -80,22 +79,22 @@ export async function getGiaiQuyetStats(thuTuc: number, fromDate: string, toDate
   const row = await queryOne<CountRow>(
     `SELECT
        COUNT(*) FILTER (
-         WHERE NULLIF(data->>'ngayTraKetQua', '') IS NOT NULL
-           AND (data->>'ngayTraKetQua')::timestamptz >= $2
-           AND (data->>'ngayTraKetQua')::timestamptz <= $3
-           AND NULLIF(data->>'ngayHenTra', '') IS NOT NULL
-           AND (data->>'ngayTraKetQua')::timestamptz <= (data->>'ngayHenTra')::timestamptz
+         WHERE ngay_tra IS NOT NULL
+           AND ngay_tra >= $2
+           AND ngay_tra <= $3
+           AND kq_hen_tra IS NOT NULL
+           AND ngay_tra <= kq_hen_tra
        ) AS dung_han,
        COUNT(*) FILTER (
-         WHERE NULLIF(data->>'ngayTraKetQua', '') IS NOT NULL
-           AND (data->>'ngayTraKetQua')::timestamptz >= $2
-           AND (data->>'ngayTraKetQua')::timestamptz <= $3
+         WHERE ngay_tra IS NOT NULL
+           AND ngay_tra >= $2
+           AND ngay_tra <= $3
            AND (
-                 NULLIF(data->>'ngayHenTra', '') IS NULL
-              OR (data->>'ngayTraKetQua')::timestamptz > (data->>'ngayHenTra')::timestamptz
+                 kq_hen_tra IS NULL
+              OR ngay_tra > kq_hen_tra
            )
        ) AS qua_han
-     FROM da_xu_ly
+     FROM mv_stats_resolved_facts
      WHERE thu_tuc = $1`,
     [thuTuc, fromDt, toDt]
   );
