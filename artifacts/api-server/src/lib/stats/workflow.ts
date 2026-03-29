@@ -1,6 +1,6 @@
 import { query } from "../db";
 import { CV_BARE_NAMES, CV_BARE_SET, sortByPriority } from "./cv-order";
-import { buildCaseFactsCte, buildLatestCvFromTccCte, buildMonthlyAggregateSql } from "./sql";
+import { buildCaseFactsCte, buildMonthlyAggregateSql, buildWorkflowCasesCte } from "./sql";
 
 type CountLike = string | number | null | undefined;
 
@@ -197,22 +197,16 @@ export async function getDangXuLyStats(thuTuc: number) {
       cham_ngay: string | null;
     }>(
       `WITH
-       ${buildLatestCvFromTccCte("48")},
+       ${buildWorkflowCasesCte("48")},
        base AS (
          SELECT
-           CASE
-             WHEN d.data->>'tenDonViXuLy' = 'Phòng ban phân công' THEN '__CHUA_PHAN__'
-             ELSE COALESCE(c.cv_name, '__CHUA_PHAN__')
-           END AS cv_name,
-           d.data->>'tenDonViXuLy' AS don_vi,
-           d.data->>'maHoSo' AS ma_ho_so,
-           COALESCE(NULLIF(d.data->>'soNgayQuaHan', ''), '0')::int AS qua_han_ngay,
-           d.data->>'ngayTiepNhan' AS ngay_nhan,
-           COALESCE(b.buoc, '') AS buoc
-         FROM dang_xu_ly d
-         LEFT JOIN cv_from_tcc c ON c.ma_ho_so = d.data->>'maHoSo'
-         LEFT JOIN tt48_cv_buoc b ON b.ma_ho_so = d.data->>'maHoSo'
-         WHERE d.thu_tuc = 48
+           cv_name,
+           don_vi,
+           ma_ho_so,
+           qua_han_ngay,
+           ngay_nhan,
+           buoc
+         FROM workflow_cases
        ),
        stats AS (
          SELECT
@@ -331,22 +325,17 @@ export async function getDangXuLyStats(thuTuc: number) {
     cham_so_ngay: string;
     cham_ma: string | null;
     cham_ngay: string | null;
-  }>(
-    `WITH
-     ${buildLatestCvFromTccCte("$1")},
+    }>(
+      `WITH
+     ${buildWorkflowCasesCte("$1")},
      base AS (
        SELECT
-         CASE
-           WHEN d.data->>'tenDonViXuLy' = 'Phòng ban phân công' THEN '__CHUA_PHAN__'
-           ELSE COALESCE(c.cv_name, '__CHUA_PHAN__')
-         END AS cv_name,
-         d.data->>'tenDonViXuLy' AS don_vi,
-         d.data->>'maHoSo' AS ma_ho_so,
-         COALESCE(NULLIF(d.data->>'soNgayQuaHan', ''), '0')::int AS qua_han_ngay,
-         d.data->>'ngayTiepNhan' AS ngay_nhan
-       FROM dang_xu_ly d
-       LEFT JOIN cv_from_tcc c ON c.ma_ho_so = d.data->>'maHoSo'
-       WHERE d.thu_tuc = $1
+         cv_name,
+         don_vi,
+         ma_ho_so,
+         qua_han_ngay,
+         ngay_nhan
+       FROM workflow_cases
      ),
      stats AS (
        SELECT
@@ -419,21 +408,19 @@ export async function getChuyenGiaStats(thuTuc: number) {
     cham_ma: string | null;
     cham_ngay: string | null;
     cham_cv: string | null;
-  }>(
-    `WITH
-     ${buildLatestCvFromTccCte("$1")},
+    }>(
+      `WITH
+     ${buildWorkflowCasesCte("$1")},
      cg_base AS (
        SELECT
-         d.data->>'nguoiXuLy' AS nguoi_xu_ly,
-         COALESCE(NULLIF(d.data->>'soNgayQuaHan', ''), '0')::int AS qua_han_ngay,
-         d.data->>'ngayTiepNhan' AS ngay_nhan,
-         d.data->>'maHoSo' AS ma_ho_so,
-         COALESCE(NULLIF(TRIM(t.cv_name), ''), '') AS cv_thu_ly
-       FROM dang_xu_ly d
-       LEFT JOIN cv_from_tcc t ON t.ma_ho_so = d.data->>'maHoSo'
-       WHERE d.thu_tuc = $1
-         AND d.data->>'tenDonViXuLy' = 'Chuyên gia thẩm định'
-         AND NULLIF(d.data->>'nguoiXuLy', '') IS NOT NULL
+         nguoi_xu_ly,
+         qua_han_ngay,
+         ngay_nhan,
+         ma_ho_so,
+         COALESCE(NULLIF(TRIM(cv_name), ''), '') AS cv_thu_ly
+       FROM workflow_cases
+       WHERE don_vi = 'Chuyên gia thẩm định'
+         AND NULLIF(nguoi_xu_ly, '') IS NOT NULL
      ),
      stats AS (
        SELECT

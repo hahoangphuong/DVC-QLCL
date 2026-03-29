@@ -73,6 +73,7 @@ _STATS_MATERIALIZED_VIEWS = {
     "resolved": "mv_stats_resolved_monthly",
     "inflight": "mv_stats_inflight_monthly",
     "case_facts": "mv_stats_case_facts",
+    "workflow_cases": "mv_stats_workflow_cases",
 }
 
 
@@ -343,6 +344,68 @@ def _migrate_schema():
         conn.execute(text(
             f"CREATE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['case_facts']}_active "
             f"ON {_STATS_MATERIALIZED_VIEWS['case_facts']} (thu_tuc, is_active, ngay_nhan)"
+        ))
+
+        conn.execute(text(f"""
+            CREATE MATERIALIZED VIEW IF NOT EXISTS {_STATS_MATERIALIZED_VIEWS["workflow_cases"]} AS
+            WITH
+            cv_from_tcc AS (
+                SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
+                    (data->>'thuTucId')::int AS thu_tuc,
+                    data->>'maHoSo' AS ma_ho_so,
+                    COALESCE(NULLIF(TRIM(data->>'chuyenVienThuLyName'), ''), '__CHUA_PHAN__') AS cv_name
+                FROM tra_cuu_chung
+                WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
+                  AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
+                ORDER BY (data->>'thuTucId')::int, data->>'maHoSo', (data->>'ngayTiepNhan')::timestamptz DESC
+            )
+            SELECT
+                d.thu_tuc,
+                CASE
+                    WHEN d.data->>'tenDonViXuLy' = 'Phòng ban phân công' THEN '__CHUA_PHAN__'
+                    ELSE COALESCE(c.cv_name, '__CHUA_PHAN__')
+                END AS cv_name,
+                d.data->>'tenDonViXuLy' AS don_vi,
+                d.data->>'maHoSo' AS ma_ho_so,
+                COALESCE(NULLIF(d.data->>'soNgayQuaHan', ''), '0')::int AS qua_han_ngay,
+                CASE
+                    WHEN NULLIF(d.data->>'ngayTiepNhan', '') IS NOT NULL
+                    THEN (d.data->>'ngayTiepNhan')::timestamptz
+                    ELSE NULL
+                END AS ngay_nhan,
+                NULLIF(d.data->>'nguoiXuLy', '') AS nguoi_xu_ly,
+                COALESCE(b.buoc, '') AS buoc
+            FROM dang_xu_ly d
+            LEFT JOIN cv_from_tcc c
+              ON c.thu_tuc = d.thu_tuc
+             AND c.ma_ho_so = d.data->>'maHoSo'
+            LEFT JOIN tt48_cv_buoc b
+              ON d.thu_tuc = 48
+             AND b.ma_ho_so = d.data->>'maHoSo'
+        """))
+        conn.execute(text(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['workflow_cases']}_key "
+            f"ON {_STATS_MATERIALIZED_VIEWS['workflow_cases']} (thu_tuc, ma_ho_so, don_vi, cv_name)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['workflow_cases']}_cv "
+            f"ON {_STATS_MATERIALIZED_VIEWS['workflow_cases']} (thu_tuc, cv_name)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['workflow_cases']}_don_vi "
+            f"ON {_STATS_MATERIALIZED_VIEWS['workflow_cases']} (thu_tuc, don_vi)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['workflow_cases']}_qua_han "
+            f"ON {_STATS_MATERIALIZED_VIEWS['workflow_cases']} (thu_tuc, qua_han_ngay)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['workflow_cases']}_nguoi_xu_ly "
+            f"ON {_STATS_MATERIALIZED_VIEWS['workflow_cases']} (thu_tuc, nguoi_xu_ly)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['workflow_cases']}_buoc "
+            f"ON {_STATS_MATERIALIZED_VIEWS['workflow_cases']} (thu_tuc, buoc)"
         ))
 
 
@@ -660,7 +723,7 @@ def _do_sync(model_class, api_url: str, body: dict, label: str, referer: str | N
             _batched_insert(db, model_class.__table__, rows, batch_size)
         _upsert_sync_meta(db, tbl, synced_at, len(items),
                           fetch_sec=fetch_sec, insert_sec=_time.monotonic() - t_insert)
-        _refresh_stats_materialized_views(db, "received", "case_facts")
+        _refresh_stats_materialized_views(db, "received", "case_facts", "workflow_cases")
         db.commit()
 
         return {
@@ -877,11 +940,10 @@ def _sync_unified(
             _batched_insert(db, unified_model.__table__, rows, batch_size)
         _upsert_sync_meta(db, unified_tbl, synced_at, len(items),
                           fetch_sec=fetch_sec, insert_sec=_time.monotonic() - t_insert)
-        _refresh_stats_materialized_views(
-            db,
-            "resolved" if is_done else "inflight",
-            "case_facts",
-        )
+        refresh_kinds = ["resolved" if is_done else "inflight", "case_facts"]
+        if not is_done:
+            refresh_kinds.append("workflow_cases")
+        _refresh_stats_materialized_views(db, *refresh_kinds)
         db.commit()
 
         inserted = len(items)
@@ -1093,6 +1155,7 @@ def _sync_tt48_cv_buoc_inner() -> dict:
             db, "tt48_cv_buoc", synced_at, len(buoc_rows),
             fetch_sec=fetch_sec, insert_sec=_time.monotonic() - t_insert,
         )
+        _refresh_stats_materialized_views(db, "workflow_cases")
         db.commit()
         _sync_log.info(
             f"[tt48_cv_buoc] Tổng: {len(buoc_rows)} records → DB | "

@@ -16,21 +16,24 @@ export function buildCaseFactsCte(thuTucParam: string): string {
   )`;
 }
 
-export function buildLatestCvFromTccCte(thuTucParam: string): string {
-  return `cv_from_tcc AS (
-    SELECT DISTINCT ON (data->>'maHoSo')
-      data->>'maHoSo' AS ma_ho_so,
-      COALESCE(NULLIF(TRIM(data->>'chuyenVienThuLyName'), ''), '__CHUA_PHAN__') AS cv_name
-    FROM tra_cuu_chung
-    WHERE (data->>'thuTucId')::int = ${thuTucParam}
-      AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
-    ORDER BY data->>'maHoSo', (data->>'ngayTiepNhan')::timestamptz DESC
-  )`;
-}
-
 export function buildMonthlyAggregateSql(viewName: string): string {
   return `SELECT yr, mo, cnt
     FROM ${viewName}
     WHERE thu_tuc = $1
     ORDER BY yr, mo`;
+}
+
+export function buildWorkflowCasesCte(thuTucParam: string): string {
+  return `workflow_cases AS (
+    SELECT
+      cv_name,
+      don_vi,
+      ma_ho_so,
+      qua_han_ngay,
+      ngay_nhan,
+      nguoi_xu_ly,
+      buoc
+    FROM mv_stats_workflow_cases
+    WHERE thu_tuc = ${thuTucParam}
+  )`;
 }
