@@ -139,9 +139,11 @@ router.get("/sync-status", async (_req, res) => {
     `);
 
     const sizeRow = await queryOne<{ total_bytes: string }>(`
-      SELECT SUM(pg_total_relation_size(relid))::bigint AS total_bytes
-      FROM pg_stat_user_tables
-      WHERE schemaname = 'public'
+      SELECT COALESCE(SUM(pg_total_relation_size(c.oid)), 0)::bigint AS total_bytes
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relkind IN ('r', 'm')
     `);
 
     const lastSyncedAt = timeRow?.last_synced_at ?? null;

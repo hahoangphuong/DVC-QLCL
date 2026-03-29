@@ -15,6 +15,10 @@ const queryClient = new QueryClient();
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, ""); // e.g. "/dashboard"
 const API  = "/api"; // API base — tách biệt khỏi BASE để production routing hoạt động
 
+function authHeaders(token: string): HeadersInit {
+  return { "x-admin-token": token };
+}
+
 // Màu cho 4 chỉ số
 const COLORS = {
   ton_truoc:     { bar: "#f472b6", label: "TỒN TRƯỚC",     text: "#be185d" },
@@ -1996,7 +2000,9 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
     if (!hasToken) return;
     setDbLoading(true);
     try {
-      const r = await fetch(`${API}/admin/db-stats?token=${tk()}`);
+      const r = await fetch(`${API}/admin/db-stats`, {
+        headers: authHeaders(tk()),
+      });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail ?? `HTTP ${r.status}`);
       setDbStats(d as DbStats);
@@ -2011,7 +2017,9 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
   const loadScheduler = async () => {
     if (!hasToken) return;
     try {
-      const r = await fetch(`${API}/admin/scheduler?token=${tk()}`);
+      const r = await fetch(`${API}/admin/scheduler`, {
+        headers: authHeaders(tk()),
+      });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail ?? `HTTP ${r.status}`);
       setScheduler(d as SchedulerInfo);
@@ -2025,7 +2033,10 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
     setSyncBusy(true);
     setSyncResult(null);
     try {
-      const r = await fetch(`${API}/admin/force-sync?token=${tk()}`, { method: "POST" });
+      const r = await fetch(`${API}/admin/force-sync`, {
+        method: "POST",
+        headers: authHeaders(tk()),
+      });
       const d = await r.json();
       if (!r.ok) {
         setSyncResult(`❌ Lỗi: ${d.detail ?? `HTTP ${r.status}`}`);
@@ -2047,9 +2058,9 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
     setSchedulerSaving(true);
     setSchedulerMsg(null);
     try {
-      const r = await fetch(`${API}/admin/scheduler?token=${tk()}`, {
+      const r = await fetch(`${API}/admin/scheduler`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders(tk()), "Content-Type": "application/json" },
         body: JSON.stringify({ hours: h }),
       });
       const d = await r.json();
@@ -2072,7 +2083,9 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
     setLogLoading(true);
     try {
       const n = Math.min(parseInt(logLines)||200, 2000);
-      const r = await fetch(`${API}/admin/logs?token=${tk()}&lines=${n}`);
+      const r = await fetch(`${API}/admin/logs?lines=${n}`, {
+        headers: authHeaders(tk()),
+      });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail ?? `HTTP ${r.status}`);
       setSyncLog(d as SyncLog);
@@ -2091,8 +2104,10 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
     if (!hasToken) { alert("Vui lòng nhập mã xác thực trước."); return; }
     setExportStatus(s => ({ ...s, [tableId]: "loading" }));
     try {
-      const url = `${API}/admin/export/${tableId}?token=${tk()}`;
-      const res = await fetch(url);
+      const url = `${API}/admin/export/${tableId}`;
+      const res = await fetch(url, {
+        headers: authHeaders(tk()),
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
         alert(`Lỗi: ${err.detail ?? "Không thể tải file"}`);

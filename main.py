@@ -222,6 +222,21 @@ def _migrate_schema():
         # -- 4. Materialized views cho thống kê tháng ------------------------
         # Được refresh sau mỗi lần sync thành công để dashboard không phải
         # GROUP BY trực tiếp trên raw JSONB cho các biểu đồ theo tháng.
+        #
+        # Luôn DROP + CREATE lại để definition trong DB không bị lệch với code
+        # sau các lần refactor materialized view.
+        for view_name in (
+            _STATS_MATERIALIZED_VIEWS["treo_by_cv"],
+            _STATS_MATERIALIZED_VIEWS["workflow_cases"],
+            _STATS_MATERIALIZED_VIEWS["case_facts"],
+            _STATS_MATERIALIZED_VIEWS["inflight"],
+            _STATS_MATERIALIZED_VIEWS["resolved_facts"],
+            _STATS_MATERIALIZED_VIEWS["resolved"],
+            _STATS_MATERIALIZED_VIEWS["received_bounds"],
+            _STATS_MATERIALIZED_VIEWS["received"],
+        ):
+            conn.execute(text(f"DROP MATERIALIZED VIEW IF EXISTS {view_name} CASCADE"))
+
         conn.execute(text(f"""
             CREATE MATERIALIZED VIEW IF NOT EXISTS {_STATS_MATERIALIZED_VIEWS["received"]} AS
             SELECT
@@ -1549,89 +1564,6 @@ def internal_logs_prune(
     result = _prune_remote_fetch_logs(keep_rows=keep_rows)
     return {"ok": True, **result}
 
-
-# ---------------------------------------------------------------------------
-# 12. GET /latest — bản ghi mới nhất trong remote_fetch_logs (legacy)
-# ---------------------------------------------------------------------------
-@app.get("/latest")
-def latest():
-    db = SessionLocal()
-    try:
-        record = (
-            db.query(RemoteFetchLog)
-            .order_by(RemoteFetchLog.created_at.desc())
-            .first()
-        )
-        if record is None:
-            return {"ok": True, "data": None}
-        return {
-            "ok": True,
-            "data": {
-                "id": record.id,
-                "source": record.source,
-                "endpoint": record.endpoint,
-                "status_code": record.status_code,
-                "created_at": record.created_at.isoformat(),
-                "payload": record.payload,
-                "raw_text": record.raw_text,
-            },
-        }
-    finally:
-        db.close()
-
-
-# ---------------------------------------------------------------------------
-# 13. GET /logs — 10 bản ghi mới nhất (legacy)
-# ---------------------------------------------------------------------------
-@app.get("/logs")
-def logs():
-    db = SessionLocal()
-    try:
-        records = (
-            db.query(RemoteFetchLog)
-            .order_by(RemoteFetchLog.created_at.desc())
-            .limit(10)
-            .all()
-        )
-        return {
-            "ok": True,
-            "logs": [
-                {
-                    "id": r.id,
-                    "endpoint": r.endpoint,
-                    "status_code": r.status_code,
-                    "created_at": r.created_at.isoformat(),
-                }
-                for r in records
-            ],
-        }
-    finally:
-        db.close()
-
-
-# ---------------------------------------------------------------------------
-# GET /status — xem số record hiện có trong mỗi bảng
-# ---------------------------------------------------------------------------
-@app.get("/status")
-def status():
-    db = SessionLocal()
-    try:
-        return {
-            "ok": True,
-            "tables": {
-                "tra_cuu_chung":    db.query(TraCuuChung).count(),
-                "da_xu_ly":         db.query(DaXuLy).count(),
-                "da_xu_ly_tt46":    db.query(DaXuLy).filter(DaXuLy.thu_tuc == 46).count(),
-                "da_xu_ly_tt47":    db.query(DaXuLy).filter(DaXuLy.thu_tuc == 47).count(),
-                "da_xu_ly_tt48":    db.query(DaXuLy).filter(DaXuLy.thu_tuc == 48).count(),
-                "dang_xu_ly":       db.query(DangXuLy).count(),
-                "dang_xu_ly_tt46":  db.query(DangXuLy).filter(DangXuLy.thu_tuc == 46).count(),
-                "dang_xu_ly_tt47":  db.query(DangXuLy).filter(DangXuLy.thu_tuc == 47).count(),
-                "dang_xu_ly_tt48":  db.query(DangXuLy).filter(DangXuLy.thu_tuc == 48).count(),
-            },
-        }
-    finally:
-        db.close()
 
 # ---------------------------------------------------------------------------
 # GET /internal/scheduler — trả về interval hiện tại
