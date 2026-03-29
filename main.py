@@ -461,9 +461,9 @@ def _migrate_schema():
                     THEN (t.data->>'ngayHenTra')::timestamptz
                     ELSE NULL
                 END AS nhan_hen_tra,
-                COALESCE(ctry.country_alpha2_name, ctry.country_alpha2_id) AS country_alpha2,
+                COALESCE(ctry.country_alpha2_id, ctry.country_alpha2_name) AS country_alpha2,
                 CASE
-                    WHEN COALESCE(ctry.country_alpha2_name, ctry.country_alpha2_id) IN ({", ".join(f"'{code}'" for code in _HT2_ALPHA2_CODES)})
+                    WHEN COALESCE(ctry.country_alpha2_id, ctry.country_alpha2_name) IN ({", ".join(f"'{code}'" for code in _HT2_ALPHA2_CODES)})
                     THEN 2
                     ELSE 1
                 END AS hinh_thuc_danh_gia,
