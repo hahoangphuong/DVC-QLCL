@@ -37,6 +37,11 @@ export async function getSummaryStats(thuTuc: number, fromDate: string, toDate: 
   const row = await queryOne<CountRow>(
     `WITH
      ${buildCaseFactsCte("$1")},
+     filtered_case_facts AS (
+       SELECT *
+       FROM case_facts
+       WHERE is_active OR da_xu_ly_id IS NOT NULL
+     ),
      gq AS (
        SELECT COUNT(*) AS cnt
        FROM mv_stats_resolved_facts
@@ -59,7 +64,7 @@ export async function getSummaryStats(thuTuc: number, fromDate: string, toDate: 
            AND (ngay_tra IS NULL OR ngay_tra > $3::timestamptz)
        ) AS ton_sau,
        (SELECT cnt FROM gq) AS da_giai_quyet
-     FROM case_facts`,
+     FROM filtered_case_facts`,
     [thuTuc, fromDt, toDt]
   );
 
@@ -117,7 +122,13 @@ export async function getGiaiQuyetStats(thuTuc: number, fromDate: string, toDate
 export async function getTonSauStats(thuTuc: number, toDate: string) {
   const toDt = `${toDate}T23:59:59+07:00`;
   const row = await queryOne<CountRow>(
-    `WITH ${buildCaseFactsCte("$1")}
+    `WITH
+     ${buildCaseFactsCte("$1")},
+     filtered_case_facts AS (
+       SELECT *
+       FROM case_facts
+       WHERE is_active OR da_xu_ly_id IS NOT NULL
+     )
      SELECT
        COUNT(*) FILTER (
          WHERE ngay_nhan <= $2::timestamptz
@@ -133,7 +144,7 @@ export async function getTonSauStats(thuTuc: number, toDate: string) {
               OR nhan_hen_tra <= $2::timestamptz
            )
        ) AS qua_han
-     FROM case_facts`,
+     FROM filtered_case_facts`,
     [thuTuc, toDt]
   );
 
