@@ -473,8 +473,8 @@ function DonutChart({ title, segments, total, isLoading, isError, emptyMessage, 
                 innerRadius={58}
                 outerRadius={88}
                 dataKey="value"
-                startAngle={90}
-                endAngle={-270}
+                startAngle={270}
+                endAngle={-90}
                 labelLine={false}
                 label={CombinedLabel}
               >
