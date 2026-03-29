@@ -68,10 +68,11 @@ _DATA_TABLES = [
     "da_xu_ly",
 ]
 
-_MONTHLY_STATS_VIEWS = {
+_STATS_MATERIALIZED_VIEWS = {
     "received": "mv_stats_received_monthly",
     "resolved": "mv_stats_resolved_monthly",
     "inflight": "mv_stats_inflight_monthly",
+    "case_facts": "mv_stats_case_facts",
 }
 
 
@@ -218,7 +219,7 @@ def _migrate_schema():
         # Được refresh sau mỗi lần sync thành công để dashboard không phải
         # GROUP BY trực tiếp trên raw JSONB cho các biểu đồ theo tháng.
         conn.execute(text(f"""
-            CREATE MATERIALIZED VIEW IF NOT EXISTS {_MONTHLY_STATS_VIEWS["received"]} AS
+            CREATE MATERIALIZED VIEW IF NOT EXISTS {_STATS_MATERIALIZED_VIEWS["received"]} AS
             SELECT
                 (data->>'thuTucId')::int AS thu_tuc,
                 EXTRACT(YEAR  FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
@@ -230,7 +231,7 @@ def _migrate_schema():
             GROUP BY 1, 2, 3
         """))
         conn.execute(text(f"""
-            CREATE MATERIALIZED VIEW IF NOT EXISTS {_MONTHLY_STATS_VIEWS["resolved"]} AS
+            CREATE MATERIALIZED VIEW IF NOT EXISTS {_STATS_MATERIALIZED_VIEWS["resolved"]} AS
             SELECT
                 thu_tuc,
                 EXTRACT(YEAR  FROM (data->>'ngayTraKetQua')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
@@ -241,7 +242,7 @@ def _migrate_schema():
             GROUP BY 1, 2, 3
         """))
         conn.execute(text(f"""
-            CREATE MATERIALIZED VIEW IF NOT EXISTS {_MONTHLY_STATS_VIEWS["inflight"]} AS
+            CREATE MATERIALIZED VIEW IF NOT EXISTS {_STATS_MATERIALIZED_VIEWS["inflight"]} AS
             SELECT
                 thu_tuc,
                 EXTRACT(YEAR  FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
@@ -253,23 +254,102 @@ def _migrate_schema():
         """))
 
         conn.execute(text(
-            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_MONTHLY_STATS_VIEWS['received']}_key "
-            f"ON {_MONTHLY_STATS_VIEWS['received']} (thu_tuc, yr, mo)"
+            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['received']}_key "
+            f"ON {_STATS_MATERIALIZED_VIEWS['received']} (thu_tuc, yr, mo)"
         ))
         conn.execute(text(
-            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_MONTHLY_STATS_VIEWS['resolved']}_key "
-            f"ON {_MONTHLY_STATS_VIEWS['resolved']} (thu_tuc, yr, mo)"
+            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['resolved']}_key "
+            f"ON {_STATS_MATERIALIZED_VIEWS['resolved']} (thu_tuc, yr, mo)"
         ))
         conn.execute(text(
-            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_MONTHLY_STATS_VIEWS['inflight']}_key "
-            f"ON {_MONTHLY_STATS_VIEWS['inflight']} (thu_tuc, yr, mo)"
+            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['inflight']}_key "
+            f"ON {_STATS_MATERIALIZED_VIEWS['inflight']} (thu_tuc, yr, mo)"
+        ))
+
+        conn.execute(text(f"""
+            CREATE MATERIALIZED VIEW IF NOT EXISTS {_STATS_MATERIALIZED_VIEWS["case_facts"]} AS
+            WITH
+            dxl_active AS (
+                SELECT DISTINCT
+                    thu_tuc,
+                    data->>'maHoSo' AS ma_ho_so
+                FROM dang_xu_ly
+            ),
+            dxl_cho_pc AS (
+                SELECT DISTINCT
+                    thu_tuc,
+                    data->>'maHoSo' AS ma_ho_so
+                FROM dang_xu_ly
+                WHERE data->>'tenDonViXuLy' = 'Phòng ban phân công'
+            )
+            SELECT
+                (t.data->>'thuTucId')::int AS thu_tuc,
+                t.data->>'id' AS tcc_id,
+                t.data->>'maHoSo' AS ma_ho_so,
+                COALESCE(NULLIF(TRIM(t.data->>'chuyenVienThuLyName'), ''), '__CHUA_PHAN__') AS cv_name_raw,
+                CASE
+                    WHEN NULLIF(t.data->>'ngayTiepNhan', '') IS NOT NULL
+                    THEN (t.data->>'ngayTiepNhan')::timestamptz
+                    ELSE NULL
+                END AS ngay_nhan,
+                CASE
+                    WHEN NULLIF(t.data->>'ngayHenTra', '') IS NOT NULL
+                    THEN (t.data->>'ngayHenTra')::timestamptz
+                    ELSE NULL
+                END AS nhan_hen_tra,
+                NULLIF(d.data->>'id', '') AS da_xu_ly_id,
+                CASE
+                    WHEN NULLIF(d.data->>'ngayTraKetQua', '') IS NOT NULL
+                    THEN (d.data->>'ngayTraKetQua')::timestamptz
+                    ELSE NULL
+                END AS ngay_tra,
+                CASE
+                    WHEN NULLIF(d.data->>'ngayHenTra', '') IS NOT NULL
+                    THEN (d.data->>'ngayHenTra')::timestamptz
+                    ELSE NULL
+                END AS kq_hen_tra,
+                d.data->>'trangThaiHoSo' AS trang_thai,
+                (da.ma_ho_so IS NOT NULL) AS is_active,
+                (dcp.ma_ho_so IS NOT NULL) AS is_cho_phan_cong
+            FROM tra_cuu_chung t
+            LEFT JOIN da_xu_ly d
+              ON t.data->>'id' = d.data->>'id'
+             AND d.thu_tuc = (t.data->>'thuTucId')::int
+            LEFT JOIN dxl_active da
+              ON da.thu_tuc = (t.data->>'thuTucId')::int
+             AND da.ma_ho_so = t.data->>'maHoSo'
+            LEFT JOIN dxl_cho_pc dcp
+              ON dcp.thu_tuc = (t.data->>'thuTucId')::int
+             AND dcp.ma_ho_so = t.data->>'maHoSo'
+            WHERE NULLIF(t.data->>'thuTucId', '') IS NOT NULL
+        """))
+
+        conn.execute(text(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['case_facts']}_key "
+            f"ON {_STATS_MATERIALIZED_VIEWS['case_facts']} (thu_tuc, tcc_id)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['case_facts']}_ngay_nhan "
+            f"ON {_STATS_MATERIALIZED_VIEWS['case_facts']} (thu_tuc, ngay_nhan)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['case_facts']}_ngay_tra "
+            f"ON {_STATS_MATERIALIZED_VIEWS['case_facts']} (thu_tuc, ngay_tra)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['case_facts']}_cv "
+            f"ON {_STATS_MATERIALIZED_VIEWS['case_facts']} (thu_tuc, cv_name_raw)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['case_facts']}_active "
+            f"ON {_STATS_MATERIALIZED_VIEWS['case_facts']} (thu_tuc, is_active, ngay_nhan)"
         ))
 
 
 def _refresh_stats_materialized_views(db, *kinds: str):
-    targets = kinds or tuple(_MONTHLY_STATS_VIEWS.keys())
+    targets = kinds or tuple(_STATS_MATERIALIZED_VIEWS.keys())
     for kind in targets:
-        view_name = _MONTHLY_STATS_VIEWS.get(kind)
+        view_name = _STATS_MATERIALIZED_VIEWS.get(kind)
         if not view_name:
             raise ValueError(f"Unknown stats materialized view kind: {kind}")
         db.execute(text(f"REFRESH MATERIALIZED VIEW {view_name}"))
@@ -580,7 +660,7 @@ def _do_sync(model_class, api_url: str, body: dict, label: str, referer: str | N
             _batched_insert(db, model_class.__table__, rows, batch_size)
         _upsert_sync_meta(db, tbl, synced_at, len(items),
                           fetch_sec=fetch_sec, insert_sec=_time.monotonic() - t_insert)
-        _refresh_stats_materialized_views(db, "received")
+        _refresh_stats_materialized_views(db, "received", "case_facts")
         db.commit()
 
         return {
@@ -797,7 +877,11 @@ def _sync_unified(
             _batched_insert(db, unified_model.__table__, rows, batch_size)
         _upsert_sync_meta(db, unified_tbl, synced_at, len(items),
                           fetch_sec=fetch_sec, insert_sec=_time.monotonic() - t_insert)
-        _refresh_stats_materialized_views(db, "resolved" if is_done else "inflight")
+        _refresh_stats_materialized_views(
+            db,
+            "resolved" if is_done else "inflight",
+            "case_facts",
+        )
         db.commit()
 
         inserted = len(items)
