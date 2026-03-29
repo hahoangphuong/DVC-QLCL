@@ -1032,10 +1032,10 @@ def sync_all():
 
 
 # ---------------------------------------------------------------------------
-# 11b. POST /sync/all/async — kích hoạt sync ngay trong background, trả về ngay
+# 11b. POST /internal/sync/all/async — kích hoạt sync ngay trong background, trả về ngay
 # Dùng APScheduler để trigger 1 lần tức thì → không block HTTP request
 # ---------------------------------------------------------------------------
-@app.post("/sync/all/async")
+@app.post("/internal/sync/all/async")
 def sync_all_async():
     # Kiểm tra sớm để trả ngay về nếu sync đang bận (lock đang bị hold)
     already_running = not _sync_lock.acquire(blocking=False)
@@ -1065,10 +1065,10 @@ def sync_all_async():
 
 
 # ---------------------------------------------------------------------------
-# GET /logs/sync — xem N dòng cuối của file log sync (mặc định 100)
+# GET /internal/logs/sync — xem N dòng cuối của file log sync (mặc định 100)
 # Query param: lines=200 để xem nhiều hơn
 # ---------------------------------------------------------------------------
-@app.get("/logs/sync")
+@app.get("/internal/logs/sync")
 def logs_sync(lines: int = Query(default=100, ge=1, le=5000)):
     log_file = _LOG_DIR / "sync.log"
     if not log_file.exists():
@@ -1086,9 +1086,9 @@ def logs_sync(lines: int = Query(default=100, ge=1, le=5000)):
 
 
 # ---------------------------------------------------------------------------
-# GET /logs/db-stats — thống kê kích thước log file + DB log table
+# GET /internal/logs/db-stats — thống kê kích thước log file + DB log table
 # ---------------------------------------------------------------------------
-@app.get("/logs/db-stats")
+@app.get("/internal/logs/db-stats")
 def logs_db_stats():
     """
     Trả về:
@@ -1144,10 +1144,10 @@ def logs_db_stats():
 
 
 # ---------------------------------------------------------------------------
-# POST /admin/logs/prune — xoá thủ công log DB (keep_rows tùy chọn)
+# POST /internal/logs/prune — xoá thủ công log DB (keep_rows tùy chọn)
 # ---------------------------------------------------------------------------
-@app.post("/admin/logs/prune")
-def admin_logs_prune(
+@app.post("/internal/logs/prune")
+def internal_logs_prune(
     keep_rows: int = Query(default=_PRUNE_KEEP_ROWS, ge=100, le=100_000),
     token: str = Query(default=""),
 ):
@@ -1249,12 +1249,12 @@ def status():
         db.close()
 
 # ---------------------------------------------------------------------------
-# GET /admin/scheduler — trả về interval hiện tại
-# POST /admin/scheduler — thay đổi interval (body JSON: {"hours": N})
-# Không cần token riêng vì đã được api-server proxy sau khi xác thực token
+# GET /internal/scheduler — trả về interval hiện tại
+# POST /internal/scheduler — thay đổi interval (body JSON: {"hours": N})
+# Chỉ dùng nội bộ phía sau api-server sau khi xác thực token
 # ---------------------------------------------------------------------------
-@app.get("/admin/scheduler")
-def admin_scheduler_get():
+@app.get("/internal/scheduler")
+def internal_scheduler_get():
     global _sync_interval_hours
     job = _scheduler.get_job("sync_all_3h")
     next_run = None
@@ -1267,8 +1267,8 @@ def admin_scheduler_get():
     }
 
 
-@app.post("/admin/scheduler")
-def admin_scheduler_set(payload: dict):
+@app.post("/internal/scheduler")
+def internal_scheduler_set(payload: dict):
     global _sync_interval_hours
     hours = payload.get("hours")
     if hours is None:

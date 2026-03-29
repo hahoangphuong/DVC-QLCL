@@ -100,7 +100,7 @@ router.get("/admin/db-stats", async (req, res) => {
 router.post("/admin/force-sync", async (req, res) => {
   if (!checkToken(req, res)) return;
   try {
-    const pyRes = await fetch(`${PYTHON_API}/sync/all/async`, { method: "POST" });
+    const pyRes = await fetch(`${PYTHON_API}/internal/sync/all/async`, { method: "POST" });
     const data = await pyRes.json();
     res.status(pyRes.ok ? 200 : 502).json(data);
   } catch (e: unknown) {
@@ -115,7 +115,7 @@ router.post("/admin/force-sync", async (req, res) => {
 router.get("/admin/scheduler", async (req, res) => {
   if (!checkToken(req, res)) return;
   try {
-    const pyRes = await fetch(`${PYTHON_API}/admin/scheduler`);
+    const pyRes = await fetch(`${PYTHON_API}/internal/scheduler`);
     const data = await pyRes.json();
     res.status(pyRes.ok ? 200 : 502).json(data);
   } catch (e: unknown) {
@@ -127,7 +127,7 @@ router.post("/admin/scheduler", async (req, res) => {
   if (!checkToken(req, res)) return;
   try {
     const body = req.body as { hours?: unknown };
-    const pyRes = await fetch(`${PYTHON_API}/admin/scheduler`, {
+    const pyRes = await fetch(`${PYTHON_API}/internal/scheduler`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ hours: body.hours }),
@@ -146,7 +146,7 @@ router.get("/admin/logs", async (req, res) => {
   if (!checkToken(req, res)) return;
   try {
     const lines = Math.min(parseInt(String(req.query["lines"] ?? "200"), 10) || 200, 2000);
-    const pyRes = await fetch(`${PYTHON_API}/logs/sync?lines=${lines}`);
+    const pyRes = await fetch(`${PYTHON_API}/internal/logs/sync?lines=${lines}`);
     const data = await pyRes.json();
     res.status(pyRes.ok ? 200 : 502).json(data);
   } catch (e: unknown) {
