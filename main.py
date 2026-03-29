@@ -128,7 +128,9 @@ _COUNTRY_NAME_PATTERNS = {
     "SI": ["%Slovenia%"],
     "SK": ["%Slovakia%"],
     "TH": ["%Thái Lan%", "%Thai Lan%", "%Thailand%"],
-    "US": ["%Hoa Kỳ%", "%Hoa Ky%", "%Hiệp chủng quốc Hoa Kỳ%", "%Hiep chung quoc Hoa Ky%", "%Mỹ%", "%My%", "%United States%", "%USA%"],
+    "TR": ["%Thổ Nhĩ Kỳ%", "%Tho Nhi Ky%", "%Turkey%", "%Türkiye%"],
+    "US": ["%Hoa Kỳ%", "%Hoa Ky%", "%Hiệp chủng quốc Hoa Kỳ%", "%Hiep chung quoc Hoa Ky%", "%Mỹ%", "%My%", "%Mỹ/Thụy sỹ%", "%My/Thuy sy%", "%United States%", "%USA%"],
+    "BA": ["%Bosnia và Herzegovina%", "%Bosnia and Herzegovina%", "%Bosnia & Herzegovina%"],
 }
 
 
