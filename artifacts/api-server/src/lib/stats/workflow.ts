@@ -510,6 +510,9 @@ workflow_base AS (
       WHEN w.don_vi = 'Tổ trưởng chuyên gia' THEN 'Chờ Tổ trưởng'
       WHEN w.don_vi = 'Trưởng phòng' THEN 'Chờ Trưởng phòng'
       WHEN w.buoc = 'cho_ket_thuc' OR w.don_vi IN ('Phó Cục trưởng', 'Văn thư') THEN 'Chờ công bố'
+      WHEN w.buoc IN ('chua_xu_ly', 'bi_tra_lai', 'cho_tong_hop')
+        OR w.don_vi IN ('Chuyên viên', 'Phòng ban phân công')
+      THEN 'Chờ chuyên viên'
       ELSE 'Chờ chuyên viên'
     END AS tinh_trang,
     CASE
