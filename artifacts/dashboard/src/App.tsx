@@ -1044,6 +1044,7 @@ function Tt48LoaiHoSoMonthlyChart({ fromDate, toDate }: { fromDate: string; toDa
       <ResponsiveContainer width="100%" height={280}>
         <ComposedChart
           data={months}
+          barGap={2}
           margin={{ top: showLabels ? 16 : 20, right: 30, bottom: 5, left: 10 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -1069,27 +1070,60 @@ function Tt48LoaiHoSoMonthlyChart({ fromDate, toDate }: { fromDate: string; toDa
               return [value.toLocaleString("vi-VN"), labels[name] ?? name];
             }}
           />
-          {series.map((item) => (
-            <Line
+          {series.filter((item) => item.key !== "total").map((item) => (
+            <Bar
               key={item.key}
-              type="monotone"
               dataKey={item.key}
-              stroke={item.color}
-              strokeWidth={item.key === "total" ? 3 : 2}
-              dot={months.length <= 24}
-              activeDot={{ r: item.key === "total" ? 5 : 4 }}
+              stackId="tt48-received"
+              fill={item.color}
               name={item.key}
+              radius={item.key === "D" ? [2, 2, 0, 0] : [0, 0, 0, 0]}
             >
               {showLabels && (
                 <LabelList
                   dataKey={item.key}
-                  position="top"
-                  style={{ fontSize: 9, fill: item.color, fontWeight: 600 }}
-                  formatter={(v: number) => v || ""}
+                  content={(props: any) => {
+                    const { x, y, width, height, value } = props;
+                    if (!value || height < 16) return null;
+                    const cx = (x ?? 0) + (width ?? 0) / 2;
+                    const cy = (y ?? 0) + 13;
+                    return (
+                      <text
+                        x={cx}
+                        y={cy}
+                        transform={`rotate(-90, ${cx}, ${cy})`}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fontSize={9}
+                        fill={item.color}
+                        fontWeight={600}
+                      >
+                        {value}
+                      </text>
+                    );
+                  }}
                 />
               )}
-            </Line>
+            </Bar>
           ))}
+          <Line
+            type="monotone"
+            dataKey="total"
+            stroke="#7c3aed"
+            strokeWidth={3}
+            dot={months.length <= 24}
+            activeDot={{ r: 5 }}
+            name="total"
+          >
+            {showLabels && (
+              <LabelList
+                dataKey="total"
+                position="top"
+                style={{ fontSize: 9, fill: "#7c3aed", fontWeight: 600 }}
+                formatter={(v: number) => v || ""}
+              />
+            )}
+          </Line>
         </ComposedChart>
       </ResponsiveContainer>
     </div>
@@ -2882,4 +2916,5 @@ export default function App() {
     </QueryClientProvider>
   );
 }
+
 
