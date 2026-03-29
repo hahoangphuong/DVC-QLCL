@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, createContext, useContext, useMemo } from "react";
+import { Fragment, useState, useCallback, useEffect, useRef, createContext, useContext, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -1367,6 +1367,13 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
     enabled: !!fromDate && !!toDate,
     retry: 2,
   });
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({
+    A: false,
+    B: false,
+    C: false,
+    D: false,
+    TOTAL: false,
+  });
 
   if (isLoading) return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
@@ -1473,7 +1480,57 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
   const tdL = "px-3 py-2 text-left text-xs font-semibold text-slate-800";
   const totalRow = "bg-slate-200 font-bold border-t-2 border-slate-400";
   const ratioRow = "bg-slate-50 text-slate-600 border-t border-slate-200";
-  const subgroupLabels = ["TỔNG", "Lần đầu", "Bổ sung", "H.thức 1", "H.thức 2"];
+  const subgroupLabels = ["TỔNG", "H.thức 1", "H.thức 2"];
+  const toggleRow = (key: string) => {
+    setExpandedRows((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+  const renderExpandCell = (key: string, label: string, isTotal = false) => (
+    <td className={`${tdL} ${isTotal ? "text-slate-700 font-bold" : ""}`}>
+      <button
+        type="button"
+        onClick={() => toggleRow(key)}
+        className="inline-flex items-center gap-2 text-left"
+      >
+        <span className="flex h-5 w-5 items-center justify-center rounded border border-slate-300 bg-white text-xs font-bold text-slate-600">
+          {expandedRows[key] ? "−" : "+"}
+        </span>
+        <span>{label}</span>
+      </button>
+    </td>
+  );
+  const renderSubRow = (
+    key: string,
+    label: string,
+    values: {
+      ton_truoc: number;
+      da_nhan: number;
+      giai_quyet: number;
+      ton: number;
+    },
+    isTotal = false,
+  ) => (
+    <tr key={key} className={`${isTotal ? "bg-slate-100" : "bg-slate-50/80"} border-t border-slate-200`}>
+      <td className="px-3 py-2 text-left text-xs font-medium text-slate-600">
+        <div className="flex items-center gap-2 pl-7">
+          <span className="inline-block h-px w-3 bg-slate-300" />
+          <span>{label}</span>
+        </div>
+      </td>
+      {num(values.ton_truoc, `${tdC} bg-pink-50/50 text-slate-600`)}
+      <td className={`${tdC} bg-pink-50/50`} />
+      <td className={`${tdC} bg-pink-50/50`} />
+      {num(values.da_nhan, `${tdC} bg-blue-50/50 text-slate-600`)}
+      <td className={`${tdC} bg-blue-50/50`} />
+      <td className={`${tdC} bg-blue-50/50`} />
+      {num(values.giai_quyet, `${tdC} bg-green-50/60 text-slate-600`)}
+      <td className={`${tdC} bg-green-50/60`} />
+      <td className={`${tdC} bg-green-50/60`} />
+      {num(values.ton, `${tdC} bg-amber-50/60 text-slate-600`)}
+      <td className={`${tdC} bg-amber-50/60`} />
+      <td className={`${tdC} bg-amber-50/60`} />
+      <td className={`${tdC} bg-orange-50/70`} />
+    </tr>
+  );
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
@@ -1483,22 +1540,22 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
         </h3>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-xs border-collapse" style={{ minWidth: 1680 }}>
+        <table className="w-full text-xs border-collapse" style={{ minWidth: 1280 }}>
           <colgroup>
             <col style={{ width: 260 }} />
-            <col style={{ width: 130 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} />
-            <col style={{ width: 130 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} />
-            <col style={{ width: 130 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} />
-            <col style={{ width: 130 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} />
+            <col style={{ width: 130 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} />
+            <col style={{ width: 130 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} />
+            <col style={{ width: 130 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} />
+            <col style={{ width: 130 }} /><col style={{ width: 86 }} /><col style={{ width: 86 }} />
             <col style={{ width: 92 }} />
           </colgroup>
           <thead>
             <tr>
               <th rowSpan={2} className={`${thL} bg-slate-700 text-white`}>Phân loại hồ sơ</th>
-              <th colSpan={5} className={`${thC} bg-pink-700 text-white`}>TỒN TRƯỚC</th>
-              <th colSpan={5} className={`${thC} bg-blue-700 text-white`}>HỒ SƠ ĐÃ TIẾP NHẬN</th>
-              <th colSpan={5} className={`${thC} bg-green-700 text-white`}>HỒ SƠ ĐÃ GIẢI QUYẾT</th>
-              <th colSpan={5} className={`${thC} bg-amber-700 text-white`}>HỒ SƠ TỒN</th>
+              <th colSpan={3} className={`${thC} bg-pink-700 text-white`}>TỒN TRƯỚC</th>
+              <th colSpan={3} className={`${thC} bg-blue-700 text-white`}>HỒ SƠ ĐÃ TIẾP NHẬN</th>
+              <th colSpan={3} className={`${thC} bg-green-700 text-white`}>HỒ SƠ ĐÃ GIẢI QUYẾT</th>
+              <th colSpan={3} className={`${thC} bg-amber-700 text-white`}>HỒ SƠ TỒN</th>
               <th rowSpan={2} className={`${thC} bg-orange-600 text-white`}>HỒ SƠ TREO</th>
             </tr>
             <tr>
@@ -1520,79 +1577,99 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
           </thead>
           <tbody className="divide-y divide-slate-100">
             {rows.map((row, idx) => (
-              <tr key={row.loai_ho_so} className={`${idx % 2 === 0 ? "bg-white" : "bg-slate-50"} hover:bg-blue-50/40 transition-colors`}>
-                <td className={tdL}>{TT48_LOAI_LABELS[row.loai_ho_so] ?? row.loai_ho_so}</td>
+              <Fragment key={row.loai_ho_so}>
+              <tr className={`${idx % 2 === 0 ? "bg-white" : "bg-slate-50"} hover:bg-blue-50/40 transition-colors`}>
+                {renderExpandCell(row.loai_ho_so, TT48_LOAI_LABELS[row.loai_ho_so] ?? row.loai_ho_so)}
                 <td className={`${tdC} bg-pink-50/70`}>{renderGroupTotal(row.ton_truoc_total, totals.ton_truoc_total, "text-pink-700")}</td>
-                {num(row.ton_truoc_first, `${tdC} bg-pink-50/70 text-slate-700`)}
-                {num(row.ton_truoc_supplement, `${tdC} bg-pink-50/70 text-slate-700`)}
                 {num(row.ton_truoc_hinh_thuc_1, `${tdC} bg-pink-50/70 text-slate-700`)}
                 {num(row.ton_truoc_hinh_thuc_2, `${tdC} bg-pink-50/70 text-slate-700`)}
                 <td className={`${tdC} bg-blue-50/70`}>{renderGroupTotal(row.da_nhan_total, totals.da_nhan_total, "text-blue-700")}</td>
-                {num(row.da_nhan_first, `${tdC} bg-blue-50/70 text-slate-700`)}
-                {num(row.da_nhan_supplement, `${tdC} bg-blue-50/70 text-slate-700`)}
                 {num(row.da_nhan_hinh_thuc_1, `${tdC} bg-blue-50/70 text-slate-700`)}
                 {num(row.da_nhan_hinh_thuc_2, `${tdC} bg-blue-50/70 text-slate-700`)}
                 <td className={`${tdC} bg-green-50/80`}>{renderGroupTotal(row.giai_quyet_total, totals.giai_quyet_total, "text-green-700")}</td>
-                {num(row.giai_quyet_first, `${tdC} bg-green-50/80 text-slate-700`)}
-                {num(row.giai_quyet_supplement, `${tdC} bg-green-50/80 text-slate-700`)}
                 {num(row.giai_quyet_hinh_thuc_1, `${tdC} bg-green-50/80 text-slate-700`)}
                 {num(row.giai_quyet_hinh_thuc_2, `${tdC} bg-green-50/80 text-slate-700`)}
                 <td className={`${tdC} bg-amber-50/80`}>{renderGroupTotal(row.ton_total, totals.ton_total, "text-amber-700")}</td>
-                {num(row.ton_first, `${tdC} bg-amber-50/80 text-slate-700`)}
-                {num(row.ton_supplement, `${tdC} bg-amber-50/80 text-slate-700`)}
                 {num(row.ton_hinh_thuc_1, `${tdC} bg-amber-50/80 text-slate-700`)}
                 {num(row.ton_hinh_thuc_2, `${tdC} bg-amber-50/80 text-slate-700`)}
                 {num(row.treo, `${tdC} bg-orange-50 font-bold text-orange-700`)}
               </tr>
+              {expandedRows[row.loai_ho_so] && renderSubRow(
+                `${row.loai_ho_so}-first`,
+                "Lần đầu",
+                {
+                  ton_truoc: row.ton_truoc_first,
+                  da_nhan: row.da_nhan_first,
+                  giai_quyet: row.giai_quyet_first,
+                  ton: row.ton_first,
+                },
+              )}
+              {expandedRows[row.loai_ho_so] && renderSubRow(
+                `${row.loai_ho_so}-supplement`,
+                "Lần bổ sung",
+                {
+                  ton_truoc: row.ton_truoc_supplement,
+                  da_nhan: row.da_nhan_supplement,
+                  giai_quyet: row.giai_quyet_supplement,
+                  ton: row.ton_supplement,
+                },
+              )}
+              </Fragment>
             ))}
           </tbody>
           <tfoot>
             <tr className={totalRow}>
-              <td className={`${tdL} text-slate-700 font-bold`}>TỔNG</td>
+              {renderExpandCell("TOTAL", "TỔNG", true)}
               {num(totals.ton_truoc_total, `${tdC} text-pink-700 font-bold`)}
-              {num(totals.ton_truoc_first, `${tdC} text-pink-700 font-bold`)}
-              {num(totals.ton_truoc_supplement, `${tdC} text-pink-700 font-bold`)}
               {num(totals.ton_truoc_hinh_thuc_1, `${tdC} text-pink-700 font-bold`)}
               {num(totals.ton_truoc_hinh_thuc_2, `${tdC} text-pink-700 font-bold`)}
               {num(totals.da_nhan_total, `${tdC} text-blue-700 font-bold`)}
-              {num(totals.da_nhan_first, `${tdC} text-blue-700 font-bold`)}
-              {num(totals.da_nhan_supplement, `${tdC} text-blue-700 font-bold`)}
               {num(totals.da_nhan_hinh_thuc_1, `${tdC} text-blue-700 font-bold`)}
               {num(totals.da_nhan_hinh_thuc_2, `${tdC} text-blue-700 font-bold`)}
               {num(totals.giai_quyet_total, `${tdC} text-green-700 font-bold`)}
-              {num(totals.giai_quyet_first, `${tdC} text-green-700 font-bold`)}
-              {num(totals.giai_quyet_supplement, `${tdC} text-green-700 font-bold`)}
               {num(totals.giai_quyet_hinh_thuc_1, `${tdC} text-green-700 font-bold`)}
               {num(totals.giai_quyet_hinh_thuc_2, `${tdC} text-green-700 font-bold`)}
               {num(totals.ton_total, `${tdC} text-amber-700 font-bold`)}
-              {num(totals.ton_first, `${tdC} text-amber-700 font-bold`)}
-              {num(totals.ton_supplement, `${tdC} text-amber-700 font-bold`)}
               {num(totals.ton_hinh_thuc_1, `${tdC} text-amber-700 font-bold`)}
               {num(totals.ton_hinh_thuc_2, `${tdC} text-amber-700 font-bold`)}
               {num(totals.treo, `${tdC} text-orange-700 font-bold`)}
             </tr>
+            {expandedRows.TOTAL && renderSubRow(
+              "TOTAL-first",
+              "Lần đầu",
+              {
+                ton_truoc: totals.ton_truoc_first,
+                da_nhan: totals.da_nhan_first,
+                giai_quyet: totals.giai_quyet_first,
+                ton: totals.ton_first,
+              },
+              true,
+            )}
+            {expandedRows.TOTAL && renderSubRow(
+              "TOTAL-supplement",
+              "Lần bổ sung",
+              {
+                ton_truoc: totals.ton_truoc_supplement,
+                da_nhan: totals.da_nhan_supplement,
+                giai_quyet: totals.giai_quyet_supplement,
+                ton: totals.ton_supplement,
+              },
+              true,
+            )}
             <tr className={ratioRow}>
               <td />
               <td />
-              <td className={`${tdC} text-pink-700 font-semibold`}>{pct(totals.ton_truoc_first, totals.ton_truoc_total)}</td>
-              <td className={`${tdC} text-pink-700 font-semibold`}>{pct(totals.ton_truoc_supplement, totals.ton_truoc_total)}</td>
+              <td className={`${tdC} text-pink-700 font-semibold`}>H1: {pct(totals.ton_truoc_hinh_thuc_1, totals.ton_truoc_total)}</td>
+              <td className={`${tdC} text-pink-700 font-semibold`}>H2: {pct(totals.ton_truoc_hinh_thuc_2, totals.ton_truoc_total)}</td>
               <td />
+              <td className={`${tdC} text-blue-700 font-semibold`}>H1: {pct(totals.da_nhan_hinh_thuc_1, totals.da_nhan_total)}</td>
+              <td className={`${tdC} text-blue-700 font-semibold`}>H2: {pct(totals.da_nhan_hinh_thuc_2, totals.da_nhan_total)}</td>
               <td />
+              <td className={`${tdC} text-green-700 font-semibold`}>H1: {pct(totals.giai_quyet_hinh_thuc_1, totals.giai_quyet_total)}</td>
+              <td className={`${tdC} text-green-700 font-semibold`}>H2: {pct(totals.giai_quyet_hinh_thuc_2, totals.giai_quyet_total)}</td>
               <td />
-              <td className={`${tdC} text-blue-700 font-semibold`}>{pct(totals.da_nhan_first, totals.da_nhan_total)}</td>
-              <td className={`${tdC} text-blue-700 font-semibold`}>{pct(totals.da_nhan_supplement, totals.da_nhan_total)}</td>
-              <td />
-              <td />
-              <td />
-              <td className={`${tdC} text-green-700 font-semibold`}>{pct(totals.giai_quyet_first, totals.giai_quyet_total)}</td>
-              <td className={`${tdC} text-green-700 font-semibold`}>{pct(totals.giai_quyet_supplement, totals.giai_quyet_total)}</td>
-              <td />
-              <td />
-              <td />
-              <td className={`${tdC} text-amber-700 font-semibold`}>{pct(totals.ton_first, totals.ton_total)}</td>
-              <td className={`${tdC} text-amber-700 font-semibold`}>{pct(totals.ton_supplement, totals.ton_total)}</td>
-              <td />
-              <td />
+              <td className={`${tdC} text-amber-700 font-semibold`}>H1: {pct(totals.ton_hinh_thuc_1, totals.ton_total)}</td>
+              <td className={`${tdC} text-amber-700 font-semibold`}>H2: {pct(totals.ton_hinh_thuc_2, totals.ton_total)}</td>
               <td />
             </tr>
           </tfoot>
