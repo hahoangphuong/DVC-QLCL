@@ -96,7 +96,7 @@ _COUNTRY_NAME_PATTERNS = {
     "CA": ["%Canada%", "%Ca-na-đa%"],
     "CH": ["%Thụy Sĩ%", "%Thuy Si%", "%Switzerland%"],
     "CY": ["%Síp%", "%Sip%", "%Cyprus%"],
-    "CZ": ["%Séc%", "%Sec%", "%Czech%"],
+    "CZ": ["%Séc%", "%Sec%", "%Czech%", "%Cộng hòa Séc%"],
     "DE": ["%Đức%", "%Duc%", "%Germany%"],
     "DK": ["%Đan Mạch%", "%Dan Mach%", "%Denmark%"],
     "EE": ["%Estonia%"],
@@ -107,7 +107,7 @@ _COUNTRY_NAME_PATTERNS = {
     "HR": ["%Croatia%"],
     "HU": ["%Hungary%", "%Hungari%"],
     "ID": ["%Indonesia%", "%In-đô-nê-xi-a%", "%Indonexia%"],
-    "IE": ["%Ireland%", "%Ai-len%"],
+    "IE": ["%Ireland%", "%Ai-len%", "%Cộng hòa Ireland%"],
     "IS": ["%Iceland%", "%Ai-xơ-len%", "%Ai-xo-len%"],
     "IT": ["%Ý%", "%Italia%", "%Italy%"],
     "JP": ["%Nhật Bản%", "%Nhat Ban%", "%Japan%"],
@@ -140,6 +140,18 @@ def _build_country_name_to_alpha2_case(expr: str) -> str:
     lines.append("    ELSE NULL")
     lines.append("END")
     return "\n".join(lines)
+
+
+def _build_nuoc_so_tai_expr(data_expr: str) -> str:
+    top_level = f"NULLIF({data_expr}->>'nuocSoTai', '')"
+    json_don_hang = (
+        f"CASE "
+        f"WHEN NULLIF({data_expr}->>'jsonDonHang', '') IS NOT NULL "
+        f"THEN (({data_expr}->>'jsonDonHang')::jsonb->>'nuocSoTai') "
+        f"ELSE NULL "
+        f"END"
+    )
+    return f"COALESCE({json_don_hang}, {top_level})"
 
 
 def _migrate_schema():
@@ -481,7 +493,7 @@ def _migrate_schema():
              AND dcp.ma_ho_so = t.data->>'maHoSo'
             LEFT JOIN LATERAL (
                 SELECT
-                    {_build_country_name_to_alpha2_case("t.data->>'nuocSoTai'")} AS country_alpha2_name,
+                    {_build_country_name_to_alpha2_case(_build_nuoc_so_tai_expr("t.data"))} AS country_alpha2_name,
                     NULLIF(
                         UPPER(
                             SUBSTRING(
