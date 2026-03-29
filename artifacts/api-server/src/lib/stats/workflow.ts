@@ -1,0 +1,505 @@
+import { query } from "../db";
+import { CV_BARE_NAMES, CV_BARE_SET, sortByPriority } from "./cv-order";
+import { buildCaseFactsCte, buildLatestCvFromTccCte } from "./sql";
+
+type CountLike = string | number | null | undefined;
+
+function toCount(value: CountLike): number {
+  return Number(value ?? 0);
+}
+
+function toDateRange(fromDate: string, toDate: string): { fromDt: string; toDt: string } {
+  return {
+    fromDt: `${fromDate}T00:00:00+07:00`,
+    toDt: `${toDate}T23:59:59+07:00`,
+  };
+}
+
+function mapMonthlyOpenRows(rows: { yr: string; mo: string; cnt: string }[]) {
+  return rows.map((row) => ({
+    label: `T${row.mo}-${row.yr}`,
+    year: Number(row.yr),
+    month: Number(row.mo),
+    cnt: toCount(row.cnt),
+  }));
+}
+
+export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDate: string) {
+  const { fromDt, toDt } = toDateRange(fromDate, toDate);
+  const rows = await query<{
+    cv_name: string;
+    ton_truoc: string;
+    da_nhan: string;
+    gq_tong: string;
+    can_bo_sung: string;
+    khong_dat: string;
+    hoan_thanh: string;
+    dung_han: string;
+    qua_han: string;
+    tg_tb: string | null;
+    ton_sau_tong: string;
+    ton_sau_con_han: string;
+    ton_sau_qua_han: string;
+    treo: string;
+  }>(
+    `WITH
+     ${buildCaseFactsCte("$1")},
+     cv_case_facts AS (
+       SELECT
+         CASE
+           WHEN is_cho_phan_cong AND da_xu_ly_id IS NULL THEN '__CHUA_PHAN__'
+           ELSE cv_name_raw
+         END AS cv_name,
+         ngay_nhan,
+         nhan_hen_tra,
+         ngay_tra,
+         kq_hen_tra,
+         trang_thai,
+         is_active
+       FROM case_facts
+       WHERE is_active OR da_xu_ly_id IS NOT NULL
+     ),
+     stats AS (
+       SELECT
+         cv_name,
+         COUNT(*) FILTER (WHERE ngay_nhan < $2 AND (ngay_tra IS NULL OR ngay_tra >= $2)) AS ton_truoc,
+         COUNT(*) FILTER (WHERE ngay_nhan >= $2 AND ngay_nhan <= $3) AS da_nhan,
+         COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3) AS gq_tong,
+         COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND trang_thai = '4') AS can_bo_sung,
+         COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND trang_thai = '7') AS khong_dat,
+         COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND trang_thai = '6') AS hoan_thanh,
+         COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND kq_hen_tra IS NOT NULL AND ngay_tra <= kq_hen_tra) AS dung_han,
+         COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND (kq_hen_tra IS NULL OR ngay_tra > kq_hen_tra)) AS qua_han,
+         ROUND(AVG(EXTRACT(EPOCH FROM (ngay_tra - ngay_nhan)) / 86400.0) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3))::int AS tg_tb,
+         COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3) AND is_active) AS ton_sau_tong,
+         COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3) AND is_active AND nhan_hen_tra IS NOT NULL AND nhan_hen_tra > $3) AS ton_sau_con_han,
+         COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3) AND is_active AND (nhan_hen_tra IS NULL OR nhan_hen_tra <= $3)) AS ton_sau_qua_han
+       FROM cv_case_facts
+       GROUP BY cv_name
+     ),
+     latest_dxl_treo AS (
+       SELECT DISTINCT ON (data->>'maHoSo')
+         data->>'maHoSo' AS ma_ho_so,
+         data->>'trangThaiHoSo' AS trang_thai,
+         (data->>'ngayTiepNhan')::timestamptz AS ngay_nhan_dxl
+       FROM da_xu_ly
+       WHERE thu_tuc = $1
+         AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
+       ORDER BY data->>'maHoSo', (data->>'ngayTiepNhan')::timestamptz DESC
+     ),
+     latest_tcc_treo AS (
+       SELECT DISTINCT ON (data->>'maHoSo')
+         data->>'maHoSo' AS ma_ho_so,
+         TRIM(data->>'chuyenVienThuLyName') AS cv_name,
+         (data->>'ngayTiepNhan')::timestamptz AS ngay_nhan_tcc
+       FROM tra_cuu_chung
+       WHERE (data->>'thuTucId')::int = $1
+         AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
+       ORDER BY data->>'maHoSo', (data->>'ngayTiepNhan')::timestamptz DESC
+     ),
+     treo_by_cv AS (
+       SELECT
+         COALESCE(NULLIF(lt.cv_name, ''), '__CHUA_PHAN__') AS cv_name,
+         COUNT(*) AS treo
+       FROM latest_dxl_treo ld
+       JOIN latest_tcc_treo lt ON lt.ma_ho_so = ld.ma_ho_so
+       WHERE ld.trang_thai = '4'
+         AND lt.ngay_nhan_tcc <= ld.ngay_nhan_dxl
+       GROUP BY cv_name
+     )
+     SELECT s.*, COALESCE(t.treo, 0) AS treo
+     FROM stats s
+     LEFT JOIN treo_by_cv t ON s.cv_name = t.cv_name`,
+    [thuTuc, fromDt, toDt]
+  );
+
+  const mappedRows = rows.map((row) => {
+    const gqTong = toCount(row.gq_tong);
+    const tonTruoc = toCount(row.ton_truoc);
+    const daNhan = toCount(row.da_nhan);
+    const dungHan = toCount(row.dung_han);
+    return {
+      ten_cv: row.cv_name,
+      ton_truoc: tonTruoc,
+      da_nhan: daNhan,
+      gq_tong: gqTong,
+      can_bo_sung: toCount(row.can_bo_sung),
+      khong_dat: toCount(row.khong_dat),
+      hoan_thanh: toCount(row.hoan_thanh),
+      dung_han: dungHan,
+      qua_han: toCount(row.qua_han),
+      tg_tb: row.tg_tb != null ? toCount(row.tg_tb) : null,
+      pct_gq_dung_han: gqTong > 0 ? Math.round((dungHan / gqTong) * 100) : 0,
+      pct_da_gq: tonTruoc + daNhan > 0 ? Math.round((gqTong / (tonTruoc + daNhan)) * 100) : 0,
+      ton_sau_tong: toCount(row.ton_sau_tong),
+      ton_sau_con_han: toCount(row.ton_sau_con_han),
+      ton_sau_qua_han: toCount(row.ton_sau_qua_han),
+      treo: toCount(row.treo),
+    };
+  });
+
+  const choPhanCong = mappedRows.find((row) => row.ten_cv === "__CHUA_PHAN__") ?? null;
+  const sortedRows = sortByPriority(
+    mappedRows.filter((row) => row.ten_cv !== "__CHUA_PHAN__"),
+    (row) => row.ten_cv
+  );
+
+  return {
+    thu_tuc: thuTuc,
+    from_date: fromDate,
+    to_date: toDate,
+    cho_phan_cong: choPhanCong,
+    rows: sortedRows,
+  };
+}
+
+export async function getDangXuLyStats(thuTuc: number) {
+  const monthRows = await query<{ yr: string; mo: string; cnt: string }>(
+    `SELECT
+       EXTRACT(YEAR  FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
+       EXTRACT(MONTH FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS mo,
+       COUNT(*) AS cnt
+     FROM dang_xu_ly
+     WHERE thu_tuc = $1
+       AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
+     GROUP BY 1, 2
+     ORDER BY 1, 2`,
+    [thuTuc]
+  );
+
+  if (thuTuc === 48) {
+    const rows48 = await query<{
+      cv_name: string;
+      tong: string;
+      chua_xu_ly: string;
+      bi_tra_lai: string;
+      cho_cg: string;
+      cho_tong_hop: string;
+      cho_to_truong: string;
+      cho_trp: string;
+      cho_cong_bo: string;
+      cho_pct: string;
+      cho_van_thu: string;
+      con_han: string;
+      qua_han: string;
+      chua_xu_ly_con: string;
+      chua_xu_ly_qua: string;
+      bi_tra_lai_con: string;
+      bi_tra_lai_qua: string;
+      cho_cg_con: string;
+      cho_cg_qua: string;
+      cho_tong_hop_con: string;
+      cho_tong_hop_qua: string;
+      cho_to_truong_con: string;
+      cho_to_truong_qua: string;
+      cho_trp_con: string;
+      cho_trp_qua: string;
+      cho_cong_bo_con: string;
+      cho_cong_bo_qua: string;
+      cho_pct_con: string;
+      cho_pct_qua: string;
+      cho_van_thu_con: string;
+      cho_van_thu_qua: string;
+      cham_so_ngay: string;
+      cham_ma: string | null;
+      cham_ngay: string | null;
+    }>(
+      `WITH
+       ${buildLatestCvFromTccCte("48")},
+       base AS (
+         SELECT
+           CASE
+             WHEN d.data->>'tenDonViXuLy' = 'Phòng ban phân công' THEN '__CHUA_PHAN__'
+             ELSE COALESCE(c.cv_name, '__CHUA_PHAN__')
+           END AS cv_name,
+           d.data->>'tenDonViXuLy' AS don_vi,
+           d.data->>'maHoSo' AS ma_ho_so,
+           COALESCE(NULLIF(d.data->>'soNgayQuaHan', ''), '0')::int AS qua_han_ngay,
+           d.data->>'ngayTiepNhan' AS ngay_nhan,
+           COALESCE(b.buoc, '') AS buoc
+         FROM dang_xu_ly d
+         LEFT JOIN cv_from_tcc c ON c.ma_ho_so = d.data->>'maHoSo'
+         LEFT JOIN tt48_cv_buoc b ON b.ma_ho_so = d.data->>'maHoSo'
+         WHERE d.thu_tuc = 48
+       ),
+       stats AS (
+         SELECT
+           cv_name,
+           COUNT(*) AS tong,
+           COUNT(*) FILTER (WHERE buoc = 'chua_xu_ly') AS chua_xu_ly,
+           COUNT(*) FILTER (WHERE buoc = 'bi_tra_lai') AS bi_tra_lai,
+           COUNT(*) FILTER (WHERE don_vi = 'Chuyên gia thẩm định') AS cho_cg,
+           COUNT(*) FILTER (WHERE buoc = 'cho_tong_hop') AS cho_tong_hop,
+           COUNT(*) FILTER (WHERE don_vi = 'Tổ trưởng chuyên gia') AS cho_to_truong,
+           COUNT(*) FILTER (WHERE don_vi = 'Trưởng phòng') AS cho_trp,
+           COUNT(*) FILTER (WHERE buoc = 'cho_ket_thuc') AS cho_cong_bo,
+           COUNT(*) FILTER (WHERE don_vi = 'Phó Cục trưởng') AS cho_pct,
+           COUNT(*) FILTER (WHERE don_vi LIKE 'Văn thư%') AS cho_van_thu,
+           COUNT(*) FILTER (WHERE qua_han_ngay <= 0) AS con_han,
+           COUNT(*) FILTER (WHERE qua_han_ngay > 0) AS qua_han,
+           COUNT(*) FILTER (WHERE buoc = 'chua_xu_ly' AND qua_han_ngay <= 0) AS chua_xu_ly_con,
+           COUNT(*) FILTER (WHERE buoc = 'chua_xu_ly' AND qua_han_ngay > 0) AS chua_xu_ly_qua,
+           COUNT(*) FILTER (WHERE buoc = 'bi_tra_lai' AND qua_han_ngay <= 0) AS bi_tra_lai_con,
+           COUNT(*) FILTER (WHERE buoc = 'bi_tra_lai' AND qua_han_ngay > 0) AS bi_tra_lai_qua,
+           COUNT(*) FILTER (WHERE don_vi = 'Chuyên gia thẩm định' AND qua_han_ngay <= 0) AS cho_cg_con,
+           COUNT(*) FILTER (WHERE don_vi = 'Chuyên gia thẩm định' AND qua_han_ngay > 0) AS cho_cg_qua,
+           COUNT(*) FILTER (WHERE buoc = 'cho_tong_hop' AND qua_han_ngay <= 0) AS cho_tong_hop_con,
+           COUNT(*) FILTER (WHERE buoc = 'cho_tong_hop' AND qua_han_ngay > 0) AS cho_tong_hop_qua,
+           COUNT(*) FILTER (WHERE don_vi = 'Tổ trưởng chuyên gia' AND qua_han_ngay <= 0) AS cho_to_truong_con,
+           COUNT(*) FILTER (WHERE don_vi = 'Tổ trưởng chuyên gia' AND qua_han_ngay > 0) AS cho_to_truong_qua,
+           COUNT(*) FILTER (WHERE don_vi = 'Trưởng phòng' AND qua_han_ngay <= 0) AS cho_trp_con,
+           COUNT(*) FILTER (WHERE don_vi = 'Trưởng phòng' AND qua_han_ngay > 0) AS cho_trp_qua,
+           COUNT(*) FILTER (WHERE buoc = 'cho_ket_thuc' AND qua_han_ngay <= 0) AS cho_cong_bo_con,
+           COUNT(*) FILTER (WHERE buoc = 'cho_ket_thuc' AND qua_han_ngay > 0) AS cho_cong_bo_qua,
+           COUNT(*) FILTER (WHERE don_vi = 'Phó Cục trưởng' AND qua_han_ngay <= 0) AS cho_pct_con,
+           COUNT(*) FILTER (WHERE don_vi = 'Phó Cục trưởng' AND qua_han_ngay > 0) AS cho_pct_qua,
+           COUNT(*) FILTER (WHERE don_vi LIKE 'Văn thư%' AND qua_han_ngay <= 0) AS cho_van_thu_con,
+           COUNT(*) FILTER (WHERE don_vi LIKE 'Văn thư%' AND qua_han_ngay > 0) AS cho_van_thu_qua
+         FROM base
+         GROUP BY cv_name
+       ),
+       cham_nhat AS (
+         SELECT DISTINCT ON (cv_name)
+           cv_name,
+           qua_han_ngay AS cham_so_ngay,
+           ma_ho_so AS cham_ma,
+           ngay_nhan AS cham_ngay
+         FROM base
+         ORDER BY cv_name, qua_han_ngay DESC
+       )
+       SELECT s.*, cn.cham_so_ngay, cn.cham_ma, cn.cham_ngay
+       FROM stats s
+       LEFT JOIN cham_nhat cn ON cn.cv_name = s.cv_name
+       ORDER BY s.tong DESC`
+    );
+
+    const mappedRows48 = rows48.map((row) => ({
+      cv_name: row.cv_name,
+      tong: toCount(row.tong),
+      cho_cv: toCount(row.chua_xu_ly),
+      chua_xu_ly: toCount(row.chua_xu_ly),
+      bi_tra_lai: toCount(row.bi_tra_lai),
+      cho_cg: toCount(row.cho_cg),
+      cho_tong_hop: toCount(row.cho_tong_hop),
+      cho_to_truong: toCount(row.cho_to_truong),
+      cho_trp: toCount(row.cho_trp),
+      cho_cong_bo: toCount(row.cho_cong_bo),
+      cho_pct: toCount(row.cho_pct),
+      cho_van_thu: toCount(row.cho_van_thu),
+      con_han: toCount(row.con_han),
+      qua_han: toCount(row.qua_han),
+      chua_xu_ly_con: toCount(row.chua_xu_ly_con),
+      chua_xu_ly_qua: toCount(row.chua_xu_ly_qua),
+      bi_tra_lai_con: toCount(row.bi_tra_lai_con),
+      bi_tra_lai_qua: toCount(row.bi_tra_lai_qua),
+      cho_cg_con: toCount(row.cho_cg_con),
+      cho_cg_qua: toCount(row.cho_cg_qua),
+      cho_tong_hop_con: toCount(row.cho_tong_hop_con),
+      cho_tong_hop_qua: toCount(row.cho_tong_hop_qua),
+      cho_to_truong_con: toCount(row.cho_to_truong_con),
+      cho_to_truong_qua: toCount(row.cho_to_truong_qua),
+      cho_trp_con: toCount(row.cho_trp_con),
+      cho_trp_qua: toCount(row.cho_trp_qua),
+      cho_cong_bo_con: toCount(row.cho_cong_bo_con),
+      cho_cong_bo_qua: toCount(row.cho_cong_bo_qua),
+      cho_pct_con: toCount(row.cho_pct_con),
+      cho_pct_qua: toCount(row.cho_pct_qua),
+      cho_van_thu_con: toCount(row.cho_van_thu_con),
+      cho_van_thu_qua: toCount(row.cho_van_thu_qua),
+      cham_so_ngay: toCount(row.cham_so_ngay),
+      cham_ma: row.cham_ma ?? null,
+      cham_ngay: row.cham_ngay ?? null,
+    }));
+
+    const choPhanCong48 = mappedRows48.find((row) => row.cv_name === "__CHUA_PHAN__") ?? null;
+    const sortedRows48 = sortByPriority(
+      mappedRows48.filter((row) => row.cv_name !== "__CHUA_PHAN__"),
+      (row) => row.cv_name
+    );
+
+    return {
+      thu_tuc: 48,
+      cho_phan_cong: choPhanCong48,
+      rows: sortedRows48,
+      months: mapMonthlyOpenRows(monthRows),
+    };
+  }
+
+  const rows = await query<{
+    cv_name: string;
+    tong: string;
+    cho_cv: string;
+    cho_cg: string;
+    cho_to_truong: string;
+    cho_trp: string;
+    cho_pct: string;
+    cho_van_thu: string;
+    con_han: string;
+    qua_han: string;
+    cham_so_ngay: string;
+    cham_ma: string | null;
+    cham_ngay: string | null;
+  }>(
+    `WITH
+     ${buildLatestCvFromTccCte("$1")},
+     base AS (
+       SELECT
+         CASE
+           WHEN d.data->>'tenDonViXuLy' = 'Phòng ban phân công' THEN '__CHUA_PHAN__'
+           ELSE COALESCE(c.cv_name, '__CHUA_PHAN__')
+         END AS cv_name,
+         d.data->>'tenDonViXuLy' AS don_vi,
+         d.data->>'maHoSo' AS ma_ho_so,
+         COALESCE(NULLIF(d.data->>'soNgayQuaHan', ''), '0')::int AS qua_han_ngay,
+         d.data->>'ngayTiepNhan' AS ngay_nhan
+       FROM dang_xu_ly d
+       LEFT JOIN cv_from_tcc c ON c.ma_ho_so = d.data->>'maHoSo'
+       WHERE d.thu_tuc = $1
+     ),
+     stats AS (
+       SELECT
+         cv_name,
+         COUNT(*) AS tong,
+         COUNT(*) FILTER (WHERE don_vi = 'Chuyên viên') AS cho_cv,
+         COUNT(*) FILTER (WHERE don_vi = 'Chuyên gia thẩm định') AS cho_cg,
+         COUNT(*) FILTER (WHERE don_vi = 'Tổ trưởng chuyên gia') AS cho_to_truong,
+         COUNT(*) FILTER (WHERE don_vi = 'Trưởng phòng') AS cho_trp,
+         COUNT(*) FILTER (WHERE don_vi = 'Phó Cục trưởng') AS cho_pct,
+         COUNT(*) FILTER (WHERE don_vi LIKE 'Văn thư%') AS cho_van_thu,
+         COUNT(*) FILTER (WHERE qua_han_ngay <= 0) AS con_han,
+         COUNT(*) FILTER (WHERE qua_han_ngay > 0) AS qua_han
+       FROM base
+       GROUP BY cv_name
+     ),
+     cham_nhat AS (
+       SELECT DISTINCT ON (cv_name)
+         cv_name,
+         qua_han_ngay AS cham_so_ngay,
+         ma_ho_so AS cham_ma,
+         ngay_nhan AS cham_ngay
+       FROM base
+       ORDER BY cv_name, qua_han_ngay DESC
+     )
+     SELECT s.*, cn.cham_so_ngay, cn.cham_ma, cn.cham_ngay
+     FROM stats s
+     LEFT JOIN cham_nhat cn ON cn.cv_name = s.cv_name
+     ORDER BY s.tong DESC`,
+    [thuTuc]
+  );
+
+  const mappedRows = rows.map((row) => ({
+    cv_name: row.cv_name,
+    tong: toCount(row.tong),
+    cho_cv: toCount(row.cho_cv),
+    cho_cg: toCount(row.cho_cg),
+    cho_to_truong: toCount(row.cho_to_truong),
+    cho_trp: toCount(row.cho_trp),
+    cho_pct: toCount(row.cho_pct),
+    cho_van_thu: toCount(row.cho_van_thu),
+    con_han: toCount(row.con_han),
+    qua_han: toCount(row.qua_han),
+    cham_so_ngay: toCount(row.cham_so_ngay),
+    cham_ma: row.cham_ma ?? null,
+    cham_ngay: row.cham_ngay ?? null,
+  }));
+
+  const choPhanCong = mappedRows.find((row) => row.cv_name === "__CHUA_PHAN__") ?? null;
+  const sortedRows = sortByPriority(
+    mappedRows.filter((row) => row.cv_name !== "__CHUA_PHAN__"),
+    (row) => row.cv_name
+  );
+
+  return {
+    thu_tuc: thuTuc,
+    cho_phan_cong: choPhanCong,
+    rows: sortedRows,
+    months: mapMonthlyOpenRows(monthRows),
+  };
+}
+
+export async function getChuyenGiaStats(thuTuc: number) {
+  const rows = await query<{
+    nguoi_xu_ly: string;
+    tong: string;
+    con_han: string;
+    qua_han: string;
+    cham_so_ngay: string;
+    cham_ma: string | null;
+    cham_ngay: string | null;
+    cham_cv: string | null;
+  }>(
+    `WITH
+     ${buildLatestCvFromTccCte("$1")},
+     cg_base AS (
+       SELECT
+         d.data->>'nguoiXuLy' AS nguoi_xu_ly,
+         COALESCE(NULLIF(d.data->>'soNgayQuaHan', ''), '0')::int AS qua_han_ngay,
+         d.data->>'ngayTiepNhan' AS ngay_nhan,
+         d.data->>'maHoSo' AS ma_ho_so,
+         COALESCE(NULLIF(TRIM(t.cv_name), ''), '') AS cv_thu_ly
+       FROM dang_xu_ly d
+       LEFT JOIN cv_from_tcc t ON t.ma_ho_so = d.data->>'maHoSo'
+       WHERE d.thu_tuc = $1
+         AND d.data->>'tenDonViXuLy' = 'Chuyên gia thẩm định'
+         AND NULLIF(d.data->>'nguoiXuLy', '') IS NOT NULL
+     ),
+     stats AS (
+       SELECT
+         nguoi_xu_ly,
+         COUNT(*) AS tong,
+         COUNT(*) FILTER (WHERE qua_han_ngay <= 0) AS con_han,
+         COUNT(*) FILTER (WHERE qua_han_ngay > 0) AS qua_han
+       FROM cg_base
+       GROUP BY nguoi_xu_ly
+     ),
+     cham_nhat AS (
+       SELECT DISTINCT ON (nguoi_xu_ly)
+         nguoi_xu_ly,
+         qua_han_ngay AS cham_so_ngay,
+         ma_ho_so AS cham_ma,
+         ngay_nhan AS cham_ngay,
+         cv_thu_ly AS cham_cv
+       FROM cg_base
+       ORDER BY nguoi_xu_ly, qua_han_ngay DESC
+     )
+     SELECT s.*, cn.cham_so_ngay, cn.cham_ma, cn.cham_ngay, cn.cham_cv
+     FROM stats s
+     JOIN cham_nhat cn ON cn.nguoi_xu_ly = s.nguoi_xu_ly`,
+    [thuTuc]
+  );
+
+  const mappedRows = rows.map((row) => ({
+    ten: row.nguoi_xu_ly,
+    tong: toCount(row.tong),
+    con_han: toCount(row.con_han),
+    qua_han: toCount(row.qua_han),
+    cham_so_ngay: toCount(row.cham_so_ngay),
+    cham_ma: row.cham_ma ?? null,
+    cham_ngay: row.cham_ngay ?? null,
+    cham_cv: row.cham_cv ?? null,
+  }));
+
+  const resultMap = new Map(mappedRows.map((row) => [row.ten, row]));
+  const chuyenGia = mappedRows
+    .filter((row) => !CV_BARE_SET.has(row.ten))
+    .sort((left, right) => left.ten.localeCompare(right.ten, "vi"));
+
+  const chuyenVienCg = CV_BARE_NAMES.map((name) => (
+    resultMap.get(name) ?? {
+      ten: name,
+      tong: 0,
+      con_han: 0,
+      qua_han: 0,
+      cham_so_ngay: 0,
+      cham_ma: null,
+      cham_ngay: null,
+      cham_cv: null,
+    }
+  ));
+
+  return {
+    thu_tuc: thuTuc,
+    chuyen_gia: chuyenGia,
+    chuyen_vien_cg: chuyenVienCg,
+  };
+}
