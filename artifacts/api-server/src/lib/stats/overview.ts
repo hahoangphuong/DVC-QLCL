@@ -203,6 +203,54 @@ export async function getMonthlyStats(thuTuc: number) {
   return { thu_tuc: thuTuc, months };
 }
 
+export async function getTt48ReceivedMonthlyByLoaiStats() {
+  const rows = await query<{ yr: string; mo: string; loai_ho_so: string; cnt: string }>(
+    `SELECT yr, mo, loai_ho_so, cnt
+     FROM mv_stats_tt48_received_by_loai_monthly
+     ORDER BY yr, mo, loai_ho_so`
+  );
+
+  const monthMap = new Map<number, {
+    year: number;
+    month: number;
+    label: string;
+    total: number;
+    A: number;
+    B: number;
+    C: number;
+    D: number;
+  }>();
+
+  for (const row of rows) {
+    const year = Number(row.yr);
+    const month = Number(row.mo);
+    const key = year * 100 + month;
+    const cnt = toCount(row.cnt);
+    const bucket = monthMap.get(key) ?? {
+      year,
+      month,
+      label: `T${month}-${year}`,
+      total: 0,
+      A: 0,
+      B: 0,
+      C: 0,
+      D: 0,
+    };
+
+    const loai = row.loai_ho_so as "A" | "B" | "C" | "D";
+    if (["A", "B", "C", "D"].includes(loai)) bucket[loai] = cnt;
+    bucket.total += cnt;
+    monthMap.set(key, bucket);
+  }
+
+  return {
+    thu_tuc: 48 as const,
+    months: Array.from(monthMap.values()).sort((left, right) =>
+      left.year !== right.year ? left.year - right.year : left.month - right.month
+    ),
+  };
+}
+
 export async function getTt48LoaiHoSoStats(fromDate: string, toDate: string) {
   const { fromDt, toDt } = toDateRange(fromDate, toDate);
   const rows = await query<{

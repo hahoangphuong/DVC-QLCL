@@ -70,6 +70,7 @@ _DATA_TABLES = [
 
 _STATS_MATERIALIZED_VIEWS = {
     "received": "mv_stats_received_monthly",
+    "tt48_received_by_loai": "mv_stats_tt48_received_by_loai_monthly",
     "received_bounds": "mv_stats_received_bounds",
     "resolved": "mv_stats_resolved_monthly",
     "resolved_facts": "mv_stats_resolved_facts",
@@ -235,6 +236,7 @@ def _migrate_schema():
             _STATS_MATERIALIZED_VIEWS["resolved_facts"],
             _STATS_MATERIALIZED_VIEWS["resolved"],
             _STATS_MATERIALIZED_VIEWS["received_bounds"],
+            _STATS_MATERIALIZED_VIEWS["tt48_received_by_loai"],
             _STATS_MATERIALIZED_VIEWS["received"],
         ):
             conn.execute(text(f"DROP MATERIALIZED VIEW IF EXISTS {view_name} CASCADE"))
@@ -249,6 +251,19 @@ def _migrate_schema():
             FROM tra_cuu_chung
             WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
               AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
+            GROUP BY 1, 2, 3
+        """))
+        conn.execute(text(f"""
+            CREATE MATERIALIZED VIEW IF NOT EXISTS {_STATS_MATERIALIZED_VIEWS["tt48_received_by_loai"]} AS
+            SELECT
+                EXTRACT(YEAR  FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
+                EXTRACT(MONTH FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS mo,
+                data->>'loaiHoSo' AS loai_ho_so,
+                COUNT(*)::bigint AS cnt
+            FROM tra_cuu_chung
+            WHERE NULLIF(data->>'thuTucId', '')::int = 48
+              AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
+              AND data->>'loaiHoSo' IN ('A', 'B', 'C', 'D')
             GROUP BY 1, 2, 3
         """))
         conn.execute(text(f"""
@@ -310,6 +325,10 @@ def _migrate_schema():
         conn.execute(text(
             f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['received']}_key "
             f"ON {_STATS_MATERIALIZED_VIEWS['received']} (thu_tuc, yr, mo)"
+        ))
+        conn.execute(text(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['tt48_received_by_loai']}_key "
+            f"ON {_STATS_MATERIALIZED_VIEWS['tt48_received_by_loai']} (yr, mo, loai_ho_so)"
         ))
         conn.execute(text(
             f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_STATS_MATERIALIZED_VIEWS['received_bounds']}_key "
@@ -881,6 +900,7 @@ def _do_sync(model_class, api_url: str, body: dict, label: str, referer: str | N
         _refresh_stats_materialized_views(
             db,
             "received",
+            "tt48_received_by_loai",
             "received_bounds",
             "case_facts",
             "workflow_cases",
