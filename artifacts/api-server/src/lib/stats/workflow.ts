@@ -24,6 +24,11 @@ function mapMonthlyOpenRows(rows: { yr: string; mo: string; cnt: string }[]) {
   }));
 }
 
+function normalizeLookupText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDate: string) {
   const { fromDt, toDt } = toDateRange(fromDate, toDate);
   const rows = await query<{
@@ -455,5 +460,153 @@ export async function getChuyenGiaStats(thuTuc: number) {
     thu_tuc: thuTuc,
     chuyen_gia: chuyenGia,
     chuyen_vien_cg: chuyenVienCg,
+  };
+}
+
+type PendingLookupFilters = {
+  thuTuc: number | null;
+  chuyenVien: string | null;
+  chuyenGia: string | null;
+  tinhTrang: string | null;
+  maHoSo: string | null;
+};
+
+type PendingLookupOptionRow = {
+  chuyen_vien: string | null;
+  chuyen_gia: string | null;
+};
+
+type PendingLookupRow = {
+  thu_tuc: number;
+  ma_ho_so: string;
+  ngay_tiep_nhan: string | null;
+  ngay_hen_tra: string | null;
+  loai_ho_so: string | null;
+  tinh_trang: string;
+  chuyen_vien: string | null;
+  chuyen_gia: string | null;
+  thoi_gian_cho_ngay: string | number;
+};
+
+const PENDING_LOOKUP_BASE_CTE = `WITH latest_case_facts AS (
+  SELECT DISTINCT ON (thu_tuc, ma_ho_so)
+    thu_tuc,
+    ma_ho_so,
+    loai_ho_so,
+    nhan_hen_tra
+  FROM mv_stats_case_facts
+  WHERE ($1::int IS NULL OR thu_tuc = $1)
+  ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
+),
+workflow_base AS (
+  SELECT
+    w.thu_tuc,
+    w.ma_ho_so,
+    w.ngay_nhan AS ngay_tiep_nhan,
+    cf.nhan_hen_tra AS ngay_hen_tra,
+    cf.loai_ho_so,
+    CASE
+      WHEN w.don_vi = 'Chuyên gia thẩm định' THEN 'Chờ chuyên gia'
+      WHEN w.don_vi = 'Tổ trưởng chuyên gia' THEN 'Chờ Tổ trưởng'
+      WHEN w.don_vi = 'Trưởng phòng' THEN 'Chờ Trưởng phòng'
+      WHEN w.buoc = 'cho_ket_thuc' OR w.don_vi IN ('Phó Cục trưởng', 'Văn thư') THEN 'Chờ công bố'
+      ELSE 'Chờ chuyên viên'
+    END AS tinh_trang,
+    CASE
+      WHEN NULLIF(TRIM(w.cv_name), '') IS NULL OR w.cv_name = '__CHUA_PHAN__' THEN NULL
+      ELSE TRIM(w.cv_name)
+    END AS chuyen_vien,
+    CASE
+      WHEN w.don_vi = 'Chuyên gia thẩm định' AND NULLIF(TRIM(w.nguoi_xu_ly), '') IS NOT NULL
+      THEN TRIM(w.nguoi_xu_ly)
+      ELSE NULL
+    END AS chuyen_gia,
+    COALESCE(
+      GREATEST(
+        0,
+        CURRENT_DATE - ((w.ngay_nhan AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
+      )::int,
+      0
+    ) AS thoi_gian_cho_ngay
+  FROM mv_stats_workflow_cases w
+  LEFT JOIN latest_case_facts cf
+    ON cf.thu_tuc = w.thu_tuc
+   AND cf.ma_ho_so = w.ma_ho_so
+  WHERE ($1::int IS NULL OR w.thu_tuc = $1)
+)`;
+
+export async function getDangXuLyLookup(filters: PendingLookupFilters) {
+  const thuTuc = filters.thuTuc ?? null;
+  const chuyenVien = normalizeLookupText(filters.chuyenVien);
+  const chuyenGia = normalizeLookupText(filters.chuyenGia);
+  const tinhTrang = normalizeLookupText(filters.tinhTrang);
+  const maHoSo = normalizeLookupText(filters.maHoSo);
+
+  const optionRows = await query<PendingLookupOptionRow>(
+    `${PENDING_LOOKUP_BASE_CTE}
+     SELECT DISTINCT
+       chuyen_vien,
+       chuyen_gia
+     FROM workflow_base
+     ORDER BY chuyen_vien NULLS LAST, chuyen_gia NULLS LAST`,
+    [thuTuc]
+  );
+
+  const rows = await query<PendingLookupRow>(
+    `${PENDING_LOOKUP_BASE_CTE}
+     SELECT
+       thu_tuc,
+       ma_ho_so,
+       ngay_tiep_nhan,
+       ngay_hen_tra,
+       loai_ho_so,
+       tinh_trang,
+       chuyen_vien,
+       chuyen_gia,
+       thoi_gian_cho_ngay
+     FROM workflow_base
+     WHERE ($2::text IS NULL OR chuyen_vien = $2)
+       AND ($3::text IS NULL OR chuyen_gia = $3)
+       AND ($4::text IS NULL OR tinh_trang = $4)
+       AND ($5::text IS NULL OR LOWER(ma_ho_so) LIKE '%' || LOWER($5) || '%')
+     ORDER BY thu_tuc DESC, thoi_gian_cho_ngay DESC, ma_ho_so ASC`,
+    [thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo]
+  );
+
+  const chuyenVienOptions = Array.from(new Set(
+    optionRows
+      .map((row) => row.chuyen_vien)
+      .filter((value): value is string => Boolean(value))
+  )).sort((left, right) => left.localeCompare(right, "vi"));
+
+  const chuyenGiaOptions = Array.from(new Set(
+    optionRows
+      .map((row) => row.chuyen_gia)
+      .filter((value): value is string => Boolean(value))
+  )).sort((left, right) => left.localeCompare(right, "vi"));
+
+  return {
+    filters: {
+      thu_tuc: thuTuc,
+      chuyen_vien: chuyenVien,
+      chuyen_gia: chuyenGia,
+      tinh_trang: tinhTrang,
+      ma_ho_so: maHoSo,
+    },
+    options: {
+      chuyen_vien: chuyenVienOptions,
+      chuyen_gia: chuyenGiaOptions,
+    },
+    rows: rows.map((row) => ({
+      thu_tuc: row.thu_tuc,
+      ma_ho_so: row.ma_ho_so,
+      ngay_tiep_nhan: row.ngay_tiep_nhan,
+      ngay_hen_tra: row.ngay_hen_tra,
+      loai_ho_so: row.loai_ho_so,
+      tinh_trang: row.tinh_trang,
+      chuyen_vien: row.chuyen_vien,
+      chuyen_gia: row.chuyen_gia,
+      thoi_gian_cho_ngay: toCount(row.thoi_gian_cho_ngay),
+    })),
   };
 }

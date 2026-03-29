@@ -1,4 +1,4 @@
-import { Fragment, useState, useCallback, useEffect, useRef, createContext, useContext, useMemo } from "react";
+import { Fragment, useState, useCallback, useEffect, useRef, createContext, useContext, useMemo, useDeferredValue, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -356,6 +356,56 @@ interface DangXuLyData {
 async function fetchDangXuLy(thuTuc: number): Promise<DangXuLyData> {
   const url = `${API}/stats/dang-xu-ly?thu_tuc=${thuTuc}`;
   const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+type LookupThuTuc = 46 | 47 | 48;
+type LookupTinhTrang = "Chờ chuyên viên" | "Chờ chuyên gia" | "Chờ Tổ trưởng" | "Chờ Trưởng phòng" | "Chờ công bố";
+
+interface TraCuuDangXuLyRow {
+  thu_tuc: LookupThuTuc;
+  ma_ho_so: string;
+  ngay_tiep_nhan: string | null;
+  ngay_hen_tra: string | null;
+  loai_ho_so: string | null;
+  tinh_trang: LookupTinhTrang;
+  chuyen_vien: string | null;
+  chuyen_gia: string | null;
+  thoi_gian_cho_ngay: number;
+}
+
+interface TraCuuDangXuLyData {
+  filters: {
+    thu_tuc: LookupThuTuc | null;
+    chuyen_vien: string | null;
+    chuyen_gia: string | null;
+    tinh_trang: LookupTinhTrang | null;
+    ma_ho_so: string | null;
+  };
+  options: {
+    chuyen_vien: string[];
+    chuyen_gia: string[];
+  };
+  rows: TraCuuDangXuLyRow[];
+}
+
+async function fetchTraCuuDangXuLy(params: {
+  thuTuc: LookupThuTuc | "all";
+  chuyenVien: string;
+  chuyenGia: string;
+  tinhTrang: LookupTinhTrang | "all";
+  maHoSo: string;
+}): Promise<TraCuuDangXuLyData> {
+  const search = new URLSearchParams();
+  if (params.thuTuc !== "all") search.set("thu_tuc", String(params.thuTuc));
+  if (params.chuyenVien) search.set("chuyen_vien", params.chuyenVien);
+  if (params.chuyenGia) search.set("chuyen_gia", params.chuyenGia);
+  if (params.tinhTrang !== "all") search.set("tinh_trang", params.tinhTrang);
+  if (params.maHoSo.trim()) search.set("ma_ho_so", params.maHoSo.trim());
+
+  const qs = search.toString();
+  const res = await fetch(`${API}/stats/tra-cuu-dang-xu-ly${qs ? `?${qs}` : ""}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -2403,6 +2453,193 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
   );
 }
 
+const TRA_CUU_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang; label: string }> = [
+  { value: "all", label: "Tất cả" },
+  { value: "Chờ chuyên viên", label: "Chờ chuyên viên" },
+  { value: "Chờ chuyên gia", label: "Chờ chuyên gia" },
+  { value: "Chờ Tổ trưởng", label: "Chờ Tổ trưởng" },
+  { value: "Chờ Trưởng phòng", label: "Chờ Trưởng phòng" },
+  { value: "Chờ công bố", label: "Chờ công bố" },
+];
+
+function displayLookupCv(raw: string | null): string {
+  if (!raw) return "";
+  if (raw === "__CHUA_PHAN__") return "Chờ phân công";
+  return cleanCvName(raw);
+}
+
+function TraCuuDangXuLyTab() {
+  const [thuTuc, setThuTuc] = useState<LookupThuTuc | "all">("all");
+  const [chuyenVien, setChuyenVien] = useState("");
+  const [chuyenGia, setChuyenGia] = useState("");
+  const [tinhTrang, setTinhTrang] = useState<LookupTinhTrang | "all">("all");
+  const [maHoSo, setMaHoSo] = useState("");
+  const deferredMaHoSo = useDeferredValue(maHoSo);
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["tra-cuu-dang-xu-ly", thuTuc, chuyenVien, chuyenGia, tinhTrang, deferredMaHoSo],
+    queryFn: () => fetchTraCuuDangXuLy({
+      thuTuc,
+      chuyenVien,
+      chuyenGia,
+      tinhTrang,
+      maHoSo: deferredMaHoSo,
+    }),
+    retry: 2,
+  });
+
+  const chuyenVienOptions = data?.options.chuyen_vien ?? [];
+  const chuyenGiaOptions = data?.options.chuyen_gia ?? [];
+
+  useEffect(() => {
+    if (chuyenVien && !chuyenVienOptions.includes(chuyenVien)) setChuyenVien("");
+  }, [chuyenVien, chuyenVienOptions]);
+
+  useEffect(() => {
+    if (chuyenGia && !chuyenGiaOptions.includes(chuyenGia)) setChuyenGia("");
+  }, [chuyenGia, chuyenGiaOptions]);
+
+  const SelectField = ({
+    label,
+    value,
+    onChange,
+    children,
+  }: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    children: ReactNode;
+  }) => (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="min-w-[180px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+      >
+        {children}
+      </select>
+    </label>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <div className="flex flex-wrap gap-4 items-end">
+          <SelectField label="Chuyên viên" value={chuyenVien} onChange={setChuyenVien}>
+            <option value="">Tất cả</option>
+            {chuyenVienOptions.map((option) => (
+              <option key={option} value={option}>{displayLookupCv(option)}</option>
+            ))}
+          </SelectField>
+
+          <SelectField label="Chuyên gia" value={chuyenGia} onChange={setChuyenGia}>
+            <option value="">Tất cả</option>
+            {chuyenGiaOptions.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </SelectField>
+
+          <SelectField label="Thủ tục" value={String(thuTuc)} onChange={(value) => setThuTuc(value === "all" ? "all" : Number(value) as LookupThuTuc)}>
+            <option value="all">Tất cả</option>
+            <option value="48">TT48</option>
+            <option value="47">TT47</option>
+            <option value="46">TT46</option>
+          </SelectField>
+
+          <SelectField label="Tình trạng" value={tinhTrang} onChange={(value) => setTinhTrang(value as LookupTinhTrang | "all")}>
+            {TRA_CUU_TINH_TRANG_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </SelectField>
+
+          <label className="flex min-w-[260px] flex-col gap-1.5">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Lọc</span>
+            <input
+              type="text"
+              value={maHoSo}
+              onChange={(e) => setMaHoSo(e.target.value)}
+              placeholder="Nhập mã hồ sơ"
+              className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+            />
+          </label>
+
+          <div className="ml-auto text-xs text-slate-500 font-medium">
+            {isLoading ? "Đang tải dữ liệu..." : `Tìm thấy ${data?.rows.length.toLocaleString("vi-VN") ?? 0} hồ sơ`}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-200 bg-slate-50/80">
+          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+            Tra cứu hồ sơ đang xử lý
+          </h3>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center h-48 text-slate-400 text-sm gap-2">
+            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+            Đang tải dữ liệu...
+          </div>
+        ) : isError || !data ? (
+          <div className="flex items-center justify-center h-48 text-red-400 text-sm">
+            Không thể tải danh mục hồ sơ đang xử lý
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse" style={{ minWidth: 1180 }}>
+              <colgroup>
+                <col style={{ width: 56 }} />
+                <col style={{ width: 160 }} />
+                <col style={{ width: 120 }} />
+                <col style={{ width: 120 }} />
+                <col style={{ width: 120 }} />
+                <col style={{ width: 150 }} />
+                <col style={{ width: 200 }} />
+                <col style={{ width: 170 }} />
+                <col style={{ width: 120 }} />
+              </colgroup>
+              <thead>
+                <tr className="bg-slate-100 text-slate-600">
+                  {["STT", "Mã hồ sơ", "Ngày tiếp nhận", "Ngày hẹn trả", "Loại hồ sơ", "Tình trạng", "Chuyên viên", "Chuyên gia", "Thời gian chờ"].map((header) => (
+                    <th key={header} className="px-3 py-3 text-left font-semibold uppercase tracking-wide whitespace-nowrap">
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-10 text-center text-sm text-slate-400">
+                      Không có hồ sơ phù hợp với điều kiện lọc.
+                    </td>
+                  </tr>
+                ) : data.rows.map((row, index) => (
+                  <tr key={`${row.thu_tuc}-${row.ma_ho_so}-${index}`} className={index % 2 === 0 ? "bg-white hover:bg-blue-50" : "bg-slate-50 hover:bg-blue-50"}>
+                    <td className="px-3 py-2.5 text-center text-slate-500">{index + 1}</td>
+                    <td className="px-3 py-2.5 font-mono text-slate-700">{row.ma_ho_so}</td>
+                    <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_tiep_nhan)}</td>
+                    <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_hen_tra)}</td>
+                    <td className="px-3 py-2.5 text-slate-700">{row.loai_ho_so || ""}</td>
+                    <td className="px-3 py-2.5 text-slate-700 font-medium">{row.tinh_trang}</td>
+                    <td className="px-3 py-2.5 text-slate-700">{displayLookupCv(row.chuyen_vien)}</td>
+                    <td className="px-3 py-2.5 text-slate-700">{row.chuyen_gia || ""}</td>
+                    <td className="px-3 py-2.5 text-right font-semibold text-slate-700">
+                      {row.thoi_gian_cho_ngay > 0 ? `${row.thoi_gian_cho_ngay} ngày` : ""}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // ChuyenGiaTable — bảng thống kê chuyên gia (chỉ dùng cho TT48)
 // ---------------------------------------------------------------------------
@@ -2577,6 +2814,7 @@ const TABS = [
   { id: "tt47_dang_xl",   label: "ĐANG XỬ LÝ TT47",     content: () => <DangXuLyTab thuTuc={47} /> },
   { id: "tt46_thong_ke",  label: "THỐNG KÊ TT46",        content: () => <ThongKeTab thuTuc={46} /> },
   { id: "tt46_dang_xl",   label: "ĐANG XỬ LÝ TT46",     content: () => <DangXuLyTab thuTuc={46} /> },
+  { id: "tra_cuu_dang_xl", label: "TRA CỨU HS ĐANG XỬ LÝ", content: () => <TraCuuDangXuLyTab /> },
 ] as const;
 
 // ---------------------------------------------------------------------------

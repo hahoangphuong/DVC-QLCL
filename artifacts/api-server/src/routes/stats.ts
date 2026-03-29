@@ -13,6 +13,7 @@ import {
   getChuyenGiaStats,
   getChuyenVienStats,
   getDangXuLyStats,
+  getDangXuLyLookup,
 } from "../lib/stats/workflow";
 
 const router: IRouter = Router();
@@ -20,6 +21,13 @@ const router: IRouter = Router();
 function validateThuTuc(val: unknown): number | null {
   const n = Number(val);
   return [46, 47, 48].includes(n) ? n : null;
+}
+
+function parseOptionalThuTuc(val: unknown): number | null {
+  if (val === undefined || val === null) return null;
+  const raw = String(val).trim();
+  if (!raw || raw.toLowerCase() === "all") return null;
+  return validateThuTuc(raw);
 }
 
 // GET /stats/earliest-date
@@ -144,6 +152,29 @@ router.get("/stats/chuyen-gia", async (req, res) => {
   if (!thuTuc) return void res.status(400).json({ detail: "thu_tuc phải là 46, 47, hoặc 48" });
   try {
     res.json(await getChuyenGiaStats(thuTuc));
+  } catch (e: unknown) {
+    res.status(500).json({ detail: String(e) });
+  }
+});
+
+// GET /stats/tra-cuu-dang-xu-ly
+router.get("/stats/tra-cuu-dang-xu-ly", async (req, res) => {
+  const thuTuc = parseOptionalThuTuc(req.query["thu_tuc"]);
+  if (req.query["thu_tuc"] !== undefined && req.query["thu_tuc"] !== null) {
+    const raw = String(req.query["thu_tuc"]).trim().toLowerCase();
+    if (raw && raw !== "all" && !thuTuc) {
+      return void res.status(400).json({ detail: "thu_tuc phải là 46, 47, 48 hoặc để trống" });
+    }
+  }
+
+  try {
+    res.json(await getDangXuLyLookup({
+      thuTuc,
+      chuyenVien: typeof req.query["chuyen_vien"] === "string" ? req.query["chuyen_vien"] : null,
+      chuyenGia: typeof req.query["chuyen_gia"] === "string" ? req.query["chuyen_gia"] : null,
+      tinhTrang: typeof req.query["tinh_trang"] === "string" ? req.query["tinh_trang"] : null,
+      maHoSo: typeof req.query["ma_ho_so"] === "string" ? req.query["ma_ho_so"] : null,
+    }));
   } catch (e: unknown) {
     res.status(500).json({ detail: String(e) });
   }
