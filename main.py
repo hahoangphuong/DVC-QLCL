@@ -94,7 +94,16 @@ def _migrate_schema():
         ))
 
         # -- 3. Thêm JSONB indexes còn thiếu ---------------------------------
-        # dang_xu_ly — thiếu index maHoSo, id, tenDonViXuLy (dùng trong JOIN/CTE)
+        # Các index bên dưới bám trực tiếp vào hot path của stats TS hiện tại:
+        # - overview.ts: summary / giai-quyet / ton-sau / monthly
+        # - workflow.ts: chuyen-vien / dang-xu-ly / chuyen-gia
+        #
+        # Nguyên tắc:
+        # - Ưu tiên composite index có thu_tuc ở đầu cho bảng unified (da_xu_ly, dang_xu_ly)
+        # - Giữ functional index trên JSONB text vì cast ::timestamptz không IMMUTABLE
+        # - Bổ sung các key JOIN/GROUP BY/ORDER BY xuất hiện lặp lại trong CTE
+
+        # dang_xu_ly — index cũ đơn cột (tương thích ngược)
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_dxly_ma_ho_so "
             "ON dang_xu_ly ((data->>'maHoSo'))"
@@ -108,8 +117,42 @@ def _migrate_schema():
             "ON dang_xu_ly ((data->>'tenDonViXuLy'))"
         ))
 
-        # tra_cuu_chung — index text cho ngayTiepNhan, ngayHenTra (ISO 8601 → so sánh text đúng)
+        # dang_xu_ly — composite index cho workflow stats
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_dxly_thu_tuc_ma_ho_so "
+            "ON dang_xu_ly (thu_tuc, (data->>'maHoSo'))"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_dxly_thu_tuc_don_vi "
+            "ON dang_xu_ly (thu_tuc, (data->>'tenDonViXuLy'))"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_dxly_thu_tuc_nguoi_xu_ly "
+            "ON dang_xu_ly (thu_tuc, (data->>'nguoiXuLy'))"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_dxly_thu_tuc_ngay_tiep_nhan "
+            "ON dang_xu_ly (thu_tuc, (data->>'ngayTiepNhan'))"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_dxly_thu_tuc_qua_han "
+            "ON dang_xu_ly (thu_tuc, (data->>'soNgayQuaHan'))"
+        ))
+
+        # tra_cuu_chung — index text cho ngày, key JOIN và chuyên viên
         # Lưu ý: không thể index ::timestamptz vì cast không phải IMMUTABLE trong PostgreSQL
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_tcc_thu_tuc_id "
+            "ON tra_cuu_chung ((data->>'thuTucId'))"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_tcc_ma_ho_so "
+            "ON tra_cuu_chung ((data->>'maHoSo'))"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_tcc_ho_so_xu_ly_active "
+            "ON tra_cuu_chung ((data->>'hoSoXuLyId_Active'))"
+        ))
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_tcc_ngay_tiep_nhan "
             "ON tra_cuu_chung ((data->>'ngayTiepNhan'))"
@@ -118,8 +161,12 @@ def _migrate_schema():
             "CREATE INDEX IF NOT EXISTS idx_tcc_ngay_hen_tra "
             "ON tra_cuu_chung ((data->>'ngayHenTra'))"
         ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_tcc_cv_thu_ly "
+            "ON tra_cuu_chung ((data->>'chuyenVienThuLyName'))"
+        ))
 
-        # da_xu_ly — index text cho ngayTraKetQua và trangThaiHoSo
+        # da_xu_ly — index cũ đơn cột
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_dxl_ngay_tra "
             "ON da_xu_ly ((data->>'ngayTraKetQua'))"
@@ -127,6 +174,32 @@ def _migrate_schema():
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_dxl_trang_thai "
             "ON da_xu_ly ((data->>'trangThaiHoSo'))"
+        ))
+
+        # da_xu_ly — composite index cho summary/giai-quyet/chuyen-vien
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_dxl_thu_tuc_id "
+            "ON da_xu_ly (thu_tuc, (data->>'id'))"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_dxl_thu_tuc_ma_ho_so "
+            "ON da_xu_ly (thu_tuc, (data->>'maHoSo'))"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_dxl_thu_tuc_ngay_tra "
+            "ON da_xu_ly (thu_tuc, (data->>'ngayTraKetQua'))"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_dxl_thu_tuc_ngay_tiep_nhan "
+            "ON da_xu_ly (thu_tuc, (data->>'ngayTiepNhan'))"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_dxl_thu_tuc_ngay_hen_tra "
+            "ON da_xu_ly (thu_tuc, (data->>'ngayHenTra'))"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_dxl_thu_tuc_trang_thai "
+            "ON da_xu_ly (thu_tuc, (data->>'trangThaiHoSo'))"
         ))
 
         # tt48_cv_buoc — index trên cột buoc (để GROUP BY / FILTER nhanh)
