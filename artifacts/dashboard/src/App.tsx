@@ -595,6 +595,7 @@ function cleanCvName(raw: string): string {
 
 function Num({ v, color, bold }: { v: number | null | undefined; color?: string; bold?: boolean }) {
   if (v === null || v === undefined) return <span className="text-slate-300">—</span>;
+  if (v === 0) return <span />;
   return (
     <span className={bold ? "font-bold" : "font-medium"} style={{ color: color ?? "#374151" }}>
       {v.toLocaleString("vi-VN")}
@@ -1529,10 +1530,12 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
 
   const pct = (value: number, total: number) => total > 0 ? `${Math.round(value / total * 100)}%` : "0%";
   const renderGroupTotal = (value: number, total: number, textColor: string) => (
-    <div className="flex items-baseline justify-center gap-2">
-      <span className={`font-bold ${textColor}`}>{value.toLocaleString("vi-VN")}</span>
-      <span className="text-slate-600">({pct(value, total)})</span>
-    </div>
+    value ? (
+      <div className="flex items-baseline justify-center gap-2">
+        <span className={`font-bold ${textColor}`}>{value.toLocaleString("vi-VN")}</span>
+        <span className="text-slate-600">({pct(value, total)})</span>
+      </div>
+    ) : null
   );
   const renderInlineValueWithPct = (value: number, total: number, cls = "") => (
     <td className={`px-2 py-2 text-center text-sm ${cls}`}>
