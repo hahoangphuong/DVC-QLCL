@@ -50,3 +50,10 @@ export function buildLatestCvFromTccCte(thuTucParam: string): string {
     ORDER BY data->>'maHoSo', (data->>'ngayTiepNhan')::timestamptz DESC
   )`;
 }
+
+export function buildMonthlyAggregateSql(viewName: string): string {
+  return `SELECT yr, mo, cnt
+    FROM ${viewName}
+    WHERE thu_tuc = $1
+    ORDER BY yr, mo`;
+}

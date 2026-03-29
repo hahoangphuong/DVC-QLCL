@@ -1,6 +1,6 @@
 import { query } from "../db";
 import { CV_BARE_NAMES, CV_BARE_SET, sortByPriority } from "./cv-order";
-import { buildCaseFactsCte, buildLatestCvFromTccCte } from "./sql";
+import { buildCaseFactsCte, buildLatestCvFromTccCte, buildMonthlyAggregateSql } from "./sql";
 
 type CountLike = string | number | null | undefined;
 
@@ -155,15 +155,7 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
 
 export async function getDangXuLyStats(thuTuc: number) {
   const monthRows = await query<{ yr: string; mo: string; cnt: string }>(
-    `SELECT
-       EXTRACT(YEAR  FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
-       EXTRACT(MONTH FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS mo,
-       COUNT(*) AS cnt
-     FROM dang_xu_ly
-     WHERE thu_tuc = $1
-       AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
-     GROUP BY 1, 2
-     ORDER BY 1, 2`,
+    buildMonthlyAggregateSql("mv_stats_inflight_monthly"),
     [thuTuc]
   );
 

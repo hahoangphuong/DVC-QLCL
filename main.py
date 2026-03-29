@@ -68,6 +68,12 @@ _DATA_TABLES = [
     "da_xu_ly",
 ]
 
+_MONTHLY_STATS_VIEWS = {
+    "received": "mv_stats_received_monthly",
+    "resolved": "mv_stats_resolved_monthly",
+    "inflight": "mv_stats_inflight_monthly",
+}
+
 
 def _migrate_schema():
     """
@@ -207,6 +213,66 @@ def _migrate_schema():
             "CREATE INDEX IF NOT EXISTS idx_tt48_buoc "
             "ON tt48_cv_buoc (buoc)"
         ))
+
+        # -- 4. Materialized views cho thống kê tháng ------------------------
+        # Được refresh sau mỗi lần sync thành công để dashboard không phải
+        # GROUP BY trực tiếp trên raw JSONB cho các biểu đồ theo tháng.
+        conn.execute(text(f"""
+            CREATE MATERIALIZED VIEW IF NOT EXISTS {_MONTHLY_STATS_VIEWS["received"]} AS
+            SELECT
+                (data->>'thuTucId')::int AS thu_tuc,
+                EXTRACT(YEAR  FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
+                EXTRACT(MONTH FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS mo,
+                COUNT(*)::bigint AS cnt
+            FROM tra_cuu_chung
+            WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
+              AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
+            GROUP BY 1, 2, 3
+        """))
+        conn.execute(text(f"""
+            CREATE MATERIALIZED VIEW IF NOT EXISTS {_MONTHLY_STATS_VIEWS["resolved"]} AS
+            SELECT
+                thu_tuc,
+                EXTRACT(YEAR  FROM (data->>'ngayTraKetQua')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
+                EXTRACT(MONTH FROM (data->>'ngayTraKetQua')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS mo,
+                COUNT(*)::bigint AS cnt
+            FROM da_xu_ly
+            WHERE NULLIF(data->>'ngayTraKetQua', '') IS NOT NULL
+            GROUP BY 1, 2, 3
+        """))
+        conn.execute(text(f"""
+            CREATE MATERIALIZED VIEW IF NOT EXISTS {_MONTHLY_STATS_VIEWS["inflight"]} AS
+            SELECT
+                thu_tuc,
+                EXTRACT(YEAR  FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
+                EXTRACT(MONTH FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS mo,
+                COUNT(*)::bigint AS cnt
+            FROM dang_xu_ly
+            WHERE NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL
+            GROUP BY 1, 2, 3
+        """))
+
+        conn.execute(text(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_MONTHLY_STATS_VIEWS['received']}_key "
+            f"ON {_MONTHLY_STATS_VIEWS['received']} (thu_tuc, yr, mo)"
+        ))
+        conn.execute(text(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_MONTHLY_STATS_VIEWS['resolved']}_key "
+            f"ON {_MONTHLY_STATS_VIEWS['resolved']} (thu_tuc, yr, mo)"
+        ))
+        conn.execute(text(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{_MONTHLY_STATS_VIEWS['inflight']}_key "
+            f"ON {_MONTHLY_STATS_VIEWS['inflight']} (thu_tuc, yr, mo)"
+        ))
+
+
+def _refresh_stats_materialized_views(db, *kinds: str):
+    targets = kinds or tuple(_MONTHLY_STATS_VIEWS.keys())
+    for kind in targets:
+        view_name = _MONTHLY_STATS_VIEWS.get(kind)
+        if not view_name:
+            raise ValueError(f"Unknown stats materialized view kind: {kind}")
+        db.execute(text(f"REFRESH MATERIALIZED VIEW {view_name}"))
 
 
 def _upsert_sync_meta(
@@ -514,6 +580,7 @@ def _do_sync(model_class, api_url: str, body: dict, label: str, referer: str | N
             _batched_insert(db, model_class.__table__, rows, batch_size)
         _upsert_sync_meta(db, tbl, synced_at, len(items),
                           fetch_sec=fetch_sec, insert_sec=_time.monotonic() - t_insert)
+        _refresh_stats_materialized_views(db, "received")
         db.commit()
 
         return {
@@ -730,6 +797,7 @@ def _sync_unified(
             _batched_insert(db, unified_model.__table__, rows, batch_size)
         _upsert_sync_meta(db, unified_tbl, synced_at, len(items),
                           fetch_sec=fetch_sec, insert_sec=_time.monotonic() - t_insert)
+        _refresh_stats_materialized_views(db, "resolved" if is_done else "inflight")
         db.commit()
 
         inserted = len(items)

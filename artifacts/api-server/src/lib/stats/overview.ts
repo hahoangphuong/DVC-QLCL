@@ -1,5 +1,5 @@
 import { query, queryOne } from "../db";
-import { buildCaseFactsCte } from "./sql";
+import { buildCaseFactsCte, buildMonthlyAggregateSql } from "./sql";
 
 type CountRow = Record<string, string | null>;
 
@@ -155,27 +155,11 @@ export async function getTonSauStats(thuTuc: number, toDate: string) {
 export async function getMonthlyStats(thuTuc: number) {
   const [nhanRows, gqRows] = await Promise.all([
     query<{ yr: string; mo: string; cnt: string }>(
-      `SELECT
-         EXTRACT(YEAR  FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
-         EXTRACT(MONTH FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS mo,
-         COUNT(*) AS cnt
-       FROM tra_cuu_chung
-       WHERE (data->>'thuTucId')::int = $1
-         AND data->>'ngayTiepNhan' IS NOT NULL
-       GROUP BY 1, 2
-       ORDER BY 1, 2`,
+      buildMonthlyAggregateSql("mv_stats_received_monthly"),
       [thuTuc]
     ),
     query<{ yr: string; mo: string; cnt: string }>(
-      `SELECT
-         EXTRACT(YEAR  FROM (data->>'ngayTraKetQua')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
-         EXTRACT(MONTH FROM (data->>'ngayTraKetQua')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS mo,
-         COUNT(*) AS cnt
-       FROM da_xu_ly
-       WHERE thu_tuc = $1
-         AND data->>'ngayTraKetQua' IS NOT NULL
-       GROUP BY 1, 2
-       ORDER BY 1, 2`,
+      buildMonthlyAggregateSql("mv_stats_resolved_monthly"),
       [thuTuc]
     ),
   ]);
