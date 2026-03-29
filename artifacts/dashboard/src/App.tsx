@@ -1265,28 +1265,28 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
   );
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-slate-200">
-        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-          Phân loại hồ sơ TT48 theo mã A/B/C/D và lần nộp
-        </h3>
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+      <div className="flex items-baseline justify-between mb-3">
+        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+          Chi tiết theo loại hồ sơ & lần nộp - TT48
+        </h2>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-sm" style={{ minWidth: 1500, tableLayout: "fixed" }}>
+        <table className="w-full text-xs border-collapse" style={{ minWidth: 1500, tableLayout: "fixed" }}>
           <thead>
             <tr>
-              <th rowSpan={2} className="px-3 py-3 border border-slate-300 bg-slate-300/80 text-slate-900 font-bold">Phân loại hồ sơ</th>
+              <th rowSpan={2} className="px-3 py-2 border border-slate-300 bg-slate-200 text-slate-900 font-bold">Phân loại hồ sơ</th>
               <th colSpan={3} className="px-3 py-2 border border-slate-300 bg-indigo-100 text-slate-900 font-bold">TỒN TRƯỚC</th>
               <th colSpan={3} className="px-3 py-2 border border-slate-300 bg-emerald-100 text-slate-900 font-bold">HỒ SƠ ĐÃ TIẾP NHẬN</th>
-              <th colSpan={3} className="px-3 py-2 border border-slate-300 bg-sky-300 text-slate-900 font-bold">HỒ SƠ ĐÃ GIẢI QUYẾT</th>
+              <th colSpan={3} className="px-3 py-2 border border-slate-300 bg-sky-200 text-slate-900 font-bold">HỒ SƠ ĐÃ GIẢI QUYẾT</th>
               <th colSpan={3} className="px-3 py-2 border border-slate-300 bg-orange-100 text-slate-900 font-bold">HỒ SƠ TỒN</th>
-              <th rowSpan={2} className="px-3 py-3 border border-slate-300 bg-yellow-300 text-slate-900 font-bold">HỒ SƠ TREO</th>
+              <th rowSpan={2} className="px-3 py-2 border border-slate-300 bg-yellow-300 text-slate-900 font-bold">HỒ SƠ TREO</th>
             </tr>
             <tr>
               {["TỔNG", "Lần đầu", "Bổ sung", "TỔNG", "Lần đầu", "Bổ sung", "TỔNG", "Lần đầu", "Bổ sung", "TỔNG", "Lần đầu", "Bổ sung"].map((label, index) => (
                 <th
                   key={`${label}-${index}`}
-                  className={`px-2 py-2 border border-slate-300 font-semibold ${
+                  className={`px-2 py-1.5 border border-slate-300 font-semibold ${
                     index < 3 ? "bg-indigo-50" :
                     index < 6 ? "bg-emerald-50" :
                     index < 9 ? "bg-sky-100" : "bg-orange-50"
@@ -1300,7 +1300,7 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
           <tbody>
             {rows.map((row) => (
               <tr key={row.loai_ho_so} className="hover:bg-slate-50">
-                <td className="px-3 py-2 border border-slate-300 font-medium bg-slate-100 text-slate-800">{TT48_LOAI_LABELS[row.loai_ho_so] ?? row.loai_ho_so}</td>
+                <td className="px-3 py-2 border border-slate-300 font-medium bg-slate-50 text-slate-800">{TT48_LOAI_LABELS[row.loai_ho_so] ?? row.loai_ho_so}</td>
                 <td className="px-2 py-2 border border-slate-300 bg-indigo-50">{renderGroupTotal(row.ton_truoc_total, totals.ton_truoc_total, "text-indigo-800")}</td>
                 {num(row.ton_truoc_first, "border border-slate-300 bg-indigo-50")}
                 {num(row.ton_truoc_supplement, "border border-slate-300 bg-indigo-50")}
@@ -1319,7 +1319,7 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
           </tbody>
           <tfoot>
             <tr className="font-bold">
-              <td className="px-3 py-3 border border-slate-300 bg-slate-200 text-slate-900">TỔNG</td>
+              <td className="px-3 py-2 border border-slate-300 bg-slate-200 text-slate-900">TỔNG</td>
               {num(totals.ton_truoc_total, "border border-slate-300 bg-indigo-50 font-bold")}
               {num(totals.ton_truoc_first, "border border-slate-300 bg-indigo-50 font-bold")}
               {num(totals.ton_truoc_supplement, "border border-slate-300 bg-indigo-50 font-bold")}
