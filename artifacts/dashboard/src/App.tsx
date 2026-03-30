@@ -2687,7 +2687,7 @@ function TraCuuDangXuLyTab() {
                 <col style={{ width: 220 }} />
                 <col style={{ width: 110 }} />
                 <col />
-                <col style={{ width: 76 }} />
+                            <col style={{ width: 120 }} />
               </colgroup>
               <thead>
                 <tr className="bg-slate-100 text-slate-600">
