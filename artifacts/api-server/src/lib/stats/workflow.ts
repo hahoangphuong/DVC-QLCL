@@ -534,6 +534,7 @@ workflow_base AS (
       ELSE TRIM(w.cv_name)
     END AS chuyen_vien,
     CASE
+      WHEN w.don_vi = 'Phòng ban phân công' THEN NULL
       WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN REGEXP_REPLACE(TRIM(cf.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
       ELSE NULL
     END AS chuyen_gia,
@@ -576,6 +577,7 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
              ELSE TRIM(w.cv_name)
            END AS chuyen_vien,
            CASE
+             WHEN w.don_vi = 'Phòng ban phân công' THEN NULL
              WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN REGEXP_REPLACE(TRIM(cf.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
              ELSE NULL
            END AS chuyen_gia
