@@ -372,6 +372,7 @@ async function fetchDangXuLy(thuTuc: number): Promise<DangXuLyData> {
 
 type LookupThuTuc = 46 | 47 | 48;
 type LookupTinhTrang =
+  | "cho_phan_cong"
   | "cho_chuyen_vien"
   | "chua_xu_ly"
   | "bi_tra_lai"
@@ -2493,6 +2494,7 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 
 const TRA_CUU_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang; label: string }> = [
   { value: "all", label: "T\u1ea5t c\u1ea3" },
+  { value: "cho_phan_cong", label: "Ch\u1edd ph\u00e2n c\u00f4ng" },
   { value: "cho_chuyen_vien", label: "Ch\u1edd chuy\u00ean vi\u00ean" },
   { value: "chua_xu_ly", label: "Ch\u01b0a x\u1eed l\u00fd" },
   { value: "bi_tra_lai", label: "B\u1ecb tr\u1ea3 l\u1ea1i" },
@@ -2503,18 +2505,20 @@ const TRA_CUU_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang; label:
   { value: "cho_cong_bo", label: "Ch\u1edd c\u00f4ng b\u1ed1" },
 ];
 const LOOKUP_TINH_TRANG_SORT_ORDER: Record<LookupTinhTrang, number> = {
-  cho_chuyen_vien: 1,
-  chua_xu_ly: 2,
-  bi_tra_lai: 3,
-  cho_tong_hop: 4,
-  cho_chuyen_gia: 5,
-  cho_to_truong: 6,
-  cho_truong_phong: 7,
-  cho_cong_bo: 8,
+  cho_phan_cong: 1,
+  cho_chuyen_vien: 2,
+  chua_xu_ly: 3,
+  bi_tra_lai: 4,
+  cho_tong_hop: 5,
+  cho_chuyen_gia: 6,
+  cho_to_truong: 7,
+  cho_truong_phong: 8,
+  cho_cong_bo: 9,
 };
 
 function displayLookupTinhTrang(value: LookupTinhTrang): string {
   switch (value) {
+    case "cho_phan_cong": return "Ch\u1edd ph\u00e2n c\u00f4ng";
     case "cho_chuyen_vien": return "Ch\u1edd chuy\u00ean vi\u00ean";
     case "chua_xu_ly": return "Ch\u01b0a x\u1eed l\u00fd";
     case "bi_tra_lai": return "B\u1ecb tr\u1ea3 l\u1ea1i";

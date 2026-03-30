@@ -508,19 +508,20 @@ workflow_base AS (
     cf.nhan_hen_tra AS ngay_hen_tra,
     cf.loai_ho_so,
     cf.submission_kind,
-    CASE
-      WHEN w.thu_tuc = 48 AND (w.buoc = 'chua_xu_ly' OR w.don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng') THEN 'chua_xu_ly'
-      WHEN w.thu_tuc = 48 AND w.buoc = 'bi_tra_lai' THEN 'bi_tra_lai'
-      WHEN w.thu_tuc = 48 AND w.buoc = 'cho_tong_hop' THEN 'cho_tong_hop'
-      WHEN w.don_vi = 'Chuy\u00ean gia th\u1ea9m \u0111\u1ecbnh' THEN 'cho_chuyen_gia'
-      WHEN w.don_vi = 'T\u1ed5 tr\u01b0\u1edfng chuy\u00ean gia' THEN 'cho_to_truong'
-      WHEN w.don_vi = 'Tr\u01b0\u1edfng ph\u00f2ng' THEN 'cho_truong_phong'
-      WHEN w.buoc = 'cho_ket_thuc' OR w.don_vi IN ('Ph\u00f3 C\u1ee5c tr\u01b0\u1edfng', 'V\u0103n th\u01b0') THEN 'cho_cong_bo'
-      WHEN w.buoc IN ('chua_xu_ly', 'bi_tra_lai', 'cho_tong_hop')
-        OR w.don_vi IN ('Chuy\u00ean vi\u00ean', 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng')
-      THEN 'cho_chuyen_vien'
-      ELSE 'cho_chuyen_vien'
-    END AS tinh_trang,
+      CASE
+        WHEN w.don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN 'cho_phan_cong'
+        WHEN w.thu_tuc = 48 AND w.buoc = 'chua_xu_ly' THEN 'chua_xu_ly'
+        WHEN w.thu_tuc = 48 AND w.buoc = 'bi_tra_lai' THEN 'bi_tra_lai'
+        WHEN w.thu_tuc = 48 AND w.buoc = 'cho_tong_hop' THEN 'cho_tong_hop'
+        WHEN w.don_vi = 'Chuy\u00ean gia th\u1ea9m \u0111\u1ecbnh' THEN 'cho_chuyen_gia'
+        WHEN w.don_vi = 'T\u1ed5 tr\u01b0\u1edfng chuy\u00ean gia' THEN 'cho_to_truong'
+        WHEN w.don_vi = 'Tr\u01b0\u1edfng ph\u00f2ng' THEN 'cho_truong_phong'
+        WHEN w.buoc = 'cho_ket_thuc' OR w.don_vi IN ('Ph\u00f3 C\u1ee5c tr\u01b0\u1edfng', 'V\u0103n th\u01b0') THEN 'cho_cong_bo'
+        WHEN w.buoc IN ('chua_xu_ly', 'bi_tra_lai', 'cho_tong_hop')
+          OR w.don_vi IN ('Chuy\u00ean vi\u00ean')
+        THEN 'cho_chuyen_vien'
+        ELSE 'cho_chuyen_vien'
+      END AS tinh_trang,
     CASE
       WHEN NULLIF(TRIM(w.cv_name), '') IS NULL OR w.cv_name = '__CHUA_PHAN__' THEN NULL
       ELSE TRIM(w.cv_name)
@@ -588,9 +589,9 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
          AND ($3::text IS NULL OR chuyen_gia = $3)
          AND (
                $4::text IS NULL
-            OR ($4::text = 'cho_chuyen_vien' AND tinh_trang IN ('cho_chuyen_vien', 'chua_xu_ly', 'bi_tra_lai', 'cho_tong_hop'))
-            OR tinh_trang = $4
-         )
+             OR ($4::text = 'cho_chuyen_vien' AND tinh_trang IN ('cho_chuyen_vien', 'chua_xu_ly', 'bi_tra_lai', 'cho_tong_hop'))
+             OR tinh_trang = $4
+           )
          AND ($5::text IS NULL OR LOWER(ma_ho_so) LIKE '%' || LOWER($5) || '%')
        ORDER BY thu_tuc DESC, thoi_gian_cho_ngay DESC, ma_ho_so ASC`,
       [thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo]
