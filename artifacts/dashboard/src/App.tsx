@@ -3870,6 +3870,7 @@ function Dashboard() {
       ...DEFAULT_TRA_CUU_FILTER_STATE,
       thuTuc: 48,
       chuyenGia: tenCg.trim(),
+      tinhTrang: "cho_chuyen_gia",
     });
     setActiveTab("tra_cuu_dang_xl");
   }, []);
