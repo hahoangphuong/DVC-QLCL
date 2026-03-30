@@ -395,6 +395,28 @@ interface TraCuuDangXuLyRow {
   thoi_gian_cho_ngay: number;
 }
 
+type TraCuuSortKey =
+  | "stt"
+  | "ma_ho_so"
+  | "ngay_tiep_nhan"
+  | "ngay_hen_tra"
+  | "loai_ho_so"
+  | "submission_kind"
+  | "tinh_trang"
+  | "chuyen_vien"
+  | "chuyen_gia"
+  | "thoi_gian_cho_ngay";
+
+type TraCuuFilterState = {
+  thuTuc: LookupThuTuc | "all";
+  chuyenVien: string;
+  chuyenGia: string;
+  tinhTrang: LookupTinhTrang | "all";
+  maHoSo: string;
+  sortBy: TraCuuSortKey;
+  sortDir: "asc" | "desc";
+};
+
 interface TraCuuDangXuLyData {
   filters: {
     thu_tuc: LookupThuTuc | null;
@@ -2542,14 +2564,14 @@ function displaySubmissionKind(value: string | null): string {
   return "";
 }
 
-function TraCuuDangXuLyTab() {
-  const [thuTuc, setThuTuc] = useState<LookupThuTuc | "all">("all");
-  const [chuyenVien, setChuyenVien] = useState("");
-  const [chuyenGia, setChuyenGia] = useState("");
-  const [tinhTrang, setTinhTrang] = useState<LookupTinhTrang | "all">("all");
-  const [maHoSo, setMaHoSo] = useState("");
-  const [sortBy, setSortBy] = useState<"stt" | "ma_ho_so" | "ngay_tiep_nhan" | "ngay_hen_tra" | "loai_ho_so" | "submission_kind" | "tinh_trang" | "chuyen_vien" | "chuyen_gia" | "thoi_gian_cho_ngay">("stt");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+function TraCuuDangXuLyTab({
+  state,
+  setState,
+}: {
+  state: TraCuuFilterState;
+  setState: React.Dispatch<React.SetStateAction<TraCuuFilterState>>;
+}) {
+  const { thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo, sortBy, sortDir } = state;
   const deferredMaHoSo = useDeferredValue(maHoSo);
 
   const { data, isLoading, isError } = useQuery({
@@ -2616,11 +2638,10 @@ function TraCuuDangXuLyTab() {
   const toggleSort = (key: typeof sortBy) => {
     if (key === "stt") return;
     if (sortBy === key) {
-      setSortDir((prev) => prev === "asc" ? "desc" : "asc");
+      setState((prev) => ({ ...prev, sortDir: prev.sortDir === "asc" ? "desc" : "asc" }));
       return;
     }
-    setSortBy(key);
-    setSortDir("desc");
+    setState((prev) => ({ ...prev, sortBy: key, sortDir: "desc" }));
   };
 
   const SortableHeader = ({ label, sortKey, center = false }: { label: string; sortKey: typeof sortBy; center?: boolean }) => {
@@ -3529,7 +3550,11 @@ function Dashboard() {
 
       {/* Content */}
       <main className="max-w-screen-2xl mx-auto px-4 py-6">
-        <current.content />
+        {TABS.map((tab) => (
+          <div key={tab.id} className={activeTab === tab.id ? "block" : "hidden"}>
+            <tab.content />
+          </div>
+        ))}
       </main>
 
       {/* Admin Panel — chỉ hiển thị khi URL hash = #admin */}
