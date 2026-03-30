@@ -525,11 +525,10 @@ workflow_base AS (
       WHEN NULLIF(TRIM(w.cv_name), '') IS NULL OR w.cv_name = '__CHUA_PHAN__' THEN NULL
       ELSE TRIM(w.cv_name)
     END AS chuyen_vien,
-    CASE
-      WHEN w.don_vi = 'Chuy\u00ean gia th\u1ea9m \u0111\u1ecbnh' AND NULLIF(TRIM(w.nguoi_xu_ly), '') IS NOT NULL
-      THEN TRIM(w.nguoi_xu_ly)
-      ELSE NULL
-    END AS chuyen_gia,
+      CASE
+        WHEN NULLIF(TRIM(w.nguoi_xu_ly), '') IS NOT NULL THEN TRIM(w.nguoi_xu_ly)
+        ELSE NULL
+      END AS chuyen_gia,
     COALESCE(
       GREATEST(
         0,
