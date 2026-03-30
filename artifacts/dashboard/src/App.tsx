@@ -867,7 +867,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTabl
             <button
               type="button"
               onClick={() => onCvClick(row.ten_cv)}
-              className="text-left text-blue-700 hover:text-blue-800"
+              className="cursor-pointer text-left font-semibold text-blue-700 hover:text-blue-800"
             >
               {cleanCvName(row.ten_cv)}
             </button>
@@ -2374,7 +2374,7 @@ function DangXuLyTab({
             <button
               type="button"
               onClick={() => onCvLookup(row.cv_name, thuTuc)}
-              className="text-left text-blue-700 hover:text-blue-800"
+              className="cursor-pointer text-left font-semibold text-blue-700 hover:text-blue-800"
             >
               {cvLabel}
             </button>
@@ -3189,8 +3189,8 @@ function ChuyenGiaTable({ thuTuc, onCgClick }: { thuTuc: number; onCgClick?: (te
           {onCgClick ? (
             <button
               type="button"
-              onClick={() => onCgClick(row.ten)}
-              className="text-left text-blue-700 hover:text-blue-800"
+              onClick={() => onCgClick(row.ten.trim())}
+              className="cursor-pointer text-left font-semibold text-blue-700 hover:text-blue-800"
             >
               {row.ten}
             </button>
@@ -3835,7 +3835,7 @@ function Dashboard() {
     setLookupState({
       ...DEFAULT_TRA_CUU_FILTER_STATE,
       thuTuc: 48,
-      chuyenGia: tenCg,
+      chuyenGia: tenCg.trim(),
     });
     setActiveTab("tra_cuu_dang_xl");
   }, []);
