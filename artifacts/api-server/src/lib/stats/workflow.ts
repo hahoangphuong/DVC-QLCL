@@ -548,37 +548,49 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
   const tinhTrang = normalizeLookupText(filters.tinhTrang);
   const maHoSo = normalizeLookupText(filters.maHoSo);
 
-  const optionRows = await query<PendingLookupOptionRow>(
-    `${PENDING_LOOKUP_BASE_CTE}
-     SELECT DISTINCT
-       chuyen_vien,
-       chuyen_gia
-     FROM workflow_base
-     ORDER BY chuyen_vien NULLS LAST, chuyen_gia NULLS LAST`,
-    [thuTuc]
-  );
-
-  const rows = await query<PendingLookupRow>(
-    `${PENDING_LOOKUP_BASE_CTE}
-     SELECT
-       thu_tuc,
-       ma_ho_so,
-       ngay_tiep_nhan,
-       ngay_hen_tra,
-       loai_ho_so,
-       submission_kind,
-       tinh_trang,
-       chuyen_vien,
-       chuyen_gia,
-       thoi_gian_cho_ngay
-     FROM workflow_base
-     WHERE ($2::text IS NULL OR chuyen_vien = $2)
-       AND ($3::text IS NULL OR chuyen_gia = $3)
-       AND ($4::text IS NULL OR tinh_trang = $4)
-       AND ($5::text IS NULL OR LOWER(ma_ho_so) LIKE '%' || LOWER($5) || '%')
-     ORDER BY thu_tuc DESC, thoi_gian_cho_ngay DESC, ma_ho_so ASC`,
-    [thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo]
-  );
+  const [optionRows, rows] = await Promise.all([
+    query<PendingLookupOptionRow>(
+      `WITH option_rows AS (
+         SELECT
+           CASE
+             WHEN NULLIF(TRIM(cv_name), '') IS NULL OR cv_name = '__CHUA_PHAN__' THEN NULL
+             ELSE TRIM(cv_name)
+           END AS chuyen_vien,
+           CASE
+             WHEN don_vi = 'ChuyÃªn gia tháº©m Ä‘á»‹nh' AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
+             THEN TRIM(nguoi_xu_ly)
+             ELSE NULL
+           END AS chuyen_gia
+         FROM mv_stats_workflow_cases
+         WHERE ($1::int IS NULL OR thu_tuc = $1)
+       )
+       SELECT DISTINCT chuyen_vien, chuyen_gia
+       FROM option_rows
+       ORDER BY chuyen_vien NULLS LAST, chuyen_gia NULLS LAST`,
+      [thuTuc]
+    ),
+    query<PendingLookupRow>(
+      `${PENDING_LOOKUP_BASE_CTE}
+       SELECT
+         thu_tuc,
+         ma_ho_so,
+         ngay_tiep_nhan,
+         ngay_hen_tra,
+         loai_ho_so,
+         submission_kind,
+         tinh_trang,
+         chuyen_vien,
+         chuyen_gia,
+         thoi_gian_cho_ngay
+       FROM workflow_base
+       WHERE ($2::text IS NULL OR chuyen_vien = $2)
+         AND ($3::text IS NULL OR chuyen_gia = $3)
+         AND ($4::text IS NULL OR tinh_trang = $4)
+         AND ($5::text IS NULL OR LOWER(ma_ho_so) LIKE '%' || LOWER($5) || '%')
+       ORDER BY thu_tuc DESC, thoi_gian_cho_ngay DESC, ma_ho_so ASC`,
+      [thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo]
+    ),
+  ]);
 
   const chuyenVienOptions = Array.from(new Set(
     optionRows

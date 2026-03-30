@@ -10,7 +10,17 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Router as WouterRouter } from "wouter";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      gcTime: 30 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      retry: 2,
+    },
+  },
+});
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, ""); // e.g. "/dashboard"
 const API  = "/api"; // API base — tách biệt khỏi BASE để production routing hoạt động
@@ -674,7 +684,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
     queryKey: ["chuyen-vien", thuTuc, fromDate, toDate],
     queryFn:  () => fetchChuyenVien(thuTuc, fromDate, toDate),
     enabled:  !!fromDate && !!toDate,
-    retry: 2,
+    placeholderData: (previousData) => previousData,
   });
 
   const rows = data?.rows ?? [];
@@ -1248,21 +1258,21 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
     queryKey: ["summary", thuTuc, fromDate, toDate],
     queryFn: () => fetchSummary(thuTuc, fromDate, toDate),
     enabled: !!fromDate && !!toDate,
-    retry: 2,
+    placeholderData: (previousData) => previousData,
   });
 
   const { data: gqData, isLoading: gqLoading, isError: gqError } = useQuery({
     queryKey: ["giai-quyet", thuTuc, fromDate, toDate],
     queryFn: () => fetchGiaiQuyet(thuTuc, fromDate, toDate),
     enabled: !!fromDate && !!toDate,
-    retry: 2,
+    placeholderData: (previousData) => previousData,
   });
 
   const { data: tsData, isLoading: tsLoading, isError: tsError } = useQuery({
     queryKey: ["ton-sau", thuTuc, toDate],
     queryFn: () => fetchTonSau(thuTuc, toDate),
     enabled: !!toDate,
-    retry: 2,
+    placeholderData: (previousData) => previousData,
   });
 
   const barData: BarData[] = [
@@ -1438,7 +1448,7 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
     queryKey: ["tt48-phan-loai", fromDate, toDate],
     queryFn: () => fetchTt48LoaiHoSo(fromDate, toDate),
     enabled: !!fromDate && !!toDate,
-    retry: 2,
+    placeholderData: (previousData) => previousData,
   });
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({
     A: false,
