@@ -2202,10 +2202,12 @@ function DangXuLyTab({
   thuTuc,
   onCvLookup,
   onCgLookup,
+  onTinhTrangLookup,
 }: {
   thuTuc: 48 | 47 | 46;
   onCvLookup?: (tenCvRaw: string, thuTuc: 48 | 47 | 46) => void;
   onCgLookup?: (tenCg: string) => void;
+  onTinhTrangLookup?: (thuTuc: 48 | 47 | 46, tinhTrang: LookupTinhTrang) => void;
 }) {
   const [showTt48TotalBreakdown, setShowTt48TotalBreakdown] = useState(false);
   const { data, isLoading, isError } = useQuery({
@@ -2368,7 +2370,19 @@ function DangXuLyTab({
         </td>
         <td className={`sticky left-9 z-10 px-3 py-1.5 text-xs font-medium text-slate-700 min-w-[160px] max-w-[220px] ${bgRow}`}
             style={{ boxShadow: "2px 0 4px -1px rgba(0,0,0,0.08)" }}>
-          {isCpc || !onCvLookup ? (
+          {isCpc ? (
+            onTinhTrangLookup ? (
+              <button
+                type="button"
+                onClick={() => onTinhTrangLookup(thuTuc, "cho_phan_cong")}
+                className="cursor-pointer text-left font-semibold text-amber-700 hover:text-amber-800"
+              >
+                {cvLabel}
+              </button>
+            ) : (
+              cvLabel
+            )
+          ) : !onCvLookup ? (
             cvLabel
           ) : (
             <button
@@ -2521,6 +2535,21 @@ function DangXuLyTab({
   const sum48_ccb   = sumN("cho_cong_bo");
   // TT48 per-step con/qua for CÒN HẠN / QUÁ HẠN rows
   const sh_c = (k: keyof DangXuLyRow) => totRow.reduce((s, r) => s + ((r[k] as number) || 0), 0);
+  const renderTinhTrangHeader = (label: React.ReactNode, tinhTrang: LookupTinhTrang, className: string) => (
+    <th className={className}>
+      {onTinhTrangLookup ? (
+        <button
+          type="button"
+          onClick={() => onTinhTrangLookup(thuTuc, tinhTrang)}
+          className="cursor-pointer text-center hover:text-slate-100"
+        >
+          {label}
+        </button>
+      ) : (
+        label
+      )}
+    </th>
+  );
 
   return (
     <div className="p-4 space-y-4">
@@ -2672,14 +2701,14 @@ function DangXuLyTab({
               {is48
                 ? (
                   <tr className="bg-slate-600 text-white">
-                    <th className="px-2 py-1 text-center text-xs bg-slate-600 font-bold">TỔNG</th>
-                    <th className="px-2 py-1 text-center text-xs bg-blue-700">Chưa<br/>xử lý</th>
-                    <th className="px-2 py-1 text-center text-xs bg-red-600">Bị<br/>trả lại</th>
-                    <th className="px-2 py-1 text-center text-xs bg-green-600">Chờ<br/>chuyên gia</th>
-                    <th className="px-2 py-1 text-center text-xs bg-cyan-600">Chờ<br/>tổng hợp</th>
-                    <th className="px-2 py-1 text-center text-xs bg-orange-400">Chờ Tổ<br/>trưởng</th>
-                    <th className="px-2 py-1 text-center text-xs bg-orange-600">Chờ<br/>Trưởng phòng</th>
-                    <th className="px-2 py-1 text-center text-xs bg-emerald-600">Chờ<br/>công bố</th>
+                    <th className="px-2 py-1 text-center text-xs bg-slate-600 font-bold">{"T\u1ed4NG"}</th>
+                    {renderTinhTrangHeader(<>{ "Ch\u01b0a" }<br/>{ "x\u1eed l\u00fd" }</>, "chua_xu_ly", "px-2 py-1 text-center text-xs bg-blue-700")}
+                    {renderTinhTrangHeader(<>{ "B\u1ecb" }<br/>{ "tr\u1ea3 l\u1ea1i" }</>, "bi_tra_lai", "px-2 py-1 text-center text-xs bg-red-600")}
+                    {renderTinhTrangHeader(<>{ "Ch\u1edd" }<br/>{ "chuy\u00ean gia" }</>, "cho_chuyen_gia", "px-2 py-1 text-center text-xs bg-green-600")}
+                    {renderTinhTrangHeader(<>{ "Ch\u1edd" }<br/>{ "t\u1ed5ng h\u1ee3p" }</>, "cho_tong_hop", "px-2 py-1 text-center text-xs bg-cyan-600")}
+                    {renderTinhTrangHeader(<>{ "Ch\u1edd T\u1ed5" }<br/>{ "tr\u01b0\u1edfng" }</>, "cho_to_truong", "px-2 py-1 text-center text-xs bg-orange-400")}
+                    {renderTinhTrangHeader(<>{ "Ch\u1edd" }<br/>{ "Tr\u01b0\u1edfng ph\u00f2ng" }</>, "cho_truong_phong", "px-2 py-1 text-center text-xs bg-orange-600")}
+                    {renderTinhTrangHeader(<>{ "Ch\u1edd" }<br/>{ "c\u00f4ng b\u1ed1" }</>, "cho_cong_bo", "px-2 py-1 text-center text-xs bg-emerald-600")}
                     {showPct    && <th className="px-2 py-1 text-center text-xs bg-purple-600">Chờ PCT</th>}
                     {showVanThu && <th className="px-2 py-1 text-center text-xs bg-slate-500">Chờ<br/>Văn thư</th>}
                     <th className="px-2 py-1 text-center text-xs bg-green-700">Còn<br/>hạn</th>
@@ -3840,12 +3869,21 @@ function Dashboard() {
     setActiveTab("tra_cuu_dang_xl");
   }, []);
 
+  const openLookupByTinhTrang = useCallback((thuTuc: 48 | 47 | 46, tinhTrang: LookupTinhTrang) => {
+    setLookupState({
+      ...DEFAULT_TRA_CUU_FILTER_STATE,
+      thuTuc,
+      tinhTrang,
+    });
+    setActiveTab("tra_cuu_dang_xl");
+  }, []);
+
   const renderTabContent = (tabId: string) => {
     switch (tabId) {
       case "tt48_thong_ke":
         return <ThongKeTab thuTuc={48} />;
       case "tt48_dang_xl":
-        return <DangXuLyTab thuTuc={48} onCvLookup={openLookupByChuyenVien} onCgLookup={openLookupByChuyenGia} />;
+        return <DangXuLyTab thuTuc={48} onCvLookup={openLookupByChuyenVien} onCgLookup={openLookupByChuyenGia} onTinhTrangLookup={openLookupByTinhTrang} />;
       case "tt47_thong_ke":
         return <ThongKeTab thuTuc={47} />;
       case "tt47_dang_xl":
