@@ -29,6 +29,12 @@ function normalizeLookupText(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
+function normalizeLookupExpertText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  return trimmed.replace(/^CG\s*:\s*/i, "").trim() || null;
+}
+
 export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDate: string) {
   const { fromDt, toDt } = toDateRange(fromDate, toDate);
   const rows = await query<{
@@ -528,7 +534,7 @@ workflow_base AS (
       ELSE TRIM(w.cv_name)
     END AS chuyen_vien,
     CASE
-      WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN TRIM(cf.chuyen_gia_name)
+      WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN REGEXP_REPLACE(TRIM(cf.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
       ELSE NULL
     END AS chuyen_gia,
     COALESCE(
@@ -548,7 +554,7 @@ workflow_base AS (
 export async function getDangXuLyLookup(filters: PendingLookupFilters) {
   const thuTuc = filters.thuTuc ?? null;
   const chuyenVien = normalizeLookupText(filters.chuyenVien);
-  const chuyenGia = normalizeLookupText(filters.chuyenGia);
+  const chuyenGia = normalizeLookupExpertText(filters.chuyenGia);
   const tinhTrang = normalizeLookupText(filters.tinhTrang);
   const maHoSo = normalizeLookupText(filters.maHoSo);
 
@@ -570,7 +576,7 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
              ELSE TRIM(w.cv_name)
            END AS chuyen_vien,
            CASE
-             WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN TRIM(cf.chuyen_gia_name)
+             WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN REGEXP_REPLACE(TRIM(cf.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
              ELSE NULL
            END AS chuyen_gia
          FROM mv_stats_workflow_cases w
