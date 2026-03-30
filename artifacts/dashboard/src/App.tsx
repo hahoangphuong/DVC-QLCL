@@ -1339,9 +1339,6 @@ function LookupHoSoDetailModal({
 
   const hoSo = data?.view.hoSo ?? {};
   const donHang = data?.view.parsedJsonDonHang ?? {};
-  const phamVi = Array.isArray(data?.view.parsedJsonPhamViKinhDoanh)
-    ? data.view.parsedJsonPhamViKinhDoanh.filter((item) => item && item["isChecked"])
-    : [];
   const attachments = (data?.view.listTepHoSo ?? []).flatMap((bundle) => bundle.danhSachTepDinhKem ?? []);
   const lichSu = data?.history.listYKien ?? [];
   const giayBaoThuUrl = buildDavViewFileUrl(data?.view.urlGiayBaoThu);
@@ -1351,6 +1348,19 @@ function LookupHoSoDetailModal({
     if (value === null || value === undefined || value === "") return "—";
     return String(value);
   };
+
+  const topCards: Array<[string, unknown]> = [
+    ["Mã hồ sơ", hoSo["maHoSo"]],
+    ["Hình thức đánh giá", donHang["hinhThucDanhGia"]],
+    [
+      "Ngày nộp",
+      isoToDisplay(typeof hoSo["ngayDoanhNghiepNopHoSo"] === "string" ? hoSo["ngayDoanhNghiepNopHoSo"] : null),
+    ],
+    [
+      "Ngày tiếp nhận",
+      isoToDisplay(typeof hoSo["ngayTiepNhan"] === "string" ? hoSo["ngayTiepNhan"] : null),
+    ],
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
@@ -1382,16 +1392,7 @@ function LookupHoSoDetailModal({
           ) : (
             <div className="space-y-6">
               <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                {[
-                  ["Mã hồ sơ", hoSo["maHoSo"]],
-                  ["Doanh nghiệp", hoSo["tenDoanhNghiep"]],
-                  ["Cơ sở sản xuất", donHang["tenCoSoSanXuat"] ?? hoSo["tenCoSo"]],
-                  ["Nước sở tại", donHang["nuocSoTai"]],
-                  ["Hình thức đánh giá", donHang["hinhThucDanhGia"]],
-                  ["ID công ty", hoSo["idCongTy"]],
-                  ["Ngày nộp", isoToDisplay(typeof hoSo["ngayDoanhNghiepNopHoSo"] === "string" ? hoSo["ngayDoanhNghiepNopHoSo"] : null)],
-                  ["Ngày tiếp nhận", isoToDisplay(typeof hoSo["ngayTiepNhan"] === "string" ? hoSo["ngayTiepNhan"] : null)],
-                ].map(([label, value]) => (
+                {topCards.map(([label, value]) => (
                   <div key={label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
                     <div className="mt-2 text-sm font-medium text-slate-800">{renderValue(value)}</div>
@@ -1399,105 +1400,115 @@ function LookupHoSoDetailModal({
                 ))}
               </section>
 
-              <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-                <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
-                  <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Thông tin hồ sơ</h3>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div>
-                      <div className="text-xs font-semibold text-slate-500">Địa chỉ doanh nghiệp</div>
-                      <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["diaChiCoSo"] ?? hoSo["diaChi"])}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs font-semibold text-slate-500">Địa chỉ cơ sở sản xuất</div>
-                      <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["diaChiCoSoSanXuat"])}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs font-semibold text-slate-500">Mã số thuế</div>
-                      <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["maSoThue"])}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs font-semibold text-slate-500">Email</div>
-                      <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["email"])}</div>
-                    </div>
+              <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Thông tin doanh nghiệp nộp hồ sơ</h3>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="md:col-span-2">
+                    <div className="text-xs font-semibold text-slate-500">Tên doanh nghiệp</div>
+                    <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["tenDoanhNghiep"])}</div>
                   </div>
-                  <div className="flex flex-wrap gap-3">
-                    {banDangKyUrl && (
-                      <a href={banDangKyUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
-                        Xem bản đăng ký
-                      </a>
-                    )}
-                    {giayBaoThuUrl && (
-                      <a href={giayBaoThuUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">
-                        Xem giấy báo thu
-                      </a>
-                    )}
+                  <div className="md:col-span-2">
+                    <div className="text-xs font-semibold text-slate-500">Địa chỉ doanh nghiệp</div>
+                    <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["diaChiCoSo"] ?? hoSo["diaChi"])}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-slate-500">Mã số thuế</div>
+                    <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["maSoThue"])}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-slate-500">Email</div>
+                    <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["email"])}</div>
                   </div>
                 </div>
+              </section>
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Phạm vi kinh doanh</h3>
-                  {phamVi.length === 0 ? (
-                    <div className="mt-3 text-sm text-slate-400">Chưa có dữ liệu đã chọn.</div>
-                  ) : (
-                    <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
-                      {phamVi.map((item, index) => (
-                        <div key={`${item["stt"] ?? index}-${item["content"] ?? ""}`} className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                          <span className="font-semibold text-slate-500">{renderValue(item["stt"])}</span>{" "}
-                          <span>{renderValue(item["content"])}</span>
-                        </div>
-                      ))}
-                    </div>
+              <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Thông tin cơ sở sản xuất</h3>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <div className="text-xs font-semibold text-slate-500">IDCT</div>
+                    <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["idCongTy"])}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-slate-500">Nước sở tại</div>
+                    <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["nuocSoTai"])}</div>
+                  </div>
+                  <div className="md:col-span-2">
+                    <div className="text-xs font-semibold text-slate-500">Tên cơ sở sản xuất</div>
+                    <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["tenCoSoSanXuat"] ?? hoSo["tenCoSo"])}</div>
+                  </div>
+                  <div className="md:col-span-2">
+                    <div className="text-xs font-semibold text-slate-500">Địa chỉ cơ sở sản xuất</div>
+                    <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["diaChiCoSoSanXuat"])}</div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {banDangKyUrl && (
+                    <a href={banDangKyUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
+                      Bản đăng ký
+                    </a>
+                  )}
+                  {giayBaoThuUrl && (
+                    <a href={giayBaoThuUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">
+                      Giấy báo thu
+                    </a>
                   )}
                 </div>
               </section>
 
-              <section className="grid gap-6 xl:grid-cols-2">
-                <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Tài liệu đính kèm</h3>
-                  {attachments.length === 0 ? (
-                    <div className="mt-3 text-sm text-slate-400">Không có tài liệu đính kèm.</div>
-                  ) : (
-                    <div className="mt-3 space-y-3">
-                      {attachments.map((file, index) => {
-                        const url = buildDavViewFileUrl(file.duongDanTep);
-                        return (
-                          <div key={`${file.code ?? "tep"}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{renderValue(file.code)}</div>
-                            <div className="mt-1 text-sm font-medium text-slate-800">{renderValue(file.moTaTep)}</div>
+              <section className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Tài liệu đính kèm</h3>
+                {attachments.length === 0 ? (
+                  <div className="mt-3 text-sm text-slate-400">Không có tài liệu đính kèm.</div>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {attachments.map((file, index) => {
+                      const url = buildDavViewFileUrl(file.duongDanTep);
+                      return (
+                        <div
+                          key={`${file.code ?? "tep"}-${index}`}
+                          className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium text-slate-800">{renderValue(file.moTaTep)}</div>
                             <div className="mt-1 break-all text-xs text-slate-500">{renderValue(file.tenTep)}</div>
-                            {url && (
-                              <a href={url} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-semibold text-blue-700 hover:text-blue-800">
-                                Mở tài liệu
+                          </div>
+                          <div className="shrink-0">
+                            {url ? (
+                              <a href={url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-700 hover:text-blue-800">
+                                Mở
                               </a>
+                            ) : (
+                              <span className="text-sm text-slate-400">—</span>
                             )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Lịch sử xử lý</h3>
-                  {lichSu.length === 0 ? (
-                    <div className="mt-3 text-sm text-slate-400">Chưa có lịch sử xử lý.</div>
-                  ) : (
-                    <div className="mt-3 space-y-3">
-                      {lichSu.map((item, index) => (
-                        <div key={`${item.ngayXuLy ?? index}-${index}`} className="rounded-xl border-l-4 border-blue-400 bg-slate-50 p-4">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="text-sm font-semibold text-slate-800">{renderValue(item.hanhDongXuLy)}</div>
-                            <div className="text-xs font-medium text-slate-500">{isoToDisplay(item.ngayXuLy ?? null)}</div>
-                          </div>
-                          <div className="mt-1 text-sm text-slate-700">{renderValue(item.nguoiXuLy)}</div>
-                          {item.noiDungYKien && (
-                            <div className="mt-2 text-sm text-slate-600">{item.noiDungYKien}</div>
-                          )}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+
+              <section className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Lịch sử xử lý</h3>
+                {lichSu.length === 0 ? (
+                  <div className="mt-3 text-sm text-slate-400">Chưa có lịch sử xử lý.</div>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    {lichSu.map((item, index) => (
+                      <div key={`${item.ngayXuLy ?? index}-${index}`} className="rounded-xl border-l-4 border-blue-400 bg-slate-50 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm font-semibold text-slate-800">{renderValue(item.hanhDongXuLy)}</div>
+                          <div className="text-xs font-medium text-slate-500">{isoToDisplay(item.ngayXuLy ?? null)}</div>
+                        </div>
+                        <div className="mt-1 text-sm text-slate-700">{renderValue(item.nguoiXuLy)}</div>
+                        {item.noiDungYKien && (
+                          <div className="mt-2 text-sm text-slate-600">{item.noiDungYKien}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </section>
             </div>
           )}
