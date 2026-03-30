@@ -21,9 +21,22 @@ class SyncService:
         self.runtime = runtime
 
     def _login_remote_client(self) -> RemoteClient:
-        client = RemoteClient()
-        client.login()
-        return client
+        last_exc: Exception | None = None
+        for attempt in range(1, 4):
+            try:
+                client = RemoteClient()
+                client.login()
+                return client
+            except RemoteAuthError:
+                raise
+            except requests.RequestException as exc:
+                last_exc = exc
+                if attempt >= 3:
+                    break
+                _time.sleep(1.0 * attempt)
+        if last_exc is not None:
+            raise last_exc
+        raise RuntimeError("Khong the khoi tao phien DAV")
 
     def _upsert_sync_meta(
         self,
@@ -195,18 +208,34 @@ class SyncService:
 
         try:
             active_client = client or self._login_remote_client()
-            resp = active_client.session.get(
-                target_url,
-                headers={
-                    "User-Agent": requests.utils.default_user_agent(),
-                    "Accept": "application/pdf,application/octet-stream,*/*",
-                    "Referer": f"{base_url}/Application",
-                },
-                timeout=60,
-                allow_redirects=True,
-                stream=True,
-            )
-            resp.raise_for_status()
+            resp: requests.Response | None = None
+            last_request_exc: Exception | None = None
+            for attempt in range(1, 4):
+                try:
+                    resp = active_client.session.get(
+                        target_url,
+                        headers={
+                            "User-Agent": requests.utils.default_user_agent(),
+                            "Accept": "application/pdf,application/octet-stream,*/*",
+                            "Referer": f"{base_url}/Application",
+                        },
+                        timeout=60,
+                        allow_redirects=True,
+                        stream=True,
+                    )
+                    resp.raise_for_status()
+                    break
+                except requests.RequestException as exc:
+                    last_request_exc = exc
+                    if resp is not None:
+                        resp.close()
+                    if attempt >= 3:
+                        raise
+                    _time.sleep(1.0 * attempt)
+            if resp is None:
+                if last_request_exc is not None:
+                    raise last_request_exc
+                raise RuntimeError("Khong mo duoc stream tai lieu DAV")
 
             headers: dict[str, str] = {}
             content_disposition = resp.headers.get("Content-Disposition")
