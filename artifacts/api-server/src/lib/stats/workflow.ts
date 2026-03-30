@@ -557,8 +557,7 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
              ELSE TRIM(cv_name)
            END AS chuyen_vien,
            CASE
-             WHEN don_vi = 'ChuyÃªn gia tháº©m Ä‘á»‹nh' AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
-             THEN TRIM(nguoi_xu_ly)
+             WHEN NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL THEN TRIM(nguoi_xu_ly)
              ELSE NULL
            END AS chuyen_gia
          FROM mv_stats_workflow_cases
@@ -630,3 +629,4 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
     })),
   };
 }
+
