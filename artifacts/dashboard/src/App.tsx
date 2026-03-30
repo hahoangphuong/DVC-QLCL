@@ -2513,6 +2513,7 @@ function TraCuuDangXuLyTab() {
       tinhTrang,
       maHoSo: deferredMaHoSo,
     }),
+    placeholderData: (previousData) => previousData,
     retry: 2,
   });
 
@@ -2682,8 +2683,8 @@ function TraCuuDangXuLyTab() {
                 <col style={{ width: 96 }} />
                 <col style={{ width: 96 }} />
                 <col style={{ width: 78 }} />
-                <col style={{ width: 130 }} />
-                <col style={{ width: 150 }} />
+                <col style={{ width: 220 }} />
+                <col style={{ width: 220 }} />
                 <col style={{ width: 110 }} />
                 <col />
                 <col style={{ width: 76 }} />
@@ -2700,7 +2701,7 @@ function TraCuuDangXuLyTab() {
                   <SortableHeader label="Chuyên gia" sortKey="chuyen_gia" />
                   <SortableHeader label="Thời gian chờ" sortKey="thoi_gian_cho_ngay" center />
                   <SortableHeader label="Tình trạng" sortKey="tinh_trang" />
-                  <th className="px-3 py-3 text-center font-semibold uppercase tracking-wide whitespace-nowrap">Hồ sơ</th>
+                  <th className="px-3 py-3 text-center font-semibold tracking-wide whitespace-nowrap">Thông tin hồ sơ</th>
                 </tr>
               </thead>
               <tbody>
