@@ -3278,13 +3278,14 @@ function ChuyenGiaTable({ thuTuc, onCgClick }: { thuTuc: number; onCgClick?: (te
           <colgroup>
             <col style={{ width: 36 }} />
             <col style={{ width: 160 }} />
-            {/* 3 cột ĐANG GIẢI QUYẾT — chia đều */}
-            <col /><col /><col />
-            {/* 4 cột Hồ sơ chậm nhất — độ rộng cố định */}
-            <col style={{ width: 90 }} />
-            <col style={{ width: 90 }} />
-            <col style={{ width: 120 }} />
-            <col style={{ width: 150 }} />
+            {/* Chia đôi phần bề rộng còn lại cho 2 cụm cột lớn */}
+            <col style={{ width: "calc((100% - 196px) / 6)" }} />
+            <col style={{ width: "calc((100% - 196px) / 6)" }} />
+            <col style={{ width: "calc((100% - 196px) / 6)" }} />
+            <col style={{ width: "calc((100% - 196px) / 8)" }} />
+            <col style={{ width: "calc((100% - 196px) / 8)" }} />
+            <col style={{ width: "calc((100% - 196px) / 8)" }} />
+            <col style={{ width: "calc((100% - 196px) / 8)" }} />
           </colgroup>
           <thead>
             <tr className="bg-slate-700 text-white">
