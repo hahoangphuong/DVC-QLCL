@@ -18,6 +18,11 @@ class SyncService:
         self.session_factory = session_factory
         self.runtime = runtime
 
+    def _login_remote_client(self) -> RemoteClient:
+        client = RemoteClient()
+        client.login()
+        return client
+
     def _upsert_sync_meta(
         self,
         db,
@@ -111,7 +116,7 @@ class SyncService:
         except Exception:
             return None
 
-    def get_tt48_hoso_detail(self, ho_so_id: int) -> dict:
+    def get_tt48_hoso_detail(self, ho_so_id: int, client: RemoteClient | None = None) -> dict:
         base_url = os.environ.get("BASE_URL", "").rstrip("/")
         if not base_url:
             raise HTTPException(status_code=500, detail="Thieu cau hinh BASE_URL")
@@ -121,10 +126,9 @@ class SyncService:
         history_url = f"{base_url}/api/services/app/xuLyHoSoView48/GetHistory?hoSoId={ho_so_id}"
 
         try:
-            client = RemoteClient()
-            client.login()
-            view_payload = client.post_json(view_url, {}, referer=referer).json()
-            history_payload = client.post_json(history_url, {}, referer=referer).json()
+            active_client = client or self._login_remote_client()
+            view_payload = active_client.post_json(view_url, {}, referer=referer).json()
+            history_payload = active_client.post_json(history_url, {}, referer=referer).json()
 
             view_result = self._dav_result_or_raise(view_payload, "GetViewHoSo")
             history_result = self._dav_result_or_raise(history_payload, "GetHistory")
@@ -210,13 +214,20 @@ class SyncService:
         finally:
             db.close()
 
-    def do_sync(self, model_class, api_url: str, body: dict, label: str, referer: str | None = None) -> dict:
+    def do_sync(
+        self,
+        model_class,
+        api_url: str,
+        body: dict,
+        label: str,
+        referer: str | None = None,
+        client: RemoteClient | None = None,
+    ) -> dict:
         db = self.session_factory()
         try:
             t_fetch = _time.monotonic()
-            client = RemoteClient()
-            client.login()
-            response = client.post_json(api_url, body, referer=referer)
+            active_client = client or self._login_remote_client()
+            response = active_client.post_json(api_url, body, referer=referer)
             payload = response.json()
 
             if not payload.get("success", True):
@@ -284,7 +295,7 @@ class SyncService:
         finally:
             db.close()
 
-    def sync_tra_cuu_chung(self):
+    def sync_tra_cuu_chung(self, client: RemoteClient | None = None):
         base_url = os.environ.get("BASE_URL", "").rstrip("/")
         api_url = f"{base_url}/api/services/app/traCuu_PQLCL/TraCuu"
         body = {
@@ -307,7 +318,7 @@ class SyncService:
             "ChuyenVienThuLyId": "",
             "thuTucId": "",
         }
-        return self.do_sync(TraCuuChung, api_url, body, "tra_cuu_chung")
+        return self.do_sync(TraCuuChung, api_url, body, "tra_cuu_chung", client=client)
 
     def _dashboard_body(self, thu_tuc: int, is_done: bool) -> dict:
         today = datetime.now(timezone.utc).strftime("%d/%m/%Y")
@@ -318,7 +329,13 @@ class SyncService:
             "isDone": is_done,
         }
 
-    def sync_unified(self, unified_model, thu_tuc: int, is_done: bool) -> dict:
+    def sync_unified(
+        self,
+        unified_model,
+        thu_tuc: int,
+        is_done: bool,
+        client: RemoteClient | None = None,
+    ) -> dict:
         label = f"{'da' if is_done else 'dang'}_xu_ly (TT{thu_tuc})"
         trang_thai = "đã" if is_done else "đang"
         base_url = os.environ.get("BASE_URL", "").rstrip("/")
@@ -332,9 +349,8 @@ class SyncService:
         db = self.session_factory()
         try:
             t_fetch = _time.monotonic()
-            client = RemoteClient()
-            client.login()
-            response = client.post_json(api_url, body, referer=referer)
+            active_client = client or self._login_remote_client()
+            response = active_client.post_json(api_url, body, referer=referer)
             payload = response.json()
 
             if not payload.get("success", True):
@@ -402,23 +418,23 @@ class SyncService:
         finally:
             db.close()
 
-    def sync_tt48_da_xu_ly(self):
-        return self.sync_unified(DaXuLy, thu_tuc=48, is_done=True)
+    def sync_tt48_da_xu_ly(self, client: RemoteClient | None = None):
+        return self.sync_unified(DaXuLy, thu_tuc=48, is_done=True, client=client)
 
-    def sync_tt48_dang_xu_ly(self):
-        return self.sync_unified(DangXuLy, thu_tuc=48, is_done=False)
+    def sync_tt48_dang_xu_ly(self, client: RemoteClient | None = None):
+        return self.sync_unified(DangXuLy, thu_tuc=48, is_done=False, client=client)
 
-    def sync_tt47_da_xu_ly(self):
-        return self.sync_unified(DaXuLy, thu_tuc=47, is_done=True)
+    def sync_tt47_da_xu_ly(self, client: RemoteClient | None = None):
+        return self.sync_unified(DaXuLy, thu_tuc=47, is_done=True, client=client)
 
-    def sync_tt47_dang_xu_ly(self):
-        return self.sync_unified(DangXuLy, thu_tuc=47, is_done=False)
+    def sync_tt47_dang_xu_ly(self, client: RemoteClient | None = None):
+        return self.sync_unified(DangXuLy, thu_tuc=47, is_done=False, client=client)
 
-    def sync_tt46_da_xu_ly(self):
-        return self.sync_unified(DaXuLy, thu_tuc=46, is_done=True)
+    def sync_tt46_da_xu_ly(self, client: RemoteClient | None = None):
+        return self.sync_unified(DaXuLy, thu_tuc=46, is_done=True, client=client)
 
-    def sync_tt46_dang_xu_ly(self):
-        return self.sync_unified(DangXuLy, thu_tuc=46, is_done=False)
+    def sync_tt46_dang_xu_ly(self, client: RemoteClient | None = None):
+        return self.sync_unified(DangXuLy, thu_tuc=46, is_done=False, client=client)
 
     def fetch_all_paged(self, client, api_url: str, body: dict, referer: str | None = None) -> list[dict]:
         page_size = 5000
@@ -447,7 +463,7 @@ class SyncService:
             items.extend(chunk)
         return items
 
-    def sync_tt48_cv_buoc(self):
+    def sync_tt48_cv_buoc(self, client: RemoteClient | None = None):
         base_url = os.environ.get("BASE_URL", "").rstrip("/")
         api_url = f"{base_url}/api/services/app/xuLyHoSoGridView48/GetListHoSoPaging"
         referer = f"{base_url}/Application"
@@ -461,13 +477,12 @@ class SyncService:
         db = self.session_factory()
         try:
             started = _time.monotonic()
-            client = RemoteClient()
-            client.login()
+            active_client = client or self._login_remote_client()
 
             buoc_rows: dict[str, str] = {}
 
             body_a = {**common, "formId": 21, "formCase": 2, "formCase2": 0}
-            items_a = self.fetch_all_paged(client, api_url, body_a, referer=referer)
+            items_a = self.fetch_all_paged(active_client, api_url, body_a, referer=referer)
             for item in items_a:
                 ma_ho_so = item.get("maHoSo") or item.get("strSoHieuHoSo") or ""
                 if ma_ho_so:
@@ -475,7 +490,7 @@ class SyncService:
             self.runtime.sync_log.info(f"[tt48_cv_buoc] (a) chua_xu_ly: {len(items_a)} records")
 
             body_b = {**common, "formId": 21, "formCase": 3, "formCase2": 0}
-            items_b = self.fetch_all_paged(client, api_url, body_b, referer=referer)
+            items_b = self.fetch_all_paged(active_client, api_url, body_b, referer=referer)
             cnt_bi_tra = 0
             cnt_cho_th = 0
             for item in items_b:
@@ -497,7 +512,7 @@ class SyncService:
             )
 
             body_c = {**common, "formId": 4, "formCase": 5}
-            items_c = self.fetch_all_paged(client, api_url, body_c, referer=referer)
+            items_c = self.fetch_all_paged(active_client, api_url, body_c, referer=referer)
             for item in items_c:
                 ma_ho_so = item.get("maHoSo") or item.get("strSoHieuHoSo") or ""
                 if ma_ho_so:
@@ -557,6 +572,7 @@ class SyncService:
             self.runtime.job_run_counter += 1
             run_id = self.runtime.job_run_counter
             base_url = os.environ.get("BASE_URL", "").rstrip("/")
+            client = self._login_remote_client()
             tasks = [
                 ("tra_cuu_chung", self.sync_tra_cuu_chung, f"{base_url}/api/services/app/traCuu_PQLCL/TraCuu"),
                 ("tt48_da_xu_ly", self.sync_tt48_da_xu_ly, f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc [ThuTucEnum=48, isDone=True]"),
@@ -575,7 +591,7 @@ class SyncService:
             for label, fn, api_info in tasks:
                 started = _time.monotonic()
                 try:
-                    result = fn()
+                    result = fn(client=client)
                     elapsed = _time.monotonic() - started
                     inserted = result.get("inserted", "?")
                     total = result.get("total_from_api", "?")
