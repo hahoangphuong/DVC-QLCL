@@ -84,5 +84,10 @@ def create_internal_router(sync_service, runtime):
         runtime.sync_log.info(f"SCHEDULER cập nhật: interval={hours}h, next_run={next_run}")
         return {"ok": True, "interval_hours": hours, "next_run": next_run}
 
-    return router
+    @router.get("/internal/dav/tt48/ho-so/{ho_so_id}")
+    def internal_dav_tt48_hoso_detail(ho_so_id: int):
+        if ho_so_id <= 0:
+            raise HTTPException(status_code=400, detail="ho_so_id phai la so duong")
+        return sync_service.get_tt48_hoso_detail(ho_so_id)
 
+    return router

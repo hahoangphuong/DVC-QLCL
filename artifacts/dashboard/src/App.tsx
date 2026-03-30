@@ -432,6 +432,47 @@ interface TraCuuDangXuLyData {
   rows: TraCuuDangXuLyRow[];
 }
 
+interface DavTt48FileItem {
+  duongDanTep?: string | null;
+  tenTep?: string | null;
+  moTaTep?: string | null;
+  code?: string | null;
+}
+
+interface DavTt48HoSoBundle {
+  lanBoSung?: number | null;
+  moTaTep?: string | null;
+  danhSachTepDinhKem?: DavTt48FileItem[];
+}
+
+interface DavTt48HistoryItem {
+  nguoiXuLy?: string | null;
+  hanhDongXuLy?: string | null;
+  ngayXuLy?: string | null;
+  noiDungYKien?: string | null;
+  soNgayXuLy?: number | null;
+  soNgayQuaHan?: number | null;
+}
+
+interface DavTt48DetailData {
+  ok: boolean;
+  thu_tuc: 48;
+  ho_so_id: number;
+  view: {
+    hoSo: Record<string, unknown>;
+    trangThaiHoSo: number | null;
+    urlGiayBaoThu: string | null;
+    urlBanDangKy: string | null;
+    listTepHoSo: DavTt48HoSoBundle[];
+    listTepHoSoXuLy: Array<Record<string, unknown>>;
+    parsedJsonDonHang: Record<string, unknown> | null;
+    parsedJsonPhamViKinhDoanh: Array<Record<string, unknown>> | null;
+  };
+  history: {
+    listYKien: DavTt48HistoryItem[];
+  };
+}
+
 async function fetchTraCuuDangXuLy(params: {
   thuTuc: LookupThuTuc | "all";
   chuyenVien: string;
@@ -452,11 +493,31 @@ async function fetchTraCuuDangXuLy(params: {
   return res.json();
 }
 
+async function fetchDavTt48HoSoDetail(hoSoId: number): Promise<DavTt48DetailData> {
+  const res = await fetch(`${API}/dav/tt48/ho-so/${hoSoId}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 function isoToDisplay(iso: string | null): string {
   if (!iso) return "";
   const d = iso.split("T")[0];
   const [y, m, day] = d.split("-");
   return `${day}-${m}-${y}`;
+}
+
+function extractHoSoId(maHoSo: string): number | null {
+  const matched = /^\s*(\d+)\s*\/\s*TT48\s*$/i.exec(maHoSo);
+  if (!matched) return null;
+  const value = Number(matched[1]);
+  return Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function buildDavViewFileUrl(pathOrUrl: string | null | undefined): string | null {
+  if (!pathOrUrl) return null;
+  if (pathOrUrl.startsWith("http://") || pathOrUrl.startsWith("https://")) return pathOrUrl;
+  if (pathOrUrl.startsWith("/")) return `https://dichvucong.dav.gov.vn${pathOrUrl}`;
+  return `https://dichvucong.dav.gov.vn/File/GoToViewTaiLieu?url=${encodeURIComponent(pathOrUrl)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1248,6 +1309,200 @@ function Tt48LoaiHoSoMonthlyChart({ fromDate, toDate }: { fromDate: string; toDa
           </Line>
         </ComposedChart>
       </ResponsiveContainer>
+    </div>
+  );
+}
+
+function LookupHoSoDetailModal({
+  hoSoId,
+  maHoSo,
+  onClose,
+}: {
+  hoSoId: number;
+  maHoSo: string;
+  onClose: () => void;
+}) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["dav-tt48-ho-so-detail", hoSoId],
+    queryFn: () => fetchDavTt48HoSoDetail(hoSoId),
+    retry: 1,
+    staleTime: 60 * 1000,
+  });
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const hoSo = data?.view.hoSo ?? {};
+  const donHang = data?.view.parsedJsonDonHang ?? {};
+  const phamVi = Array.isArray(data?.view.parsedJsonPhamViKinhDoanh)
+    ? data.view.parsedJsonPhamViKinhDoanh.filter((item) => item && item["isChecked"])
+    : [];
+  const attachments = (data?.view.listTepHoSo ?? []).flatMap((bundle) => bundle.danhSachTepDinhKem ?? []);
+  const lichSu = data?.history.listYKien ?? [];
+  const giayBaoThuUrl = buildDavViewFileUrl(data?.view.urlGiayBaoThu);
+  const banDangKyUrl = buildDavViewFileUrl(data?.view.urlBanDangKy);
+
+  const renderValue = (value: unknown) => {
+    if (value === null || value === undefined || value === "") return "—";
+    return String(value);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="flex items-start justify-between border-b border-slate-200 bg-slate-800 px-6 py-4">
+          <div>
+            <h2 className="text-base font-bold text-white">Chi tiết hồ sơ TT48</h2>
+            <p className="mt-1 text-sm text-slate-300">{maHoSo}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md px-2 py-1 text-xl font-bold leading-none text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="overflow-y-auto p-6">
+          {isLoading ? (
+            <div className="flex h-56 items-center justify-center gap-3 text-sm text-slate-500">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+              Đang tải chi tiết hồ sơ...
+            </div>
+          ) : isError || !data ? (
+            <div className="flex h-56 items-center justify-center text-sm text-red-500">
+              Không thể tải chi tiết hồ sơ từ DAV.
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {[
+                  ["Mã hồ sơ", hoSo["maHoSo"]],
+                  ["Doanh nghiệp", hoSo["tenDoanhNghiep"]],
+                  ["Cơ sở sản xuất", donHang["tenCoSoSanXuat"] ?? hoSo["tenCoSo"]],
+                  ["Nước sở tại", donHang["nuocSoTai"]],
+                  ["Hình thức đánh giá", donHang["hinhThucDanhGia"]],
+                  ["ID công ty", hoSo["idCongTy"]],
+                  ["Ngày nộp", isoToDisplay(typeof hoSo["ngayDoanhNghiepNopHoSo"] === "string" ? hoSo["ngayDoanhNghiepNopHoSo"] : null)],
+                  ["Ngày tiếp nhận", isoToDisplay(typeof hoSo["ngayTiepNhan"] === "string" ? hoSo["ngayTiepNhan"] : null)],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+                    <div className="mt-2 text-sm font-medium text-slate-800">{renderValue(value)}</div>
+                  </div>
+                ))}
+              </section>
+
+              <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+                <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
+                  <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Thông tin hồ sơ</h3>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500">Địa chỉ doanh nghiệp</div>
+                      <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["diaChiCoSo"] ?? hoSo["diaChi"])}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500">Địa chỉ cơ sở sản xuất</div>
+                      <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["diaChiCoSoSanXuat"])}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500">Mã số thuế</div>
+                      <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["maSoThue"])}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500">Email</div>
+                      <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["email"])}</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {banDangKyUrl && (
+                      <a href={banDangKyUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
+                        Xem bản đăng ký
+                      </a>
+                    )}
+                    {giayBaoThuUrl && (
+                      <a href={giayBaoThuUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">
+                        Xem giấy báo thu
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Phạm vi kinh doanh</h3>
+                  {phamVi.length === 0 ? (
+                    <div className="mt-3 text-sm text-slate-400">Chưa có dữ liệu đã chọn.</div>
+                  ) : (
+                    <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+                      {phamVi.map((item, index) => (
+                        <div key={`${item["stt"] ?? index}-${item["content"] ?? ""}`} className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                          <span className="font-semibold text-slate-500">{renderValue(item["stt"])}</span>{" "}
+                          <span>{renderValue(item["content"])}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <section className="grid gap-6 xl:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Tài liệu đính kèm</h3>
+                  {attachments.length === 0 ? (
+                    <div className="mt-3 text-sm text-slate-400">Không có tài liệu đính kèm.</div>
+                  ) : (
+                    <div className="mt-3 space-y-3">
+                      {attachments.map((file, index) => {
+                        const url = buildDavViewFileUrl(file.duongDanTep);
+                        return (
+                          <div key={`${file.code ?? "tep"}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{renderValue(file.code)}</div>
+                            <div className="mt-1 text-sm font-medium text-slate-800">{renderValue(file.moTaTep)}</div>
+                            <div className="mt-1 break-all text-xs text-slate-500">{renderValue(file.tenTep)}</div>
+                            {url && (
+                              <a href={url} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-semibold text-blue-700 hover:text-blue-800">
+                                Mở tài liệu
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Lịch sử xử lý</h3>
+                  {lichSu.length === 0 ? (
+                    <div className="mt-3 text-sm text-slate-400">Chưa có lịch sử xử lý.</div>
+                  ) : (
+                    <div className="mt-3 space-y-3">
+                      {lichSu.map((item, index) => (
+                        <div key={`${item.ngayXuLy ?? index}-${index}`} className="rounded-xl border-l-4 border-blue-400 bg-slate-50 p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-sm font-semibold text-slate-800">{renderValue(item.hanhDongXuLy)}</div>
+                            <div className="text-xs font-medium text-slate-500">{isoToDisplay(item.ngayXuLy ?? null)}</div>
+                          </div>
+                          <div className="mt-1 text-sm text-slate-700">{renderValue(item.nguoiXuLy)}</div>
+                          {item.noiDungYKien && (
+                            <div className="mt-2 text-sm text-slate-600">{item.noiDungYKien}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -2564,14 +2819,28 @@ function displaySubmissionKind(value: string | null): string {
   return "";
 }
 
-function TraCuuDangXuLyTab({
-  state,
-  setState,
-}: {
+function TraCuuDangXuLyTab(props?: {
   state: TraCuuFilterState;
   setState: React.Dispatch<React.SetStateAction<TraCuuFilterState>>;
 }) {
+  const [localState, setLocalState] = useState<TraCuuFilterState>({
+    thuTuc: "all",
+    chuyenVien: "",
+    chuyenGia: "",
+    tinhTrang: "all",
+    maHoSo: "",
+    sortBy: "stt",
+    sortDir: "asc",
+  });
+  const state = props?.state ?? localState;
+  const setState = props?.setState ?? setLocalState;
   const { thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo, sortBy, sortDir } = state;
+  const [selectedDetail, setSelectedDetail] = useState<{ hoSoId: number; maHoSo: string } | null>(null);
+  const setChuyenVien = (value: string) => setState((prev) => ({ ...prev, chuyenVien: value }));
+  const setChuyenGia = (value: string) => setState((prev) => ({ ...prev, chuyenGia: value }));
+  const setThuTuc = (value: LookupThuTuc | "all") => setState((prev) => ({ ...prev, thuTuc: value }));
+  const setTinhTrang = (value: LookupTinhTrang | "all") => setState((prev) => ({ ...prev, tinhTrang: value }));
+  const setMaHoSo = (value: string) => setState((prev) => ({ ...prev, maHoSo: value }));
   const deferredMaHoSo = useDeferredValue(maHoSo);
 
   const { data, isLoading, isError } = useQuery({
@@ -2797,7 +3066,12 @@ function TraCuuDangXuLyTab({
                     <td className="px-3 py-2.5 text-center">
                       <button
                         type="button"
-                        className="rounded-md border border-blue-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-700 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-blue-50"
+                        onClick={() => {
+                          const hoSoId = row.thu_tuc === 48 ? extractHoSoId(row.ma_ho_so) : null;
+                          if (hoSoId) setSelectedDetail({ hoSoId, maHoSo: row.ma_ho_so });
+                        }}
+                        disabled={row.thu_tuc !== 48 || extractHoSoId(row.ma_ho_so) === null}
+                        className="rounded-md border border-blue-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-700 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         Chi tiết
                       </button>
@@ -2809,6 +3083,13 @@ function TraCuuDangXuLyTab({
           </div>
         )}
       </div>
+      {selectedDetail && (
+        <LookupHoSoDetailModal
+          hoSoId={selectedDetail.hoSoId}
+          maHoSo={selectedDetail.maHoSo}
+          onClose={() => setSelectedDetail(null)}
+        />
+      )}
     </div>
   );
 }

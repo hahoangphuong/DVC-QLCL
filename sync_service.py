@@ -1,5 +1,6 @@
 import os
 import time as _time
+import json
 from datetime import datetime, timezone
 
 import requests
@@ -89,6 +90,86 @@ class SyncService:
             raise HTTPException(status_code=401, detail=str(exc))
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc))
+
+    def _dav_result_or_raise(self, payload: dict, label: str):
+        if not isinstance(payload, dict):
+            raise ValueError(f"{label}: response khong hop le")
+        if payload.get("success") is False:
+            error = payload.get("error") or {}
+            if isinstance(error, dict):
+                msg = error.get("message") or error.get("details") or str(error)
+            else:
+                msg = str(error)
+            raise ValueError(f"{label}: {msg or 'API tra ve loi'}")
+        return payload.get("result")
+
+    def _parse_json_field(self, value):
+        if not isinstance(value, str) or not value.strip():
+            return None
+        try:
+            return json.loads(value)
+        except Exception:
+            return None
+
+    def get_tt48_hoso_detail(self, ho_so_id: int) -> dict:
+        base_url = os.environ.get("BASE_URL", "").rstrip("/")
+        if not base_url:
+            raise HTTPException(status_code=500, detail="Thieu cau hinh BASE_URL")
+
+        referer = f"{base_url}/Application"
+        view_url = f"{base_url}/api/services/app/xuLyHoSoView48/GetViewHoSo?hoSoId={ho_so_id}"
+        history_url = f"{base_url}/api/services/app/xuLyHoSoView48/GetHistory?hoSoId={ho_so_id}"
+
+        try:
+            client = RemoteClient()
+            client.login()
+            view_payload = client.post_json(view_url, {}, referer=referer).json()
+            history_payload = client.post_json(history_url, {}, referer=referer).json()
+
+            view_result = self._dav_result_or_raise(view_payload, "GetViewHoSo")
+            history_result = self._dav_result_or_raise(history_payload, "GetHistory")
+
+            ho_so = (view_result or {}).get("hoSo") or {}
+            if not isinstance(ho_so, dict) or not ho_so:
+                raise ValueError("Khong tim thay thong tin ho so")
+
+            parsed_json_don_hang = self._parse_json_field(ho_so.get("jsonDonHang"))
+            parsed_json_pham_vi = self._parse_json_field(ho_so.get("jsonPhamViKinhDoanh"))
+            parsed_json_kiem_soat = self._parse_json_field(ho_so.get("jsonKiemSoatDacBiet"))
+
+            return {
+                "ok": True,
+                "thu_tuc": 48,
+                "ho_so_id": ho_so_id,
+                "view": {
+                    "hoSo": ho_so,
+                    "trangThaiHoSo": (view_result or {}).get("trangThaiHoSo"),
+                    "urlGiayBaoThu": (view_result or {}).get("urlGiayBaoThu"),
+                    "urlBanDangKy": (view_result or {}).get("urlBanDangKy"),
+                    "listTepHoSo": (view_result or {}).get("listTepHoSo") or [],
+                    "listTepHoSoXuLy": (view_result or {}).get("listTepHoSoXuLy") or [],
+                    "danhSachCongVan": (view_result or {}).get("danhSachCongVan") or [],
+                    "hosoXuLy": (view_result or {}).get("hosoXuLy") or [],
+                    "taiLieuDinhKemChuyenVien": (view_result or {}).get("taiLieuDinhKemChuyenVien") or [],
+                    "bienBanThamXet": (view_result or {}).get("bienBanThamXet"),
+                    "parsedJsonDonHang": parsed_json_don_hang,
+                    "parsedJsonPhamViKinhDoanh": parsed_json_pham_vi,
+                    "parsedJsonKiemSoatDacBiet": parsed_json_kiem_soat,
+                },
+                "history": {
+                    "listYKien": (history_result or {}).get("listYKien") or [],
+                },
+            }
+        except RemoteAuthError as exc:
+            raise HTTPException(status_code=401, detail=str(exc))
+        except EnvironmentError as exc:
+            raise HTTPException(status_code=500, detail=f"Thieu cau hinh: {exc}")
+        except requests.HTTPError as exc:
+            raise HTTPException(status_code=502, detail=f"Loi HTTP tu DAV: {exc}")
+        except ValueError as exc:
+            raise HTTPException(status_code=502, detail=str(exc))
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Loi lay chi tiet ho so TT48: {exc}")
 
     def legacy_sync(self):
         db = self.session_factory()
@@ -572,4 +653,3 @@ class SyncService:
                 f"DB table: prune tự động mỗi 24h, giữ tối đa {self.runtime.prune_keep_rows} dòng."
             ),
         }
-

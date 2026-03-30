@@ -20,6 +20,7 @@ import {
 const router: IRouter = Router();
 const STATS_TTL_MS = 5 * 60 * 1000;
 const FAST_TTL_MS = 30 * 1000;
+const PYTHON_API = (process.env["PYTHON_API_BASE_URL"] ?? "http://localhost:8000").replace(/\/+$/, "");
 
 function validateThuTuc(val: unknown): number | null {
   const n = Number(val);
@@ -220,6 +221,21 @@ router.get("/stats/tra-cuu-dang-xu-ly", async (req, res) => {
     ));
   } catch (e: unknown) {
     res.status(500).json({ detail: String(e) });
+  }
+});
+
+router.get("/dav/tt48/ho-so/:hoSoId", async (req, res) => {
+  const hoSoId = Number(req.params["hoSoId"]);
+  if (!Number.isInteger(hoSoId) || hoSoId <= 0) {
+    return void res.status(400).json({ detail: "hoSoId phai la so nguyen duong" });
+  }
+
+  try {
+    const pyRes = await fetch(`${PYTHON_API}/internal/dav/tt48/ho-so/${hoSoId}`);
+    const data = await pyRes.json();
+    res.status(pyRes.ok ? 200 : (pyRes.status === 400 ? 400 : pyRes.status === 401 ? 401 : 502)).json(data);
+  } catch (e: unknown) {
+    res.status(502).json({ detail: `Khong the ket noi Python backend: ${String(e)}` });
   }
 });
 
