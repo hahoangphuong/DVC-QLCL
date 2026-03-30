@@ -2814,7 +2814,7 @@ function DangXuLyTab({
           </table>
         </div>
       </div>
-      {thuTuc === 48 && <ChuyenGiaTable thuTuc={thuTuc} />}
+        {thuTuc === 48 && <ChuyenGiaTable thuTuc={thuTuc} onCgClick={onCgLookup} />}
     </div>
   );
 }
