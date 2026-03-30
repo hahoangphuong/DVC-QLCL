@@ -278,6 +278,7 @@ def migrate_schema(engine):
                     ELSE 'supplement'
                 END AS submission_kind,
                 COALESCE(NULLIF(TRIM(t.data->>'chuyenVienThuLyName'), ''), '__CHUA_PHAN__') AS cv_name_raw,
+                NULLIF(TRIM(t.data->>'chuyenGiaName'), '') AS chuyen_gia_name,
                 CASE
                     WHEN NULLIF(t.data->>'ngayTiepNhan', '') IS NOT NULL
                     THEN (t.data->>'ngayTiepNhan')::timestamptz
@@ -348,6 +349,10 @@ def migrate_schema(engine):
         conn.execute(text(
             f"CREATE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['case_facts']}_cv "
             f"ON {STATS_MATERIALIZED_VIEWS['case_facts']} (thu_tuc, cv_name_raw)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['case_facts']}_chuyen_gia "
+            f"ON {STATS_MATERIALIZED_VIEWS['case_facts']} (thu_tuc, chuyen_gia_name)"
         ))
         conn.execute(text(
             f"CREATE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['case_facts']}_loai_submit "
@@ -502,4 +507,3 @@ def migrate_schema(engine):
             f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['tt48_treo_by_loai']}_key "
             f"ON {STATS_MATERIALIZED_VIEWS['tt48_treo_by_loai']} (loai_ho_so)"
         ))
-

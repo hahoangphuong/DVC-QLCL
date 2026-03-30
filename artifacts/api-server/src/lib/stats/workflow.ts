@@ -495,22 +495,11 @@ const PENDING_LOOKUP_BASE_CTE = `WITH latest_case_facts AS (
     ma_ho_so,
     loai_ho_so,
     submission_kind,
-    nhan_hen_tra
+    nhan_hen_tra,
+    chuyen_gia_name
   FROM mv_stats_case_facts
   WHERE ($1::int IS NULL OR thu_tuc = $1)
   ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
-),
-expert_by_case AS (
-  SELECT
-    thu_tuc,
-    ma_ho_so,
-    MAX(TRIM(nguoi_xu_ly)) FILTER (
-      WHERE don_vi = 'Chuyên gia thẩm định'
-        AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
-    ) AS chuyen_gia
-  FROM mv_stats_workflow_cases
-  WHERE ($1::int IS NULL OR thu_tuc = $1)
-  GROUP BY thu_tuc, ma_ho_so
 ),
 workflow_base AS (
   SELECT
@@ -539,8 +528,7 @@ workflow_base AS (
       ELSE TRIM(w.cv_name)
     END AS chuyen_vien,
     CASE
-      WHEN NULLIF(TRIM(e.chuyen_gia), '') IS NOT NULL THEN TRIM(e.chuyen_gia)
-      WHEN w.don_vi = 'Chuyên gia thẩm định' AND NULLIF(TRIM(w.nguoi_xu_ly), '') IS NOT NULL THEN TRIM(w.nguoi_xu_ly)
+      WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN TRIM(cf.chuyen_gia_name)
       ELSE NULL
     END AS chuyen_gia,
     COALESCE(
@@ -554,9 +542,6 @@ workflow_base AS (
   LEFT JOIN latest_case_facts cf
     ON cf.thu_tuc = w.thu_tuc
    AND cf.ma_ho_so = w.ma_ho_so
-  LEFT JOIN expert_by_case e
-    ON e.thu_tuc = w.thu_tuc
-   AND e.ma_ho_so = w.ma_ho_so
   WHERE ($1::int IS NULL OR w.thu_tuc = $1)
 )`;
 
@@ -569,17 +554,14 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
 
   const [optionRows, rows] = await Promise.all([
     query<PendingLookupOptionRow>(
-      `WITH expert_by_case AS (
-         SELECT
+      `WITH latest_case_facts AS (
+         SELECT DISTINCT ON (thu_tuc, ma_ho_so)
            thu_tuc,
            ma_ho_so,
-           MAX(TRIM(nguoi_xu_ly)) FILTER (
-             WHERE don_vi = 'Chuyên gia thẩm định'
-               AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
-           ) AS chuyen_gia
-         FROM mv_stats_workflow_cases
+           chuyen_gia_name
+         FROM mv_stats_case_facts
          WHERE ($1::int IS NULL OR thu_tuc = $1)
-         GROUP BY thu_tuc, ma_ho_so
+         ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
        ),
        option_rows AS (
          SELECT
@@ -588,14 +570,13 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
              ELSE TRIM(w.cv_name)
            END AS chuyen_vien,
            CASE
-             WHEN NULLIF(TRIM(e.chuyen_gia), '') IS NOT NULL THEN TRIM(e.chuyen_gia)
-             WHEN w.don_vi = 'Chuyên gia thẩm định' AND NULLIF(TRIM(w.nguoi_xu_ly), '') IS NOT NULL THEN TRIM(w.nguoi_xu_ly)
+             WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN TRIM(cf.chuyen_gia_name)
              ELSE NULL
            END AS chuyen_gia
          FROM mv_stats_workflow_cases w
-         LEFT JOIN expert_by_case e
-           ON e.thu_tuc = w.thu_tuc
-          AND e.ma_ho_so = w.ma_ho_so
+         LEFT JOIN latest_case_facts cf
+           ON cf.thu_tuc = w.thu_tuc
+          AND cf.ma_ho_so = w.ma_ho_so
          WHERE ($1::int IS NULL OR w.thu_tuc = $1)
        )
        SELECT DISTINCT chuyen_vien, chuyen_gia
