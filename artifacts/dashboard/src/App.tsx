@@ -2502,6 +2502,16 @@ const TRA_CUU_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang; label:
   { value: "cho_truong_phong", label: "Ch? Tru?ng phòng" },
   { value: "cho_cong_bo", label: "Ch? công b?" },
 ];
+const LOOKUP_TINH_TRANG_SORT_ORDER: Record<LookupTinhTrang, number> = {
+  cho_chuyen_vien: 1,
+  chua_xu_ly: 2,
+  bi_tra_lai: 3,
+  cho_tong_hop: 4,
+  cho_chuyen_gia: 5,
+  cho_to_truong: 6,
+  cho_truong_phong: 7,
+  cho_cong_bo: 8,
+};
 
 function displayLookupTinhTrang(value: LookupTinhTrang): string {
   switch (value) {
@@ -2572,7 +2582,7 @@ function TraCuuDangXuLyTab() {
         case "submission_kind":
           return row.submission_kind === "first" ? "0" : row.submission_kind === "supplement" ? "1" : "2";
         case "tinh_trang":
-          return displayLookupTinhTrang(row.tinh_trang);
+          return LOOKUP_TINH_TRANG_SORT_ORDER[row.tinh_trang] ?? Number.MAX_SAFE_INTEGER;
         case "chuyen_vien":
           return displayLookupCv(row.chuyen_vien);
         case "chuyen_gia":
@@ -3537,6 +3547,9 @@ export default function App() {
     </QueryClientProvider>
   );
 }
+
+
+
 
 
 
