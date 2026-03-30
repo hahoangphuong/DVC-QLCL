@@ -2892,6 +2892,11 @@ function displayLookupCv(raw: string | null): string {
   return cleanCvName(raw);
 }
 
+function displayLookupCg(raw: string | null): string {
+  if (!raw) return "";
+  return raw.replace(/^CG\s*:\s*/i, "").trim();
+}
+
 function displaySubmissionKind(value: string | null): string {
   if (value === "first") return "Lần đầu";
   if (value === "supplement") return "Lần bổ sung";
@@ -2952,7 +2957,7 @@ function TraCuuDangXuLyTab(props?: {
         case "chuyen_vien":
           return displayLookupCv(row.chuyen_vien);
         case "chuyen_gia":
-          return row.chuyen_gia ?? "";
+          return displayLookupCg(row.chuyen_gia);
         case "thoi_gian_cho_ngay":
           return row.thoi_gian_cho_ngay;
         case "stt":
@@ -3129,7 +3134,7 @@ function TraCuuDangXuLyTab(props?: {
                     <td className="px-3 py-2.5 text-slate-700">{displaySubmissionKind(row.submission_kind)}</td>
                     <td className="px-3 py-2.5 text-center text-slate-700">{row.loai_ho_so || ""}</td>
                     <td className="px-3 py-2.5 text-slate-700">{displayLookupCv(row.chuyen_vien)}</td>
-                    <td className="px-3 py-2.5 text-slate-700">{row.chuyen_gia || ""}</td>
+                    <td className="px-3 py-2.5 text-slate-700">{displayLookupCg(row.chuyen_gia)}</td>
                     <td className="px-3 py-2.5 text-center font-semibold text-slate-700 whitespace-nowrap">
                       {row.thoi_gian_cho_ngay > 0 ? `${row.thoi_gian_cho_ngay} ngày` : ""}
                     </td>
