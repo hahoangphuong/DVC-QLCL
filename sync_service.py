@@ -2,9 +2,11 @@ import os
 import time as _time
 import json
 from datetime import datetime, timezone
+from urllib.parse import quote
 
 import requests
 from fastapi import HTTPException
+from fastapi.responses import Response
 from sqlalchemy import text
 
 from auth_client import RemoteAuthError, RemoteClient
@@ -174,6 +176,56 @@ class SyncService:
             raise HTTPException(status_code=502, detail=str(exc))
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Loi lay chi tiet ho so TT48: {exc}")
+
+    def get_dav_file(self, path_or_url: str, client: RemoteClient | None = None) -> Response:
+        base_url = os.environ.get("BASE_URL", "").rstrip("/")
+        if not base_url:
+            raise HTTPException(status_code=500, detail="Thieu cau hinh BASE_URL")
+
+        normalized = (path_or_url or "").strip()
+        if not normalized:
+            raise HTTPException(status_code=400, detail="Thieu duong dan tai lieu")
+
+        if normalized.startswith("http://") or normalized.startswith("https://"):
+            target_url = normalized
+        elif normalized.startswith("/"):
+            target_url = f"{base_url}{normalized}"
+        else:
+            target_url = f"{base_url}/File/GoToViewTaiLieu?url={quote(normalized, safe='')}"
+
+        try:
+            active_client = client or self._login_remote_client()
+            resp = active_client.session.get(
+                target_url,
+                headers={
+                    "User-Agent": requests.utils.default_user_agent(),
+                    "Accept": "application/pdf,application/octet-stream,*/*",
+                    "Referer": f"{base_url}/Application",
+                },
+                timeout=60,
+                allow_redirects=True,
+            )
+            resp.raise_for_status()
+
+            headers: dict[str, str] = {}
+            content_disposition = resp.headers.get("Content-Disposition")
+            if content_disposition:
+                headers["Content-Disposition"] = content_disposition
+            cache_control = resp.headers.get("Cache-Control")
+            if cache_control:
+                headers["Cache-Control"] = cache_control
+
+            return Response(
+                content=resp.content,
+                media_type=resp.headers.get("Content-Type", "application/octet-stream"),
+                headers=headers,
+            )
+        except RemoteAuthError as exc:
+            raise HTTPException(status_code=401, detail=str(exc))
+        except requests.HTTPError as exc:
+            raise HTTPException(status_code=502, detail=f"Loi HTTP tu DAV khi mo tai lieu: {exc}")
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Loi mo tai lieu DAV: {exc}")
 
     def legacy_sync(self):
         db = self.session_factory()

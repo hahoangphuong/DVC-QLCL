@@ -90,4 +90,8 @@ def create_internal_router(sync_service, runtime):
             raise HTTPException(status_code=400, detail="ho_so_id phai la so duong")
         return sync_service.get_tt48_hoso_detail(ho_so_id)
 
+    @router.get("/internal/dav/file")
+    def internal_dav_file(path: str):
+        return sync_service.get_dav_file(path)
+
     return router

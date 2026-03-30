@@ -525,9 +525,7 @@ function extractHoSoId(maHoSo: string): number | null {
 
 function buildDavViewFileUrl(pathOrUrl: string | null | undefined): string | null {
   if (!pathOrUrl) return null;
-  if (pathOrUrl.startsWith("http://") || pathOrUrl.startsWith("https://")) return pathOrUrl;
-  if (pathOrUrl.startsWith("/")) return `https://dichvucong.dav.gov.vn${pathOrUrl}`;
-  return `https://dichvucong.dav.gov.vn/File/GoToViewTaiLieu?url=${encodeURIComponent(pathOrUrl)}`;
+  return `${API}/dav/file?path=${encodeURIComponent(pathOrUrl)}`;
 }
 
 // ---------------------------------------------------------------------------

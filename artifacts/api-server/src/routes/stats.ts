@@ -239,6 +239,39 @@ router.get("/dav/tt48/ho-so/:hoSoId", async (req, res) => {
   }
 });
 
+router.get("/dav/file", async (req, res) => {
+  const path = typeof req.query["path"] === "string" ? req.query["path"] : "";
+  if (!path.trim()) {
+    return void res.status(400).json({ detail: "Thieu duong dan tai lieu" });
+  }
+
+  try {
+    const query = new URLSearchParams({ path });
+    const pyRes = await fetch(`${PYTHON_API}/internal/dav/file?${query.toString()}`);
+    if (!pyRes.ok) {
+      const contentType = pyRes.headers.get("content-type") ?? "";
+      if (contentType.includes("application/json")) {
+        const data = await pyRes.json();
+        return void res.status(pyRes.status === 401 ? 401 : pyRes.status === 400 ? 400 : 502).json(data);
+      }
+      const text = await pyRes.text();
+      return void res.status(pyRes.status === 401 ? 401 : pyRes.status === 400 ? 400 : 502).json({ detail: text || "Khong mo duoc tai lieu DAV" });
+    }
+
+    const contentType = pyRes.headers.get("content-type");
+    if (contentType) res.setHeader("Content-Type", contentType);
+    const contentDisposition = pyRes.headers.get("content-disposition");
+    if (contentDisposition) res.setHeader("Content-Disposition", contentDisposition);
+    const cacheControl = pyRes.headers.get("cache-control");
+    if (cacheControl) res.setHeader("Cache-Control", cacheControl);
+
+    const arrayBuffer = await pyRes.arrayBuffer();
+    res.status(200).send(Buffer.from(arrayBuffer));
+  } catch (e: unknown) {
+    res.status(502).json({ detail: `Khong the tai tai lieu tu Python backend: ${String(e)}` });
+  }
+});
+
 router.get("/sync-status", async (_req, res) => {
   try {
     res.json(await cachedJson("stats:sync-status", FAST_TTL_MS, async () => {
