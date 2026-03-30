@@ -737,6 +737,11 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
   function CvRow({ row, idx }: { row: ChuyenVienRow; idx: number }) {
     const bgCls  = idx % 2 === 0 ? "bg-white" : "bg-slate-50";
     const bgColor = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
+    const tonTruocBg = idx % 2 === 0 ? "bg-pink-50/70" : "bg-pink-50/40";
+    const daNhanBg = idx % 2 === 0 ? "bg-blue-50/70" : "bg-blue-50/40";
+    const giaiQuyetBg = idx % 2 === 0 ? "bg-green-50/80" : "bg-green-50/50";
+    const tonSauBg = idx % 2 === 0 ? "bg-amber-50/80" : "bg-amber-50/50";
+    const treoBg = idx % 2 === 0 ? "bg-orange-50/80" : "bg-orange-50/60";
     return (
       <tr className={`${bgCls} hover:bg-blue-50/40 transition-colors`}>
         <td className={`${tdC} text-slate-400`}
@@ -747,21 +752,21 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
             style={{ ...stickyCV, backgroundColor: bgColor }}>
           {cleanCvName(row.ten_cv)}
         </td>
-        <td className={hiTd(hiThresh.ton_truoc,    row.ton_truoc)}><Num v={row.ton_truoc} color="#be185d" bold /></td>
-        <td className={hiTd(hiThresh.da_nhan,       row.da_nhan)}><Num v={row.da_nhan}   color="#1d4ed8" bold /></td>
-        <td className={hiTd(hiThresh.gq_tong,       row.gq_tong, "font-bold text-slate-700")}><Num v={row.gq_tong} /></td>
-        <td className={tdC}><Num v={row.can_bo_sung} color="#b45309" /></td>
-        <td className={tdC}><Num v={row.khong_dat}   color="#dc2626" /></td>
-        <td className={hiTd(hiThresh.hoan_thanh,    row.hoan_thanh)}><Num v={row.hoan_thanh}  color="#15803d" /></td>
-        <td className={tdC}><Num v={row.dung_han}    color="#15803d" /></td>
-        <td className={tdC}><Num v={row.qua_han}     color="#dc2626" /></td>
-        <td className={hiTd(hiThresh.tg_tb,          row.tg_tb)}><Num v={row.tg_tb} color="#6b7280" /></td>
-        <td className={tdC}><Pct v={row.pct_gq_dung_han} warnBelow={30} /></td>
-        <td className={tdC}><Pct v={row.pct_da_gq} /></td>
-        <td className={hiTd(hiThresh.ton_sau_tong,  row.ton_sau_tong, "font-bold text-slate-700")}><Num v={row.ton_sau_tong} /></td>
-        <td className={tdC}><Num v={row.ton_sau_con_han} color="#2563eb" /></td>
-        <td className={tdC}><Num v={row.ton_sau_qua_han} color="#dc2626" /></td>
-        <td className={tdC}><Num v={row.treo} color="#ea580c" bold /></td>
+        <td className={hiTd(hiThresh.ton_truoc,    row.ton_truoc, tonTruocBg)}><Num v={row.ton_truoc} color="#be185d" bold /></td>
+        <td className={hiTd(hiThresh.da_nhan,       row.da_nhan, daNhanBg)}><Num v={row.da_nhan}   color="#1d4ed8" bold /></td>
+        <td className={hiTd(hiThresh.gq_tong,       row.gq_tong, `${giaiQuyetBg} font-bold text-slate-700`)}><Num v={row.gq_tong} /></td>
+        <td className={`${tdC} ${giaiQuyetBg}`}><Num v={row.can_bo_sung} color="#b45309" /></td>
+        <td className={`${tdC} ${giaiQuyetBg}`}><Num v={row.khong_dat}   color="#dc2626" /></td>
+        <td className={hiTd(hiThresh.hoan_thanh,    row.hoan_thanh, giaiQuyetBg)}><Num v={row.hoan_thanh}  color="#15803d" /></td>
+        <td className={`${tdC} ${giaiQuyetBg}`}><Num v={row.dung_han}    color="#15803d" /></td>
+        <td className={`${tdC} ${giaiQuyetBg}`}><Num v={row.qua_han}     color="#dc2626" /></td>
+        <td className={hiTd(hiThresh.tg_tb,          row.tg_tb, giaiQuyetBg)}><Num v={row.tg_tb} color="#6b7280" /></td>
+        <td className={`${tdC} ${giaiQuyetBg}`}><Pct v={row.pct_gq_dung_han} warnBelow={30} /></td>
+        <td className={`${tdC} ${giaiQuyetBg}`}><Pct v={row.pct_da_gq} /></td>
+        <td className={hiTd(hiThresh.ton_sau_tong,  row.ton_sau_tong, `${tonSauBg} font-bold text-slate-700`)}><Num v={row.ton_sau_tong} /></td>
+        <td className={`${tdC} ${tonSauBg}`}><Num v={row.ton_sau_con_han} color="#2563eb" /></td>
+        <td className={`${tdC} ${tonSauBg}`}><Num v={row.ton_sau_qua_han} color="#dc2626" /></td>
+        <td className={`${tdC} ${treoBg}`}><Num v={row.treo} color="#ea580c" bold /></td>
       </tr>
     );
   }
@@ -2500,14 +2505,6 @@ function TraCuuDangXuLyTab() {
   const chuyenVienOptions = data?.options.chuyen_vien ?? [];
   const chuyenGiaOptions = data?.options.chuyen_gia ?? [];
 
-  useEffect(() => {
-    if (chuyenVien && !chuyenVienOptions.includes(chuyenVien)) setChuyenVien("");
-  }, [chuyenVien, chuyenVienOptions]);
-
-  useEffect(() => {
-    if (chuyenGia && !chuyenGiaOptions.includes(chuyenGia)) setChuyenGia("");
-  }, [chuyenGia, chuyenGiaOptions]);
-
   const sortedRows = useMemo(() => {
     const rows = [...(data?.rows ?? [])];
     if (sortBy === "stt") {
@@ -2554,19 +2551,20 @@ function TraCuuDangXuLyTab() {
   }, [data?.rows, sortBy, sortDir]);
 
   const toggleSort = (key: typeof sortBy) => {
+    if (key === "stt") return;
     if (sortBy === key) {
       setSortDir((prev) => prev === "asc" ? "desc" : "asc");
       return;
     }
     setSortBy(key);
-    setSortDir(key === "stt" ? "asc" : "desc");
+    setSortDir("desc");
   };
 
-  const SortableHeader = ({ label, sortKey }: { label: string; sortKey: typeof sortBy }) => {
+  const SortableHeader = ({ label, sortKey, center = false }: { label: string; sortKey: typeof sortBy; center?: boolean }) => {
     const active = sortBy === sortKey;
     const arrow = !active ? "↕" : sortDir === "asc" ? "↑" : "↓";
     return (
-      <th className="px-3 py-3 text-left font-semibold uppercase tracking-wide whitespace-nowrap">
+      <th className={`px-3 py-3 ${center ? "text-center" : "text-left"} font-semibold uppercase tracking-wide whitespace-nowrap`}>
         <button
           type="button"
           onClick={() => toggleSort(sortKey)}
@@ -2651,12 +2649,6 @@ function TraCuuDangXuLyTab() {
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-200 bg-slate-50/80">
-          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-            Tra cứu hồ sơ đang xử lý
-          </h3>
-        </div>
-
         {isLoading ? (
           <div className="flex items-center justify-center h-48 text-slate-400 text-sm gap-2">
             <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
@@ -2668,53 +2660,63 @@ function TraCuuDangXuLyTab() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs border-collapse" style={{ minWidth: 1180 }}>
+            <table className="w-full text-xs border-collapse" style={{ minWidth: 1260, tableLayout: "fixed" }}>
               <colgroup>
-                <col style={{ width: 56 }} />
-                <col style={{ width: 160 }} />
-                <col style={{ width: 120 }} />
-                <col style={{ width: 120 }} />
-                <col style={{ width: 120 }} />
+                <col style={{ width: 48 }} />
+                <col style={{ width: 128 }} />
+                <col style={{ width: 110 }} />
+                <col style={{ width: 110 }} />
+                <col style={{ width: 88 }} />
                 <col style={{ width: 120 }} />
                 <col style={{ width: 150 }} />
-                <col style={{ width: 200 }} />
-                <col style={{ width: 170 }} />
+                <col />
+                <col />
+                <col style={{ width: 104 }} />
                 <col style={{ width: 120 }} />
               </colgroup>
               <thead>
                 <tr className="bg-slate-100 text-slate-600">
-                  <SortableHeader label="STT" sortKey="stt" />
+                  <th className="px-3 py-3 text-center font-semibold uppercase tracking-wide whitespace-nowrap">STT</th>
                   <SortableHeader label="Mã hồ sơ" sortKey="ma_ho_so" />
                   <SortableHeader label="Ngày tiếp nhận" sortKey="ngay_tiep_nhan" />
                   <SortableHeader label="Ngày hẹn trả" sortKey="ngay_hen_tra" />
-                  <SortableHeader label="Loại hồ sơ" sortKey="loai_ho_so" />
+                  <SortableHeader label="Loại hồ sơ" sortKey="loai_ho_so" center />
                   <SortableHeader label="Lần nộp" sortKey="submission_kind" />
                   <SortableHeader label="Tình trạng" sortKey="tinh_trang" />
                   <SortableHeader label="Chuyên viên" sortKey="chuyen_vien" />
                   <SortableHeader label="Chuyên gia" sortKey="chuyen_gia" />
-                  <SortableHeader label="Thời gian chờ" sortKey="thoi_gian_cho_ngay" />
+                  <SortableHeader label="Thời gian chờ" sortKey="thoi_gian_cho_ngay" center />
+                  <th className="px-3 py-3 text-center font-semibold uppercase tracking-wide whitespace-nowrap">Thông tin hồ sơ</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-10 text-center text-sm text-slate-400">
+                    <td colSpan={11} className="px-4 py-10 text-center text-sm text-slate-400">
                       Không có hồ sơ phù hợp với điều kiện lọc.
                     </td>
                   </tr>
                 ) : sortedRows.map((row, index) => (
-                  <tr key={`${row.thu_tuc}-${row.ma_ho_so}-${index}`} className={index % 2 === 0 ? "bg-white hover:bg-blue-50" : "bg-slate-50 hover:bg-blue-50"}>
+                  <tr key={`${row.thu_tuc}-${row.ma_ho_so}-${index}`} className={`${index % 2 === 0 ? "bg-white" : "bg-slate-50"} group hover:bg-blue-50`}>
                     <td className="px-3 py-2.5 text-center text-slate-500">{index + 1}</td>
-                    <td className="px-3 py-2.5 font-mono text-slate-700">{row.ma_ho_so}</td>
+                    <td className="px-3 py-2.5 font-mono text-slate-700 whitespace-nowrap">{row.ma_ho_so}</td>
                     <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_tiep_nhan)}</td>
                     <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_hen_tra)}</td>
-                    <td className="px-3 py-2.5 text-slate-700">{row.loai_ho_so || ""}</td>
+                    <td className="px-3 py-2.5 text-center text-slate-700">{row.loai_ho_so || ""}</td>
                     <td className="px-3 py-2.5 text-slate-700">{displaySubmissionKind(row.submission_kind)}</td>
                     <td className="px-3 py-2.5 text-slate-700 font-medium">{row.tinh_trang}</td>
                     <td className="px-3 py-2.5 text-slate-700">{displayLookupCv(row.chuyen_vien)}</td>
                     <td className="px-3 py-2.5 text-slate-700">{row.chuyen_gia || ""}</td>
-                    <td className="px-3 py-2.5 text-right font-semibold text-slate-700">
+                    <td className="px-3 py-2.5 text-center font-semibold text-slate-700 whitespace-nowrap">
                       {row.thoi_gian_cho_ngay > 0 ? `${row.thoi_gian_cho_ngay} ngày` : ""}
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <button
+                        type="button"
+                        className="rounded-md border border-blue-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-700 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-blue-50"
+                      >
+                        Chi tiết
+                      </button>
                     </td>
                   </tr>
                 ))}
