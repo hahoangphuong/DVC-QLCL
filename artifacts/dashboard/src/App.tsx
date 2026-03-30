@@ -371,7 +371,15 @@ async function fetchDangXuLy(thuTuc: number): Promise<DangXuLyData> {
 }
 
 type LookupThuTuc = 46 | 47 | 48;
-type LookupTinhTrang = "Chờ chuyên viên" | "Chờ chuyên gia" | "Chờ Tổ trưởng" | "Chờ Trưởng phòng" | "Chờ công bố";
+type LookupTinhTrang =
+  | "Ch? chuy�n vi�n"
+  | "Chua x? l�"
+  | "B? tr? l?i"
+  | "Ch? t?ng h?p"
+  | "Ch? chuy�n gia"
+  | "Ch? T? tru?ng"
+  | "Ch? Tru?ng ph�ng"
+  | "Ch? c�ng b?";
 
 interface TraCuuDangXuLyRow {
   thu_tuc: LookupThuTuc;
@@ -2484,14 +2492,30 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 }
 
 const TRA_CUU_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang; label: string }> = [
-  { value: "all", label: "Tất cả" },
-  { value: "Chờ chuyên viên", label: "Chờ chuyên viên" },
-  { value: "Chờ chuyên gia", label: "Chờ chuyên gia" },
-  { value: "Chờ Tổ trưởng", label: "Chờ Tổ trưởng" },
-  { value: "Chờ Trưởng phòng", label: "Chờ Trưởng phòng" },
-  { value: "Chờ công bố", label: "Chờ công bố" },
+  { value: "all", label: "T?t c?" },
+  { value: "cho_chuyen_vien", label: "Ch? chuy�n vi�n" },
+  { value: "chua_xu_ly", label: "Chua x? l�" },
+  { value: "bi_tra_lai", label: "B? tr? l?i" },
+  { value: "cho_tong_hop", label: "Ch? t?ng h?p" },
+  { value: "cho_chuyen_gia", label: "Ch? chuy�n gia" },
+  { value: "cho_to_truong", label: "Ch? T? tru?ng" },
+  { value: "cho_truong_phong", label: "Ch? Tru?ng ph�ng" },
+  { value: "cho_cong_bo", label: "Ch? c�ng b?" },
 ];
 
+function displayLookupTinhTrang(value: LookupTinhTrang): string {
+  switch (value) {
+    case "cho_chuyen_vien": return "Ch? chuy�n vi�n";
+    case "chua_xu_ly": return "Chua x? l�";
+    case "bi_tra_lai": return "B? tr? l?i";
+    case "cho_tong_hop": return "Ch? t?ng h?p";
+    case "cho_chuyen_gia": return "Ch? chuy�n gia";
+    case "cho_to_truong": return "Ch? T? tru?ng";
+    case "cho_truong_phong": return "Ch? Tru?ng ph�ng";
+    case "cho_cong_bo": return "Ch? c�ng b?";
+    default: return value;
+  }
+}
 function displayLookupCv(raw: string | null): string {
   if (!raw) return "";
   if (raw === "__CHUA_PHAN__") return "Chờ phân công";
@@ -2548,7 +2572,7 @@ function TraCuuDangXuLyTab() {
         case "submission_kind":
           return row.submission_kind === "first" ? "0" : row.submission_kind === "supplement" ? "1" : "2";
         case "tinh_trang":
-          return row.tinh_trang;
+          return displayLookupTinhTrang(row.tinh_trang);
         case "chuyen_vien":
           return displayLookupCv(row.chuyen_vien);
         case "chuyen_gia":
@@ -2734,7 +2758,7 @@ function TraCuuDangXuLyTab() {
                     <td className="px-3 py-2.5 text-center font-semibold text-slate-700 whitespace-nowrap">
                       {row.thoi_gian_cho_ngay > 0 ? `${row.thoi_gian_cho_ngay} ngày` : ""}
                     </td>
-                    <td className="px-3 py-2.5 text-slate-700 font-medium">{row.tinh_trang}</td>
+                    <td className="px-3 py-2.5 text-slate-700 font-medium">{displayLookupTinhTrang(row.tinh_trang)}</td>
                     <td className="px-3 py-2.5 text-center">
                       <button
                         type="button"
@@ -3513,6 +3537,8 @@ export default function App() {
     </QueryClientProvider>
   );
 }
+
+
 
 
 
