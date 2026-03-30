@@ -295,62 +295,71 @@ export async function getTt48LoaiHoSoStats(fromDate: string, toDate: string) {
   }>(
     `WITH
      ${buildCaseFactsCte("48")},
-       base AS (
-         SELECT
-           loai_ho_so,
-           hinh_thuc_danh_gia,
-           submission_kind,
-           ngay_nhan,
-           nhan_hen_tra,
-           da_xu_ly_id,
-         ngay_tra,
-         kq_hen_tra,
-         trang_thai,
-         is_active
+     base AS (
+       SELECT
+         loai_ho_so,
+         hinh_thuc_danh_gia,
+         submission_kind,
+         ((ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1))::int) AS ton_truoc_hit,
+         ((ngay_nhan >= $1 AND ngay_nhan <= $2)::int) AS da_nhan_hit,
+         ((ngay_tra >= $1 AND ngay_tra <= $2)::int) AS giai_quyet_hit,
+         ((ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active)::int) AS ton_hit
        FROM case_facts
        WHERE loai_ho_so IN ('A', 'B', 'C', 'D')
          AND (is_active OR da_xu_ly_id IS NOT NULL)
      ),
+     grouped AS (
+       SELECT
+         loai_ho_so,
+         submission_kind,
+         hinh_thuc_danh_gia,
+         SUM(ton_truoc_hit) AS ton_truoc_total,
+         SUM(da_nhan_hit) AS da_nhan_total,
+         SUM(giai_quyet_hit) AS giai_quyet_total,
+         SUM(ton_hit) AS ton_total
+       FROM base
+       GROUP BY loai_ho_so, submission_kind, hinh_thuc_danh_gia
+     ),
      stats AS (
        SELECT
          loai_ho_so,
-         COUNT(*) FILTER (WHERE ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1)) AS ton_truoc_total,
-         COUNT(*) FILTER (WHERE submission_kind = 'first' AND ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1)) AS ton_truoc_first,
-         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1)) AS ton_truoc_supplement,
-         COUNT(*) FILTER (WHERE submission_kind = 'first' AND hinh_thuc_danh_gia = 1 AND ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1)) AS ton_truoc_first_hinh_thuc_1,
-         COUNT(*) FILTER (WHERE submission_kind = 'first' AND hinh_thuc_danh_gia = 2 AND ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1)) AS ton_truoc_first_hinh_thuc_2,
-         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND hinh_thuc_danh_gia = 1 AND ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1)) AS ton_truoc_supplement_hinh_thuc_1,
-         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND hinh_thuc_danh_gia = 2 AND ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1)) AS ton_truoc_supplement_hinh_thuc_2,
-         COUNT(*) FILTER (WHERE hinh_thuc_danh_gia = 1 AND ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1)) AS ton_truoc_hinh_thuc_1,
-         COUNT(*) FILTER (WHERE hinh_thuc_danh_gia = 2 AND ngay_nhan < $1 AND (ngay_tra IS NULL OR ngay_tra >= $1)) AS ton_truoc_hinh_thuc_2,
-         COUNT(*) FILTER (WHERE ngay_nhan >= $1 AND ngay_nhan <= $2) AS da_nhan_total,
-         COUNT(*) FILTER (WHERE submission_kind = 'first' AND ngay_nhan >= $1 AND ngay_nhan <= $2) AS da_nhan_first,
-         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND ngay_nhan >= $1 AND ngay_nhan <= $2) AS da_nhan_supplement,
-         COUNT(*) FILTER (WHERE submission_kind = 'first' AND hinh_thuc_danh_gia = 1 AND ngay_nhan >= $1 AND ngay_nhan <= $2) AS da_nhan_first_hinh_thuc_1,
-         COUNT(*) FILTER (WHERE submission_kind = 'first' AND hinh_thuc_danh_gia = 2 AND ngay_nhan >= $1 AND ngay_nhan <= $2) AS da_nhan_first_hinh_thuc_2,
-         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND hinh_thuc_danh_gia = 1 AND ngay_nhan >= $1 AND ngay_nhan <= $2) AS da_nhan_supplement_hinh_thuc_1,
-         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND hinh_thuc_danh_gia = 2 AND ngay_nhan >= $1 AND ngay_nhan <= $2) AS da_nhan_supplement_hinh_thuc_2,
-         COUNT(*) FILTER (WHERE hinh_thuc_danh_gia = 1 AND ngay_nhan >= $1 AND ngay_nhan <= $2) AS da_nhan_hinh_thuc_1,
-         COUNT(*) FILTER (WHERE hinh_thuc_danh_gia = 2 AND ngay_nhan >= $1 AND ngay_nhan <= $2) AS da_nhan_hinh_thuc_2,
-         COUNT(*) FILTER (WHERE ngay_tra >= $1 AND ngay_tra <= $2) AS giai_quyet_total,
-         COUNT(*) FILTER (WHERE submission_kind = 'first' AND ngay_tra >= $1 AND ngay_tra <= $2) AS giai_quyet_first,
-         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND ngay_tra >= $1 AND ngay_tra <= $2) AS giai_quyet_supplement,
-         COUNT(*) FILTER (WHERE submission_kind = 'first' AND hinh_thuc_danh_gia = 1 AND ngay_tra >= $1 AND ngay_tra <= $2) AS giai_quyet_first_hinh_thuc_1,
-         COUNT(*) FILTER (WHERE submission_kind = 'first' AND hinh_thuc_danh_gia = 2 AND ngay_tra >= $1 AND ngay_tra <= $2) AS giai_quyet_first_hinh_thuc_2,
-         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND hinh_thuc_danh_gia = 1 AND ngay_tra >= $1 AND ngay_tra <= $2) AS giai_quyet_supplement_hinh_thuc_1,
-         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND hinh_thuc_danh_gia = 2 AND ngay_tra >= $1 AND ngay_tra <= $2) AS giai_quyet_supplement_hinh_thuc_2,
-         COUNT(*) FILTER (WHERE hinh_thuc_danh_gia = 1 AND ngay_tra >= $1 AND ngay_tra <= $2) AS giai_quyet_hinh_thuc_1,
-         COUNT(*) FILTER (WHERE hinh_thuc_danh_gia = 2 AND ngay_tra >= $1 AND ngay_tra <= $2) AS giai_quyet_hinh_thuc_2,
-         COUNT(*) FILTER (WHERE ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_total,
-         COUNT(*) FILTER (WHERE submission_kind = 'first' AND ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_first,
-         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_supplement,
-         COUNT(*) FILTER (WHERE submission_kind = 'first' AND hinh_thuc_danh_gia = 1 AND ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_first_hinh_thuc_1,
-         COUNT(*) FILTER (WHERE submission_kind = 'first' AND hinh_thuc_danh_gia = 2 AND ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_first_hinh_thuc_2,
-         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND hinh_thuc_danh_gia = 1 AND ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_supplement_hinh_thuc_1,
-         COUNT(*) FILTER (WHERE submission_kind = 'supplement' AND hinh_thuc_danh_gia = 2 AND ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_supplement_hinh_thuc_2,
-         COUNT(*) FILTER (WHERE hinh_thuc_danh_gia = 1 AND ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_hinh_thuc_1,
-         COUNT(*) FILTER (WHERE hinh_thuc_danh_gia = 2 AND ngay_nhan <= $2 AND (ngay_tra IS NULL OR ngay_tra > $2) AND is_active) AS ton_hinh_thuc_2
-       FROM base
+         COALESCE(SUM(ton_truoc_total), 0) AS ton_truoc_total,
+         COALESCE(SUM(ton_truoc_total) FILTER (WHERE submission_kind = 'first'), 0) AS ton_truoc_first,
+         COALESCE(SUM(ton_truoc_total) FILTER (WHERE submission_kind = 'supplement'), 0) AS ton_truoc_supplement,
+         COALESCE(SUM(ton_truoc_total) FILTER (WHERE submission_kind = 'first' AND hinh_thuc_danh_gia = 1), 0) AS ton_truoc_first_hinh_thuc_1,
+         COALESCE(SUM(ton_truoc_total) FILTER (WHERE submission_kind = 'first' AND hinh_thuc_danh_gia = 2), 0) AS ton_truoc_first_hinh_thuc_2,
+         COALESCE(SUM(ton_truoc_total) FILTER (WHERE submission_kind = 'supplement' AND hinh_thuc_danh_gia = 1), 0) AS ton_truoc_supplement_hinh_thuc_1,
+         COALESCE(SUM(ton_truoc_total) FILTER (WHERE submission_kind = 'supplement' AND hinh_thuc_danh_gia = 2), 0) AS ton_truoc_supplement_hinh_thuc_2,
+         COALESCE(SUM(ton_truoc_total) FILTER (WHERE hinh_thuc_danh_gia = 1), 0) AS ton_truoc_hinh_thuc_1,
+         COALESCE(SUM(ton_truoc_total) FILTER (WHERE hinh_thuc_danh_gia = 2), 0) AS ton_truoc_hinh_thuc_2,
+         COALESCE(SUM(da_nhan_total), 0) AS da_nhan_total,
+         COALESCE(SUM(da_nhan_total) FILTER (WHERE submission_kind = 'first'), 0) AS da_nhan_first,
+         COALESCE(SUM(da_nhan_total) FILTER (WHERE submission_kind = 'supplement'), 0) AS da_nhan_supplement,
+         COALESCE(SUM(da_nhan_total) FILTER (WHERE submission_kind = 'first' AND hinh_thuc_danh_gia = 1), 0) AS da_nhan_first_hinh_thuc_1,
+         COALESCE(SUM(da_nhan_total) FILTER (WHERE submission_kind = 'first' AND hinh_thuc_danh_gia = 2), 0) AS da_nhan_first_hinh_thuc_2,
+         COALESCE(SUM(da_nhan_total) FILTER (WHERE submission_kind = 'supplement' AND hinh_thuc_danh_gia = 1), 0) AS da_nhan_supplement_hinh_thuc_1,
+         COALESCE(SUM(da_nhan_total) FILTER (WHERE submission_kind = 'supplement' AND hinh_thuc_danh_gia = 2), 0) AS da_nhan_supplement_hinh_thuc_2,
+         COALESCE(SUM(da_nhan_total) FILTER (WHERE hinh_thuc_danh_gia = 1), 0) AS da_nhan_hinh_thuc_1,
+         COALESCE(SUM(da_nhan_total) FILTER (WHERE hinh_thuc_danh_gia = 2), 0) AS da_nhan_hinh_thuc_2,
+         COALESCE(SUM(giai_quyet_total), 0) AS giai_quyet_total,
+         COALESCE(SUM(giai_quyet_total) FILTER (WHERE submission_kind = 'first'), 0) AS giai_quyet_first,
+         COALESCE(SUM(giai_quyet_total) FILTER (WHERE submission_kind = 'supplement'), 0) AS giai_quyet_supplement,
+         COALESCE(SUM(giai_quyet_total) FILTER (WHERE submission_kind = 'first' AND hinh_thuc_danh_gia = 1), 0) AS giai_quyet_first_hinh_thuc_1,
+         COALESCE(SUM(giai_quyet_total) FILTER (WHERE submission_kind = 'first' AND hinh_thuc_danh_gia = 2), 0) AS giai_quyet_first_hinh_thuc_2,
+         COALESCE(SUM(giai_quyet_total) FILTER (WHERE submission_kind = 'supplement' AND hinh_thuc_danh_gia = 1), 0) AS giai_quyet_supplement_hinh_thuc_1,
+         COALESCE(SUM(giai_quyet_total) FILTER (WHERE submission_kind = 'supplement' AND hinh_thuc_danh_gia = 2), 0) AS giai_quyet_supplement_hinh_thuc_2,
+         COALESCE(SUM(giai_quyet_total) FILTER (WHERE hinh_thuc_danh_gia = 1), 0) AS giai_quyet_hinh_thuc_1,
+         COALESCE(SUM(giai_quyet_total) FILTER (WHERE hinh_thuc_danh_gia = 2), 0) AS giai_quyet_hinh_thuc_2,
+         COALESCE(SUM(ton_total), 0) AS ton_total,
+         COALESCE(SUM(ton_total) FILTER (WHERE submission_kind = 'first'), 0) AS ton_first,
+         COALESCE(SUM(ton_total) FILTER (WHERE submission_kind = 'supplement'), 0) AS ton_supplement,
+         COALESCE(SUM(ton_total) FILTER (WHERE submission_kind = 'first' AND hinh_thuc_danh_gia = 1), 0) AS ton_first_hinh_thuc_1,
+         COALESCE(SUM(ton_total) FILTER (WHERE submission_kind = 'first' AND hinh_thuc_danh_gia = 2), 0) AS ton_first_hinh_thuc_2,
+         COALESCE(SUM(ton_total) FILTER (WHERE submission_kind = 'supplement' AND hinh_thuc_danh_gia = 1), 0) AS ton_supplement_hinh_thuc_1,
+         COALESCE(SUM(ton_total) FILTER (WHERE submission_kind = 'supplement' AND hinh_thuc_danh_gia = 2), 0) AS ton_supplement_hinh_thuc_2,
+         COALESCE(SUM(ton_total) FILTER (WHERE hinh_thuc_danh_gia = 1), 0) AS ton_hinh_thuc_1,
+         COALESCE(SUM(ton_total) FILTER (WHERE hinh_thuc_danh_gia = 2), 0) AS ton_hinh_thuc_2
+       FROM grouped
        GROUP BY loai_ho_so
      ),
      treo AS (

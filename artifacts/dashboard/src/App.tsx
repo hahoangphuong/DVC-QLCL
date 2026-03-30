@@ -372,14 +372,14 @@ async function fetchDangXuLy(thuTuc: number): Promise<DangXuLyData> {
 
 type LookupThuTuc = 46 | 47 | 48;
 type LookupTinhTrang =
-  | "Ch? chuyên viên"
-  | "Chua x? lý"
-  | "B? tr? l?i"
-  | "Ch? t?ng h?p"
-  | "Ch? chuyên gia"
-  | "Ch? T? tru?ng"
-  | "Ch? Tru?ng phòng"
-  | "Ch? công b?";
+  | "cho_chuyen_vien"
+  | "chua_xu_ly"
+  | "bi_tra_lai"
+  | "cho_tong_hop"
+  | "cho_chuyen_gia"
+  | "cho_to_truong"
+  | "cho_truong_phong"
+  | "cho_cong_bo";
 
 interface TraCuuDangXuLyRow {
   thu_tuc: LookupThuTuc;
@@ -2492,15 +2492,15 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 }
 
 const TRA_CUU_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang; label: string }> = [
-  { value: "all", label: "T?t c?" },
-  { value: "cho_chuyen_vien", label: "Ch? chuyên viên" },
-  { value: "chua_xu_ly", label: "Chua x? lý" },
-  { value: "bi_tra_lai", label: "B? tr? l?i" },
-  { value: "cho_tong_hop", label: "Ch? t?ng h?p" },
-  { value: "cho_chuyen_gia", label: "Ch? chuyên gia" },
-  { value: "cho_to_truong", label: "Ch? T? tru?ng" },
-  { value: "cho_truong_phong", label: "Ch? Tru?ng phòng" },
-  { value: "cho_cong_bo", label: "Ch? công b?" },
+  { value: "all", label: "T\u1ea5t c\u1ea3" },
+  { value: "cho_chuyen_vien", label: "Ch\u1edd chuy\u00ean vi\u00ean" },
+  { value: "chua_xu_ly", label: "Ch\u01b0a x\u1eed l\u00fd" },
+  { value: "bi_tra_lai", label: "B\u1ecb tr\u1ea3 l\u1ea1i" },
+  { value: "cho_tong_hop", label: "Ch\u1edd t\u1ed5ng h\u1ee3p" },
+  { value: "cho_chuyen_gia", label: "Ch\u1edd chuy\u00ean gia" },
+  { value: "cho_to_truong", label: "Ch\u1edd T\u1ed5 tr\u01b0\u1edfng" },
+  { value: "cho_truong_phong", label: "Ch\u1edd Tr\u01b0\u1edfng ph\u00f2ng" },
+  { value: "cho_cong_bo", label: "Ch\u1edd c\u00f4ng b\u1ed1" },
 ];
 const LOOKUP_TINH_TRANG_SORT_ORDER: Record<LookupTinhTrang, number> = {
   cho_chuyen_vien: 1,
@@ -2515,14 +2515,14 @@ const LOOKUP_TINH_TRANG_SORT_ORDER: Record<LookupTinhTrang, number> = {
 
 function displayLookupTinhTrang(value: LookupTinhTrang): string {
   switch (value) {
-    case "cho_chuyen_vien": return "Ch? chuyên viên";
-    case "chua_xu_ly": return "Chua x? lý";
-    case "bi_tra_lai": return "B? tr? l?i";
-    case "cho_tong_hop": return "Ch? t?ng h?p";
-    case "cho_chuyen_gia": return "Ch? chuyên gia";
-    case "cho_to_truong": return "Ch? T? tru?ng";
-    case "cho_truong_phong": return "Ch? Tru?ng phòng";
-    case "cho_cong_bo": return "Ch? công b?";
+    case "cho_chuyen_vien": return "Ch\u1edd chuy\u00ean vi\u00ean";
+    case "chua_xu_ly": return "Ch\u01b0a x\u1eed l\u00fd";
+    case "bi_tra_lai": return "B\u1ecb tr\u1ea3 l\u1ea1i";
+    case "cho_tong_hop": return "Ch\u1edd t\u1ed5ng h\u1ee3p";
+    case "cho_chuyen_gia": return "Ch\u1edd chuy\u00ean gia";
+    case "cho_to_truong": return "Ch\u1edd T\u1ed5 tr\u01b0\u1edfng";
+    case "cho_truong_phong": return "Ch\u1edd Tr\u01b0\u1edfng ph\u00f2ng";
+    case "cho_cong_bo": return "Ch\u1edd c\u00f4ng b\u1ed1";
     default: return value;
   }
 }
