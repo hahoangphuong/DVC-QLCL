@@ -779,7 +779,7 @@ interface ChuyenVienTableProps {
   thuTuc:   48 | 47 | 46;
   fromDate: string;
   toDate:   string;
-  onCvClick?: (tenCv: string) => void;
+  onCvClick?: (tenCvRaw: string) => void;
 }
 
 function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTableProps) {
@@ -866,8 +866,8 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTabl
           {onCvClick ? (
             <button
               type="button"
-              onClick={() => onCvClick(cleanCvName(row.ten_cv))}
-              className="text-left text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-800"
+              onClick={() => onCvClick(row.ten_cv)}
+              className="text-left text-blue-700 hover:text-blue-800"
             >
               {cleanCvName(row.ten_cv)}
             </button>
@@ -2204,7 +2204,7 @@ function DangXuLyTab({
   onCgLookup,
 }: {
   thuTuc: 48 | 47 | 46;
-  onCvLookup?: (tenCv: string) => void;
+  onCvLookup?: (tenCvRaw: string, thuTuc: 48 | 47 | 46) => void;
   onCgLookup?: (tenCg: string) => void;
 }) {
   const [showTt48TotalBreakdown, setShowTt48TotalBreakdown] = useState(false);
@@ -2373,8 +2373,8 @@ function DangXuLyTab({
           ) : (
             <button
               type="button"
-              onClick={() => onCvLookup(cvLabel)}
-              className="text-left text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-800"
+              onClick={() => onCvLookup(row.cv_name, thuTuc)}
+              className="text-left text-blue-700 hover:text-blue-800"
             >
               {cvLabel}
             </button>
@@ -3190,7 +3190,7 @@ function ChuyenGiaTable({ thuTuc, onCgClick }: { thuTuc: number; onCgClick?: (te
             <button
               type="button"
               onClick={() => onCgClick(row.ten)}
-              className="text-left text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-800"
+              className="text-left text-blue-700 hover:text-blue-800"
             >
               {row.ten}
             </button>
@@ -3822,11 +3822,11 @@ function Dashboard() {
     }
   };
 
-  const openLookupByChuyenVien = useCallback((tenCv: string) => {
+  const openLookupByChuyenVien = useCallback((tenCvRaw: string, thuTuc: 48 | 47 | 46) => {
     setLookupState({
       ...DEFAULT_TRA_CUU_FILTER_STATE,
-      thuTuc: 48,
-      chuyenVien: tenCv,
+      thuTuc,
+      chuyenVien: tenCvRaw,
     });
     setActiveTab("tra_cuu_dang_xl");
   }, []);
@@ -3849,11 +3849,11 @@ function Dashboard() {
       case "tt47_thong_ke":
         return <ThongKeTab thuTuc={47} />;
       case "tt47_dang_xl":
-        return <DangXuLyTab thuTuc={47} />;
+        return <DangXuLyTab thuTuc={47} onCvLookup={openLookupByChuyenVien} />;
       case "tt46_thong_ke":
         return <ThongKeTab thuTuc={46} />;
       case "tt46_dang_xl":
-        return <DangXuLyTab thuTuc={46} />;
+        return <DangXuLyTab thuTuc={46} onCvLookup={openLookupByChuyenVien} />;
       case "tra_cuu_dang_xl":
         return <TraCuuDangXuLyTab state={lookupState} setState={setLookupState} />;
       default:
