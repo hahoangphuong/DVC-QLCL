@@ -500,6 +500,18 @@ const PENDING_LOOKUP_BASE_CTE = `WITH latest_case_facts AS (
   WHERE ($1::int IS NULL OR thu_tuc = $1)
   ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
 ),
+expert_by_case AS (
+  SELECT
+    thu_tuc,
+    ma_ho_so,
+    MAX(TRIM(nguoi_xu_ly)) FILTER (
+      WHERE don_vi = 'Chuyên gia thẩm định'
+        AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
+    ) AS chuyen_gia
+  FROM mv_stats_workflow_cases
+  WHERE ($1::int IS NULL OR thu_tuc = $1)
+  GROUP BY thu_tuc, ma_ho_so
+),
 workflow_base AS (
   SELECT
     w.thu_tuc,
@@ -526,10 +538,11 @@ workflow_base AS (
       WHEN NULLIF(TRIM(w.cv_name), '') IS NULL OR w.cv_name = '__CHUA_PHAN__' THEN NULL
       ELSE TRIM(w.cv_name)
     END AS chuyen_vien,
-      CASE
-        WHEN NULLIF(TRIM(w.nguoi_xu_ly), '') IS NOT NULL THEN TRIM(w.nguoi_xu_ly)
-        ELSE NULL
-      END AS chuyen_gia,
+    CASE
+      WHEN NULLIF(TRIM(e.chuyen_gia), '') IS NOT NULL THEN TRIM(e.chuyen_gia)
+      WHEN w.don_vi = 'Chuyên gia thẩm định' AND NULLIF(TRIM(w.nguoi_xu_ly), '') IS NOT NULL THEN TRIM(w.nguoi_xu_ly)
+      ELSE NULL
+    END AS chuyen_gia,
     COALESCE(
       GREATEST(
         0,
@@ -541,6 +554,9 @@ workflow_base AS (
   LEFT JOIN latest_case_facts cf
     ON cf.thu_tuc = w.thu_tuc
    AND cf.ma_ho_so = w.ma_ho_so
+  LEFT JOIN expert_by_case e
+    ON e.thu_tuc = w.thu_tuc
+   AND e.ma_ho_so = w.ma_ho_so
   WHERE ($1::int IS NULL OR w.thu_tuc = $1)
 )`;
 
@@ -553,18 +569,34 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
 
   const [optionRows, rows] = await Promise.all([
     query<PendingLookupOptionRow>(
-      `WITH option_rows AS (
+      `WITH expert_by_case AS (
          SELECT
-           CASE
-             WHEN NULLIF(TRIM(cv_name), '') IS NULL OR cv_name = '__CHUA_PHAN__' THEN NULL
-             ELSE TRIM(cv_name)
-           END AS chuyen_vien,
-           CASE
-             WHEN NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL THEN TRIM(nguoi_xu_ly)
-             ELSE NULL
-           END AS chuyen_gia
+           thu_tuc,
+           ma_ho_so,
+           MAX(TRIM(nguoi_xu_ly)) FILTER (
+             WHERE don_vi = 'Chuyên gia thẩm định'
+               AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
+           ) AS chuyen_gia
          FROM mv_stats_workflow_cases
          WHERE ($1::int IS NULL OR thu_tuc = $1)
+         GROUP BY thu_tuc, ma_ho_so
+       ),
+       option_rows AS (
+         SELECT
+           CASE
+             WHEN NULLIF(TRIM(w.cv_name), '') IS NULL OR w.cv_name = '__CHUA_PHAN__' THEN NULL
+             ELSE TRIM(w.cv_name)
+           END AS chuyen_vien,
+           CASE
+             WHEN NULLIF(TRIM(e.chuyen_gia), '') IS NOT NULL THEN TRIM(e.chuyen_gia)
+             WHEN w.don_vi = 'Chuyên gia thẩm định' AND NULLIF(TRIM(w.nguoi_xu_ly), '') IS NOT NULL THEN TRIM(w.nguoi_xu_ly)
+             ELSE NULL
+           END AS chuyen_gia
+         FROM mv_stats_workflow_cases w
+         LEFT JOIN expert_by_case e
+           ON e.thu_tuc = w.thu_tuc
+          AND e.ma_ho_so = w.ma_ho_so
+         WHERE ($1::int IS NULL OR w.thu_tuc = $1)
        )
        SELECT DISTINCT chuyen_vien, chuyen_gia
        FROM option_rows
