@@ -1,3 +1,4 @@
+import { Readable } from "node:stream";
 import { Router, type IRouter } from "express";
 import { queryOne } from "../lib/db";
 import { getOrSetCached } from "../lib/stats/cache";
@@ -264,9 +265,15 @@ router.get("/dav/file", async (req, res) => {
     if (contentDisposition) res.setHeader("Content-Disposition", contentDisposition);
     const cacheControl = pyRes.headers.get("cache-control");
     if (cacheControl) res.setHeader("Cache-Control", cacheControl);
+    const contentLength = pyRes.headers.get("content-length");
+    if (contentLength) res.setHeader("Content-Length", contentLength);
 
-    const arrayBuffer = await pyRes.arrayBuffer();
-    res.status(200).send(Buffer.from(arrayBuffer));
+    if (!pyRes.body) {
+      return void res.status(502).json({ detail: "Python backend khong tra ve stream tai lieu" });
+    }
+
+    res.status(200);
+    Readable.fromWeb(pyRes.body as globalThis.ReadableStream<Uint8Array>).pipe(res);
   } catch (e: unknown) {
     res.status(502).json({ detail: `Khong the tai tai lieu tu Python backend: ${String(e)}` });
   }

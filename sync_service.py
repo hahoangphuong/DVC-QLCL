@@ -6,7 +6,7 @@ from urllib.parse import quote
 
 import requests
 from fastapi import HTTPException
-from fastapi.responses import Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 
 from auth_client import RemoteAuthError, RemoteClient
@@ -177,7 +177,7 @@ class SyncService:
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Loi lay chi tiet ho so TT48: {exc}")
 
-    def get_dav_file(self, path_or_url: str, client: RemoteClient | None = None) -> Response:
+    def get_dav_file(self, path_or_url: str, client: RemoteClient | None = None) -> StreamingResponse:
         base_url = os.environ.get("BASE_URL", "").rstrip("/")
         if not base_url:
             raise HTTPException(status_code=500, detail="Thieu cau hinh BASE_URL")
@@ -204,6 +204,7 @@ class SyncService:
                 },
                 timeout=60,
                 allow_redirects=True,
+                stream=True,
             )
             resp.raise_for_status()
 
@@ -214,9 +215,20 @@ class SyncService:
             cache_control = resp.headers.get("Cache-Control")
             if cache_control:
                 headers["Cache-Control"] = cache_control
+            content_length = resp.headers.get("Content-Length")
+            if content_length:
+                headers["Content-Length"] = content_length
 
-            return Response(
-                content=resp.content,
+            def stream_chunks():
+                try:
+                    for chunk in resp.iter_content(chunk_size=64 * 1024):
+                        if chunk:
+                            yield chunk
+                finally:
+                    resp.close()
+
+            return StreamingResponse(
+                stream_chunks(),
                 media_type=resp.headers.get("Content-Type", "application/octet-stream"),
                 headers=headers,
             )
