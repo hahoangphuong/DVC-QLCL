@@ -417,6 +417,16 @@ type TraCuuFilterState = {
   sortDir: "asc" | "desc";
 };
 
+const DEFAULT_TRA_CUU_FILTER_STATE: TraCuuFilterState = {
+  thuTuc: "all",
+  chuyenVien: "",
+  chuyenGia: "",
+  tinhTrang: "all",
+  maHoSo: "",
+  sortBy: "stt",
+  sortDir: "asc",
+};
+
 interface TraCuuDangXuLyData {
   filters: {
     thu_tuc: LookupThuTuc | null;
@@ -769,9 +779,10 @@ interface ChuyenVienTableProps {
   thuTuc:   48 | 47 | 46;
   fromDate: string;
   toDate:   string;
+  onCvClick?: (tenCv: string) => void;
 }
 
-function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
+function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTableProps) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["chuyen-vien", thuTuc, fromDate, toDate],
     queryFn:  () => fetchChuyenVien(thuTuc, fromDate, toDate),
@@ -852,7 +863,17 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate }: ChuyenVienTableProps) {
         </td>
         <td className={`${tdL} font-semibold text-slate-800 min-w-[160px]`}
             style={{ ...stickyCV, backgroundColor: bgColor }}>
-          {cleanCvName(row.ten_cv)}
+          {onCvClick ? (
+            <button
+              type="button"
+              onClick={() => onCvClick(cleanCvName(row.ten_cv))}
+              className="text-left text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-800"
+            >
+              {cleanCvName(row.ten_cv)}
+            </button>
+          ) : (
+            cleanCvName(row.ten_cv)
+          )}
         </td>
         <td className={hiTd(hiThresh.ton_truoc,    row.ton_truoc, tonTruocBg)}><Num v={row.ton_truoc} color="#be185d" bold /></td>
         <td className={hiTd(hiThresh.da_nhan,       row.da_nhan, daNhanBg)}><Num v={row.da_nhan}   color="#1d4ed8" bold /></td>
@@ -2177,7 +2198,15 @@ const CHO_COLORS_48 = [
   { key: "cho_van_thu",  fill: "#64748b", label: "Chờ Văn thư"  },
 ] as const;
 
-function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
+function DangXuLyTab({
+  thuTuc,
+  onCvLookup,
+  onCgLookup,
+}: {
+  thuTuc: 48 | 47 | 46;
+  onCvLookup?: (tenCv: string) => void;
+  onCgLookup?: (tenCg: string) => void;
+}) {
   const [showTt48TotalBreakdown, setShowTt48TotalBreakdown] = useState(false);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["dang-xu-ly", thuTuc],
@@ -2339,7 +2368,17 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
         </td>
         <td className={`sticky left-9 z-10 px-3 py-1.5 text-xs font-medium text-slate-700 min-w-[160px] max-w-[220px] ${bgRow}`}
             style={{ boxShadow: "2px 0 4px -1px rgba(0,0,0,0.08)" }}>
-          {cvLabel}
+          {isCpc || !onCvLookup ? (
+            cvLabel
+          ) : (
+            <button
+              type="button"
+              onClick={() => onCvLookup(cvLabel)}
+              className="text-left text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-800"
+            >
+              {cvLabel}
+            </button>
+          )}
         </td>
       </>
     );
@@ -2834,15 +2873,7 @@ function TraCuuDangXuLyTab(props?: {
   state: TraCuuFilterState;
   setState: React.Dispatch<React.SetStateAction<TraCuuFilterState>>;
 }) {
-  const [localState, setLocalState] = useState<TraCuuFilterState>({
-    thuTuc: "all",
-    chuyenVien: "",
-    chuyenGia: "",
-    tinhTrang: "all",
-    maHoSo: "",
-    sortBy: "stt",
-    sortDir: "asc",
-  });
+  const [localState, setLocalState] = useState<TraCuuFilterState>(DEFAULT_TRA_CUU_FILTER_STATE);
   const state = props?.state ?? localState;
   const setState = props?.setState ?? setLocalState;
   const { thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo, sortBy, sortDir } = state;
@@ -3108,7 +3139,7 @@ function TraCuuDangXuLyTab(props?: {
 // ---------------------------------------------------------------------------
 // ChuyenGiaTable — bảng thống kê chuyên gia (chỉ dùng cho TT48)
 // ---------------------------------------------------------------------------
-function ChuyenGiaTable({ thuTuc }: { thuTuc: number }) {
+function ChuyenGiaTable({ thuTuc, onCgClick }: { thuTuc: number; onCgClick?: (tenCg: string) => void }) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["chuyen-gia", thuTuc],
     queryFn:  () => fetchChuyenGia(thuTuc),
@@ -3155,7 +3186,17 @@ function ChuyenGiaTable({ thuTuc }: { thuTuc: number }) {
       <tr key={row.ten} className={`${rowBg} hover:bg-blue-50 transition-colors`}>
         <td className="px-2 py-1.5 text-center text-xs text-slate-400">{idx + 1}</td>
         <td className="px-3 py-1.5 text-xs font-medium text-slate-700 min-w-[160px]">
-          {row.ten}
+          {onCgClick ? (
+            <button
+              type="button"
+              onClick={() => onCgClick(row.ten)}
+              className="text-left text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-800"
+            >
+              {row.ten}
+            </button>
+          ) : (
+            row.ten
+          )}
         </td>
         {/* TỔNG */}
         <td className={`px-2 py-1.5 text-center text-xs font-bold ${row.tong > 15 ? "text-pink-700 bg-pink-50" : row.tong > 0 ? "text-slate-700" : "text-slate-300"}`}>
@@ -3728,6 +3769,7 @@ function Dashboard() {
   const [showAdmin, setShowAdmin] = useState<boolean>(
     () => window.location.hash === "#admin"
   );
+  const [lookupState, setLookupState] = useState<TraCuuFilterState>(DEFAULT_TRA_CUU_FILTER_STATE);
 
   // Trạng thái sync gần nhất — tự động refresh mỗi 5 phút
   const { data: syncStatus } = useQuery({
@@ -3777,6 +3819,45 @@ function Dashboard() {
     setShowAdmin(false);
     if (window.location.hash === "#admin") {
       history.pushState("", document.title, window.location.pathname + window.location.search);
+    }
+  };
+
+  const openLookupByChuyenVien = useCallback((tenCv: string) => {
+    setLookupState({
+      ...DEFAULT_TRA_CUU_FILTER_STATE,
+      thuTuc: 48,
+      chuyenVien: tenCv,
+    });
+    setActiveTab("tra_cuu_dang_xl");
+  }, []);
+
+  const openLookupByChuyenGia = useCallback((tenCg: string) => {
+    setLookupState({
+      ...DEFAULT_TRA_CUU_FILTER_STATE,
+      thuTuc: 48,
+      chuyenGia: tenCg,
+    });
+    setActiveTab("tra_cuu_dang_xl");
+  }, []);
+
+  const renderTabContent = (tabId: string) => {
+    switch (tabId) {
+      case "tt48_thong_ke":
+        return <ThongKeTab thuTuc={48} />;
+      case "tt48_dang_xl":
+        return <DangXuLyTab thuTuc={48} onCvLookup={openLookupByChuyenVien} onCgLookup={openLookupByChuyenGia} />;
+      case "tt47_thong_ke":
+        return <ThongKeTab thuTuc={47} />;
+      case "tt47_dang_xl":
+        return <DangXuLyTab thuTuc={47} />;
+      case "tt46_thong_ke":
+        return <ThongKeTab thuTuc={46} />;
+      case "tt46_dang_xl":
+        return <DangXuLyTab thuTuc={46} />;
+      case "tra_cuu_dang_xl":
+        return <TraCuuDangXuLyTab state={lookupState} setState={setLookupState} />;
+      default:
+        return null;
     }
   };
 
@@ -3844,7 +3925,7 @@ function Dashboard() {
       <main className="max-w-screen-2xl mx-auto px-4 py-6">
         {TABS.map((tab) => (
           <div key={tab.id} className={activeTab === tab.id ? "block" : "hidden"}>
-            <tab.content />
+            {renderTabContent(tab.id)}
           </div>
         ))}
       </main>
