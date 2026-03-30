@@ -1871,6 +1871,7 @@ const CHO_COLORS_48 = [
 ] as const;
 
 function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
+  const [showTt48TotalBreakdown, setShowTt48TotalBreakdown] = useState(false);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["dang-xu-ly", thuTuc],
     queryFn:  () => fetchDangXuLy(thuTuc),
@@ -2370,7 +2371,20 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
               <tr className="bg-slate-100 font-bold text-slate-700 border-t-2 border-slate-300">
                 <td className="sticky left-0 z-10 bg-slate-100 px-1 py-2 text-center text-xs" />
                 <td className="sticky left-9 z-10 bg-slate-100 px-3 py-2 text-xs font-bold"
-                    style={{ boxShadow: "2px 0 4px -1px rgba(0,0,0,0.08)" }}>TỔNG</td>
+                    style={{ boxShadow: "2px 0 4px -1px rgba(0,0,0,0.08)" }}>
+                  {is48 ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowTt48TotalBreakdown((prev) => !prev)}
+                      className="inline-flex items-center gap-2 text-left"
+                    >
+                      <span className="flex h-5 w-5 items-center justify-center rounded border border-slate-300 bg-white text-xs font-bold text-slate-600">
+                        {showTt48TotalBreakdown ? "−" : "+"}
+                      </span>
+                      <span>TỔNG</span>
+                    </button>
+                  ) : "TỔNG"}
+                </td>
                 <td className="px-2 py-2 text-center text-xs font-bold text-slate-700">{sumTong}</td>
                 {is48 ? (
                   <>
@@ -2404,7 +2418,7 @@ function DangXuLyTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
                 <td className="px-2 py-2 bg-rose-50" />
               </tr>
               {/* TT48: hàng CÒN HẠN / QUÁ HẠN per step */}
-              {is48 && (
+              {is48 && showTt48TotalBreakdown && (
                 <>
                   <tr className="bg-blue-50 text-blue-700 text-xs">
                     <td className="sticky left-0 z-10 bg-blue-50 px-1 py-1 text-center" />
@@ -2632,7 +2646,7 @@ function TraCuuDangXuLyTab() {
           </SelectField>
 
           <label className="flex min-w-[260px] flex-col gap-1.5">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Lọc</span>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Lọc mã hồ sơ</span>
             <input
               type="text"
               value={maHoSo}
@@ -2660,19 +2674,19 @@ function TraCuuDangXuLyTab() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs border-collapse" style={{ minWidth: 1260, tableLayout: "fixed" }}>
+            <table className="w-full text-xs border-collapse" style={{ minWidth: 1220, tableLayout: "fixed" }}>
               <colgroup>
-                <col style={{ width: 48 }} />
-                <col style={{ width: 128 }} />
-                <col style={{ width: 110 }} />
-                <col style={{ width: 110 }} />
-                <col style={{ width: 88 }} />
-                <col style={{ width: 120 }} />
+                <col style={{ width: 44 }} />
+                <col style={{ width: 112 }} />
+                <col style={{ width: 96 }} />
+                <col style={{ width: 96 }} />
+                <col style={{ width: 96 }} />
+                <col style={{ width: 78 }} />
+                <col style={{ width: 130 }} />
                 <col style={{ width: 150 }} />
+                <col style={{ width: 110 }} />
                 <col />
-                <col />
-                <col style={{ width: 104 }} />
-                <col style={{ width: 120 }} />
+                <col style={{ width: 76 }} />
               </colgroup>
               <thead>
                 <tr className="bg-slate-100 text-slate-600">
@@ -2680,13 +2694,13 @@ function TraCuuDangXuLyTab() {
                   <SortableHeader label="Mã hồ sơ" sortKey="ma_ho_so" />
                   <SortableHeader label="Ngày tiếp nhận" sortKey="ngay_tiep_nhan" />
                   <SortableHeader label="Ngày hẹn trả" sortKey="ngay_hen_tra" />
-                  <SortableHeader label="Loại hồ sơ" sortKey="loai_ho_so" center />
                   <SortableHeader label="Lần nộp" sortKey="submission_kind" />
-                  <SortableHeader label="Tình trạng" sortKey="tinh_trang" />
+                  <SortableHeader label="Loại hồ sơ" sortKey="loai_ho_so" center />
                   <SortableHeader label="Chuyên viên" sortKey="chuyen_vien" />
                   <SortableHeader label="Chuyên gia" sortKey="chuyen_gia" />
                   <SortableHeader label="Thời gian chờ" sortKey="thoi_gian_cho_ngay" center />
-                  <th className="px-3 py-3 text-center font-semibold uppercase tracking-wide whitespace-nowrap">Thông tin hồ sơ</th>
+                  <SortableHeader label="Tình trạng" sortKey="tinh_trang" />
+                  <th className="px-3 py-3 text-center font-semibold uppercase tracking-wide whitespace-nowrap">Hồ sơ</th>
                 </tr>
               </thead>
               <tbody>
@@ -2702,14 +2716,14 @@ function TraCuuDangXuLyTab() {
                     <td className="px-3 py-2.5 font-mono text-slate-700 whitespace-nowrap">{row.ma_ho_so}</td>
                     <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_tiep_nhan)}</td>
                     <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_hen_tra)}</td>
-                    <td className="px-3 py-2.5 text-center text-slate-700">{row.loai_ho_so || ""}</td>
                     <td className="px-3 py-2.5 text-slate-700">{displaySubmissionKind(row.submission_kind)}</td>
-                    <td className="px-3 py-2.5 text-slate-700 font-medium">{row.tinh_trang}</td>
+                    <td className="px-3 py-2.5 text-center text-slate-700">{row.loai_ho_so || ""}</td>
                     <td className="px-3 py-2.5 text-slate-700">{displayLookupCv(row.chuyen_vien)}</td>
                     <td className="px-3 py-2.5 text-slate-700">{row.chuyen_gia || ""}</td>
                     <td className="px-3 py-2.5 text-center font-semibold text-slate-700 whitespace-nowrap">
                       {row.thoi_gian_cho_ngay > 0 ? `${row.thoi_gian_cho_ngay} ngày` : ""}
                     </td>
+                    <td className="px-3 py-2.5 text-slate-700 font-medium">{row.tinh_trang}</td>
                     <td className="px-3 py-2.5 text-center">
                       <button
                         type="button"
