@@ -2408,7 +2408,7 @@ function DangXuLyTab({
         <td className="px-2 py-1.5 text-center text-xs whitespace-nowrap bg-rose-50 text-slate-600">
           {isoToDisplay(row.cham_ngay)}
         </td>
-        <td className="px-2 py-1.5 text-center text-xs whitespace-nowrap bg-rose-50 text-slate-600 font-mono">
+        <td className="px-2 py-1.5 text-center text-xs whitespace-nowrap bg-rose-50 text-slate-600">
           {row.cham_ma ?? ""}
         </td>
       </>
@@ -2714,7 +2714,7 @@ function DangXuLyTab({
                     <th className="px-2 py-1 text-center text-xs bg-orange-700">% quá<br/>hạn</th>
                     <th className="px-2 py-1 text-center text-xs bg-rose-600">Thời gian chờ</th>
                     <th className="px-2 py-1 text-center text-xs bg-rose-600">Nộp từ</th>
-                    <th className="px-2 py-1 text-center text-xs bg-rose-600">Mã hs</th>
+                    <th className="px-2 py-1 text-center text-xs bg-rose-600">Mã hồ sơ</th>
                   </tr>
                 ) : (
                   <tr className="bg-slate-600 text-white">
@@ -2730,7 +2730,7 @@ function DangXuLyTab({
                     <th className="px-2 py-1 text-center text-xs bg-orange-700">% quá<br/>hạn</th>
                     <th className="px-2 py-1 text-center text-xs bg-rose-600">Thời gian chờ</th>
                     <th className="px-2 py-1 text-center text-xs bg-rose-600">Nộp từ</th>
-                    <th className="px-2 py-1 text-center text-xs bg-rose-600">Mã hs</th>
+                    <th className="px-2 py-1 text-center text-xs bg-rose-600">Mã hồ sơ</th>
                   </tr>
                 )
               }
@@ -3250,8 +3250,8 @@ function ChuyenGiaTable({ thuTuc, onCgClick }: { thuTuc: number; onCgClick?: (te
         <td className="px-2 py-1.5 text-center text-xs whitespace-nowrap bg-rose-50 text-slate-600">
           {isoToDisplay(row.cham_ngay)}
         </td>
-        {/* Mã hs */}
-        <td className="px-2 py-1.5 text-center text-xs whitespace-nowrap bg-rose-50 text-slate-600 font-mono">
+        {/* Mã hồ sơ */}
+        <td className="px-2 py-1.5 text-center text-xs whitespace-nowrap bg-rose-50 text-slate-600">
           {row.cham_ma ?? ""}
         </td>
         {/* CV thụ lý */}
@@ -3300,7 +3300,7 @@ function ChuyenGiaTable({ thuTuc, onCgClick }: { thuTuc: number; onCgClick?: (te
               <th className="px-2 py-1 text-center text-xs bg-orange-600">Quá hạn</th>
               <th className="px-2 py-1 text-center text-xs bg-rose-600">Thời gian chờ</th>
               <th className="px-2 py-1 text-center text-xs bg-rose-600">Nộp từ</th>
-              <th className="px-2 py-1 text-center text-xs bg-rose-600">Mã hs</th>
+              <th className="px-2 py-1 text-center text-xs bg-rose-600">Mã hồ sơ</th>
               <th className="px-2 py-1 text-center text-xs bg-rose-600">Chuyên viên thụ lý</th>
             </tr>
           </thead>
