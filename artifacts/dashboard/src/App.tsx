@@ -968,7 +968,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTabl
             ) : (
               <>
                 {/* Hàng "Chờ phân công" nếu có */}
-                {cpc && (cpc.ton_sau_tong > 0 || cpc.da_nhan > 0) && (
+                {cpc && (
                   <tr className="bg-yellow-50 border-b-2 border-yellow-200">
                     <td className={`${tdC} text-slate-400`}
                         style={{ ...stickySTT, backgroundColor: "#fefce8", width: STT_W, minWidth: STT_W }}>
