@@ -386,7 +386,7 @@ export async function getDangXuLyStats(thuTuc: number) {
 
 export async function getChuyenGiaStats(thuTuc: number) {
   const rows = await query<{
-    nguoi_xu_ly: string;
+    ten_chuyen_gia: string;
     tong: string;
     con_han: string;
     qua_han: string;
@@ -397,44 +397,60 @@ export async function getChuyenGiaStats(thuTuc: number) {
     }>(
       `WITH
      ${buildWorkflowCasesCte("$1")},
+     ${buildCaseFactsCte("$1")},
+     latest_case_facts AS (
+       SELECT DISTINCT ON (ma_ho_so)
+         ma_ho_so,
+         REGEXP_REPLACE(TRIM(chuyen_gia_name), '^CG\\s*:\\s*', '', 'i') AS chuyen_gia_name
+       FROM case_facts
+       WHERE NULLIF(TRIM(chuyen_gia_name), '') IS NOT NULL
+       ORDER BY ma_ho_so, ngay_nhan DESC NULLS LAST
+     ),
      cg_base AS (
        SELECT
-         nguoi_xu_ly,
+         COALESCE(
+           NULLIF(TRIM(cf.chuyen_gia_name), ''),
+           REGEXP_REPLACE(TRIM(nguoi_xu_ly), '^CG\\s*:\\s*', '', 'i')
+         ) AS ten_chuyen_gia,
          qua_han_ngay,
          ngay_nhan,
          ma_ho_so,
          COALESCE(NULLIF(TRIM(cv_name), ''), '') AS cv_thu_ly
        FROM workflow_cases
+       LEFT JOIN latest_case_facts cf ON cf.ma_ho_so = workflow_cases.ma_ho_so
        WHERE don_vi = 'Chuyên gia thẩm định'
-         AND NULLIF(nguoi_xu_ly, '') IS NOT NULL
+         AND COALESCE(
+           NULLIF(TRIM(cf.chuyen_gia_name), ''),
+           NULLIF(TRIM(nguoi_xu_ly), '')
+         ) IS NOT NULL
      ),
      stats AS (
        SELECT
-         nguoi_xu_ly,
+         ten_chuyen_gia,
          COUNT(*) AS tong,
          COUNT(*) FILTER (WHERE qua_han_ngay <= 0) AS con_han,
          COUNT(*) FILTER (WHERE qua_han_ngay > 0) AS qua_han
        FROM cg_base
-       GROUP BY nguoi_xu_ly
+       GROUP BY ten_chuyen_gia
      ),
      cham_nhat AS (
-       SELECT DISTINCT ON (nguoi_xu_ly)
-         nguoi_xu_ly,
+       SELECT DISTINCT ON (ten_chuyen_gia)
+         ten_chuyen_gia,
          qua_han_ngay AS cham_so_ngay,
          ma_ho_so AS cham_ma,
          ngay_nhan AS cham_ngay,
          cv_thu_ly AS cham_cv
        FROM cg_base
-       ORDER BY nguoi_xu_ly, qua_han_ngay DESC
+       ORDER BY ten_chuyen_gia, qua_han_ngay DESC
      )
      SELECT s.*, cn.cham_so_ngay, cn.cham_ma, cn.cham_ngay, cn.cham_cv
      FROM stats s
-     JOIN cham_nhat cn ON cn.nguoi_xu_ly = s.nguoi_xu_ly`,
+     JOIN cham_nhat cn ON cn.ten_chuyen_gia = s.ten_chuyen_gia`,
     [thuTuc]
   );
 
   const mappedRows = rows.map((row) => ({
-    ten: row.nguoi_xu_ly,
+    ten: row.ten_chuyen_gia,
     tong: toCount(row.tong),
     con_han: toCount(row.con_han),
     qua_han: toCount(row.qua_han),
