@@ -539,10 +539,13 @@ workflow_base AS (
       ELSE NULL
     END AS chuyen_gia,
     COALESCE(
-      GREATEST(
-        0,
-        CURRENT_DATE - ((w.ngay_nhan AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
-      )::int,
+      CASE
+        WHEN COALESCE(w.qua_han_ngay, 0) > 0 THEN w.qua_han_ngay
+        ELSE GREATEST(
+          0,
+          CURRENT_DATE - ((w.ngay_nhan AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
+        )::int
+      END,
       0
     ) AS thoi_gian_cho_ngay
   FROM mv_stats_workflow_cases w

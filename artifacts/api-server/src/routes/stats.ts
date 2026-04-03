@@ -1,4 +1,5 @@
 import { Readable } from "node:stream";
+import ExcelJS from "exceljs";
 import { Router, type IRouter } from "express";
 import { queryOne } from "../lib/db";
 import { getOrSetCached } from "../lib/stats/cache";
@@ -22,6 +23,17 @@ const router: IRouter = Router();
 const STATS_TTL_MS = 5 * 60 * 1000;
 const FAST_TTL_MS = 30 * 1000;
 const PYTHON_API = (process.env["PYTHON_API_BASE_URL"] ?? "http://localhost:8000").replace(/\/+$/, "");
+type LookupExportSortKey =
+  | "stt"
+  | "ma_ho_so"
+  | "ngay_tiep_nhan"
+  | "ngay_hen_tra"
+  | "loai_ho_so"
+  | "submission_kind"
+  | "tinh_trang"
+  | "chuyen_vien"
+  | "chuyen_gia"
+  | "thoi_gian_cho_ngay";
 
 function validateThuTuc(val: unknown): number | null {
   const n = Number(val);
@@ -33,6 +45,100 @@ function parseOptionalThuTuc(val: unknown): number | null {
   const raw = String(val).trim();
   if (!raw || raw.toLowerCase() === "all") return null;
   return validateThuTuc(raw);
+}
+
+function displayLookupCv(raw: string | null): string {
+  if (!raw) return "";
+  if (raw === "__CHUA_PHAN__") return "Chờ phân công";
+  return raw.replace(/^CV thụ lý\s*:\s*/i, "").trim();
+}
+
+function displayLookupCg(raw: string | null): string {
+  if (!raw) return "";
+  return raw.replace(/^CG\s*:\s*/i, "").trim();
+}
+
+function displayLookupTinhTrang(value: string): string {
+  switch (value) {
+    case "cho_phan_cong": return "Chờ phân công";
+    case "cho_chuyen_vien": return "Chờ chuyên viên";
+    case "chua_xu_ly": return "Chưa xử lý";
+    case "bi_tra_lai": return "Bị trả lại";
+    case "cho_tong_hop": return "Chờ tổng hợp";
+    case "cho_chuyen_gia": return "Chờ chuyên gia";
+    case "cho_to_truong": return "Chờ Tổ trưởng";
+    case "cho_truong_phong": return "Chờ Trưởng phòng";
+    case "cho_cong_bo": return "Chờ công bố";
+    default: return value;
+  }
+}
+
+function displaySubmissionKind(value: string | null): string {
+  if (value === "first") return "Lần đầu";
+  if (value === "supplement") return "Lần bổ sung";
+  return "";
+}
+
+function isoToDisplay(iso: string | null): string {
+  if (!iso) return "";
+  const raw = iso.split("T")[0] ?? "";
+  const [y, m, d] = raw.split("-");
+  return y && m && d ? `${d}/${m}/${y}` : raw;
+}
+
+const LOOKUP_STATUS_SORT_ORDER: Record<string, number> = {
+  cho_phan_cong: 1,
+  cho_chuyen_vien: 2,
+  chua_xu_ly: 3,
+  bi_tra_lai: 4,
+  cho_tong_hop: 5,
+  cho_chuyen_gia: 6,
+  cho_to_truong: 7,
+  cho_truong_phong: 8,
+  cho_cong_bo: 9,
+};
+
+function sortLookupRows(
+  rows: Awaited<ReturnType<typeof getDangXuLyLookup>>["rows"],
+  sortBy: LookupExportSortKey,
+  sortDir: "asc" | "desc",
+) {
+  const copy = [...rows];
+  if (sortBy === "stt") {
+    return sortDir === "asc" ? copy : copy.reverse();
+  }
+
+  const getValue = (row: typeof copy[number]) => {
+    switch (sortBy) {
+      case "ma_ho_so": return row.ma_ho_so;
+      case "ngay_tiep_nhan": return row.ngay_tiep_nhan ?? "";
+      case "ngay_hen_tra": return row.ngay_hen_tra ?? "";
+      case "loai_ho_so": return row.loai_ho_so ?? "";
+      case "submission_kind": return row.submission_kind === "first" ? "0" : row.submission_kind === "supplement" ? "1" : "2";
+      case "tinh_trang": return LOOKUP_STATUS_SORT_ORDER[row.tinh_trang] ?? Number.MAX_SAFE_INTEGER;
+      case "chuyen_vien": return displayLookupCv(row.chuyen_vien);
+      case "chuyen_gia": return displayLookupCg(row.chuyen_gia);
+      case "thoi_gian_cho_ngay": return row.thoi_gian_cho_ngay;
+      case "stt": return 0;
+    }
+  };
+
+  copy.sort((left, right) => {
+    const a = getValue(left);
+    const b = getValue(right);
+    let result = 0;
+    if (typeof a === "number" && typeof b === "number") {
+      result = a - b;
+    } else {
+      result = String(a).localeCompare(String(b), "vi", { numeric: true, sensitivity: "base" });
+    }
+    if (result === 0) {
+      result = left.ma_ho_so.localeCompare(right.ma_ho_so, "vi", { numeric: true, sensitivity: "base" });
+    }
+    return sortDir === "asc" ? result : -result;
+  });
+
+  return copy;
 }
 
 async function cachedJson<T>(key: string, ttlMs: number, loader: () => Promise<T>): Promise<T> {
@@ -222,6 +328,80 @@ router.get("/stats/tra-cuu-dang-xu-ly", async (req, res) => {
     ));
   } catch (e: unknown) {
     res.status(500).json({ detail: String(e) });
+  }
+});
+
+router.get("/stats/tra-cuu-dang-xu-ly/export", async (req, res) => {
+  const thuTuc = parseOptionalThuTuc(req.query["thu_tuc"]);
+  if (req.query["thu_tuc"] !== undefined && req.query["thu_tuc"] !== null) {
+    const raw = String(req.query["thu_tuc"]).trim().toLowerCase();
+    if (raw && raw !== "all" && !thuTuc) {
+      return void res.status(400).json({ detail: "thu_tuc phai la 46, 47, 48 hoac de trong" });
+    }
+  }
+
+  try {
+    const chuyenVien = typeof req.query["chuyen_vien"] === "string" ? req.query["chuyen_vien"] : null;
+    const chuyenGia = typeof req.query["chuyen_gia"] === "string" ? req.query["chuyen_gia"] : null;
+    const tinhTrang = typeof req.query["tinh_trang"] === "string" ? req.query["tinh_trang"] : null;
+    const maHoSo = typeof req.query["ma_ho_so"] === "string" ? req.query["ma_ho_so"] : null;
+    const sortByRaw = typeof req.query["sort_by"] === "string" ? req.query["sort_by"] : "stt";
+    const sortDirRaw = typeof req.query["sort_dir"] === "string" ? req.query["sort_dir"] : "asc";
+    const sortBy = ([
+      "stt", "ma_ho_so", "ngay_tiep_nhan", "ngay_hen_tra", "loai_ho_so",
+      "submission_kind", "tinh_trang", "chuyen_vien", "chuyen_gia", "thoi_gian_cho_ngay",
+    ] as const).includes(sortByRaw as LookupExportSortKey) ? sortByRaw as LookupExportSortKey : "stt";
+    const sortDir = sortDirRaw === "desc" ? "desc" : "asc";
+
+    const data = await getDangXuLyLookup({ thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo });
+    const rows = sortLookupRows(data.rows, sortBy, sortDir);
+
+    const filename = `Tra_cuu_dang_xu_ly_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Transfer-Encoding", "chunked");
+
+    const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
+      stream: res,
+      useStyles: false,
+      useSharedStrings: false,
+    });
+    const ws = workbook.addWorksheet("Tra_cuu_dang_xu_ly");
+    ws.addRow([
+      "STT",
+      "Mã hồ sơ",
+      "Ngày tiếp nhận",
+      "Ngày hẹn trả",
+      "Lần nộp",
+      "Loại hồ sơ",
+      "Chuyên viên",
+      "Chuyên gia",
+      "Thời gian chờ",
+      "Tình trạng",
+    ]).commit();
+
+    rows.forEach((row, index) => {
+      ws.addRow([
+        index + 1,
+        row.ma_ho_so,
+        isoToDisplay(row.ngay_tiep_nhan),
+        isoToDisplay(row.ngay_hen_tra),
+        displaySubmissionKind(row.submission_kind),
+        row.loai_ho_so ?? "",
+        displayLookupCv(row.chuyen_vien),
+        displayLookupCg(row.chuyen_gia),
+        row.thoi_gian_cho_ngay > 0 ? `${row.thoi_gian_cho_ngay} ngày` : "",
+        displayLookupTinhTrang(row.tinh_trang),
+      ]).commit();
+    });
+
+    await workbook.commit();
+  } catch (e: unknown) {
+    if (!res.headersSent) {
+      res.status(500).json({ detail: String(e) });
+    } else {
+      res.end();
+    }
   }
 });
 

@@ -2915,6 +2915,47 @@ function displaySubmissionKind(value: string | null): string {
   return "";
 }
 
+async function downloadTraCuuDangXuLyExcel(params: {
+  thuTuc: LookupThuTuc | "all";
+  chuyenVien: string;
+  chuyenGia: string;
+  tinhTrang: LookupTinhTrang | "all";
+  maHoSo: string;
+  sortBy: TraCuuSortKey;
+  sortDir: "asc" | "desc";
+}) {
+  const search = new URLSearchParams();
+  if (params.thuTuc !== "all") search.set("thu_tuc", String(params.thuTuc));
+  if (params.chuyenVien.trim()) search.set("chuyen_vien", params.chuyenVien.trim());
+  if (params.chuyenGia.trim()) search.set("chuyen_gia", params.chuyenGia.trim());
+  if (params.tinhTrang !== "all") search.set("tinh_trang", params.tinhTrang);
+  if (params.maHoSo.trim()) search.set("ma_ho_so", params.maHoSo.trim());
+  search.set("sort_by", params.sortBy);
+  search.set("sort_dir", params.sortDir);
+
+  const res = await fetch(`${API}/stats/tra-cuu-dang-xu-ly/export?${search.toString()}`);
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try {
+      const data = await res.json();
+      detail = data.detail ?? detail;
+    } catch {}
+    throw new Error(detail);
+  }
+
+  const blob = await res.blob();
+  const cd = res.headers.get("Content-Disposition") ?? "";
+  const matched = cd.match(/filename="?([^"]+)"?/);
+  const filename = matched?.[1] ?? "Tra_cuu_dang_xu_ly.xlsx";
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+}
+
 function TraCuuDangXuLyTab(props?: {
   state: TraCuuFilterState;
   setState: React.Dispatch<React.SetStateAction<TraCuuFilterState>>;
@@ -2930,6 +2971,7 @@ function TraCuuDangXuLyTab(props?: {
   const setTinhTrang = (value: LookupTinhTrang | "all") => setState((prev) => ({ ...prev, tinhTrang: value }));
   const setMaHoSo = (value: string) => setState((prev) => ({ ...prev, maHoSo: value }));
   const deferredMaHoSo = useDeferredValue(maHoSo);
+  const [exporting, setExporting] = useState(false);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["tra-cuu-dang-xu-ly", thuTuc, chuyenVien, chuyenGia, tinhTrang, deferredMaHoSo],
@@ -3041,6 +3083,31 @@ function TraCuuDangXuLyTab(props?: {
     </label>
   );
 
+  const handleResetFilters = () => setState((prev) => ({
+    ...DEFAULT_TRA_CUU_FILTER_STATE,
+    sortBy: prev.sortBy,
+    sortDir: prev.sortDir,
+  }));
+
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      await downloadTraCuuDangXuLyExcel({
+        thuTuc,
+        chuyenVien,
+        chuyenGia,
+        tinhTrang,
+        maHoSo,
+        sortBy,
+        sortDir,
+      });
+    } catch (e) {
+      alert(`Lỗi xuất Excel: ${String(e)}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
@@ -3082,6 +3149,26 @@ function TraCuuDangXuLyTab(props?: {
               className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
             />
           </label>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-800"
+              title="Đặt lại bộ lọc"
+              aria-label="Đặt lại bộ lọc"
+            >
+              ↺
+            </button>
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              disabled={exporting || isLoading || !data}
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {exporting ? "Đang xuất..." : "Xuất Excel"}
+            </button>
+          </div>
 
           <div className="ml-auto text-xs text-slate-500 font-medium">
             {isLoading ? "Đang tải dữ liệu..." : `Tìm thấy ${data?.rows.length.toLocaleString("vi-VN") ?? 0} hồ sơ`}
@@ -3140,7 +3227,7 @@ function TraCuuDangXuLyTab(props?: {
                 ) : sortedRows.map((row, index) => (
                   <tr key={`${row.thu_tuc}-${row.ma_ho_so}-${index}`} className={`${index % 2 === 0 ? "bg-white" : "bg-slate-50"} group hover:bg-blue-50`}>
                     <td className="px-3 py-2.5 text-center text-slate-500">{index + 1}</td>
-                    <td className="px-3 py-2.5 font-mono text-slate-700 whitespace-nowrap">{row.ma_ho_so}</td>
+                    <td className="px-3 py-2.5 text-slate-700 whitespace-nowrap">{row.ma_ho_so}</td>
                     <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_tiep_nhan)}</td>
                     <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_hen_tra)}</td>
                     <td className="px-3 py-2.5 text-slate-700">{displaySubmissionKind(row.submission_kind)}</td>
