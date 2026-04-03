@@ -546,8 +546,8 @@ workflow_base AS (
     END AS chuyen_vien,
     CASE
       WHEN w.don_vi = 'Phòng ban phân công' THEN NULL
-      WHEN NULLIF(TRIM(we.chuyen_gia_name), '') IS NOT NULL THEN we.chuyen_gia_name
       WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN REGEXP_REPLACE(TRIM(cf.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
+      WHEN NULLIF(TRIM(we.chuyen_gia_name), '') IS NOT NULL THEN we.chuyen_gia_name
       ELSE NULL
     END AS chuyen_gia,
     COALESCE(
@@ -607,8 +607,8 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
            END AS chuyen_vien,
            CASE
              WHEN w.don_vi = 'Phòng ban phân công' THEN NULL
-             WHEN NULLIF(TRIM(we.chuyen_gia_name), '') IS NOT NULL THEN we.chuyen_gia_name
              WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN REGEXP_REPLACE(TRIM(cf.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
+             WHEN NULLIF(TRIM(we.chuyen_gia_name), '') IS NOT NULL THEN we.chuyen_gia_name
              ELSE NULL
            END AS chuyen_gia
          FROM mv_stats_workflow_cases w
