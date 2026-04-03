@@ -62,36 +62,46 @@ function parseDMY(dmyStr: string): string {
   return "";
 }
 
+function minYmd(a: string, b: string): string {
+  return a <= b ? a : b;
+}
+
+function clampToToday(ymd: string): string {
+  if (!ymd) return ymd;
+  return minYmd(ymd, toYMD(new Date()));
+}
+
 // ---------------------------------------------------------------------------
 // Quick filter presets
 // ---------------------------------------------------------------------------
 function getPreset(key: string): { from: string; to: string } {
   const now = new Date();
+  const today = toYMD(now);
   const y = now.getFullYear();
   const m = now.getMonth(); // 0-indexed
 
   if (key === "thang_nay") {
-    return { from: toYMD(new Date(y, m, 1)), to: toYMD(new Date(y, m + 1, 0)) };
+    return { from: toYMD(new Date(y, m, 1)), to: minYmd(toYMD(new Date(y, m + 1, 0)), today) };
   }
   if (key === "nam_nay") {
-    return { from: toYMD(new Date(y, 0, 1)), to: toYMD(new Date(y, 11, 31)) };
+    return { from: toYMD(new Date(y, 0, 1)), to: minYmd(toYMD(new Date(y, 11, 31)), today) };
   }
   if (key === "12_thang") {
     const d = new Date(now);
     d.setMonth(d.getMonth() - 11);
-    return { from: toYMD(new Date(d.getFullYear(), d.getMonth(), 1)), to: toYMD(new Date(y, m + 1, 0)) };
+    return { from: toYMD(new Date(d.getFullYear(), d.getMonth(), 1)), to: minYmd(toYMD(new Date(y, m + 1, 0)), today) };
   }
   if (key === "6_thang") {
     const d = new Date(now);
     d.setMonth(d.getMonth() - 5);
-    return { from: toYMD(new Date(d.getFullYear(), d.getMonth(), 1)), to: toYMD(new Date(y, m + 1, 0)) };
+    return { from: toYMD(new Date(d.getFullYear(), d.getMonth(), 1)), to: minYmd(toYMD(new Date(y, m + 1, 0)), today) };
   }
   if (key === "3_thang") {
     const d = new Date(now);
     d.setMonth(d.getMonth() - 2);
-    return { from: toYMD(new Date(d.getFullYear(), d.getMonth(), 1)), to: toYMD(new Date(y, m + 1, 0)) };
+    return { from: toYMD(new Date(d.getFullYear(), d.getMonth(), 1)), to: minYmd(toYMD(new Date(y, m + 1, 0)), today) };
   }
-  return { from: toYMD(new Date(y, 0, 1)), to: toYMD(now) };
+  return { from: toYMD(new Date(y, 0, 1)), to: today };
 }
 
 // Thứ tự nút lọc khớp với thiết kế Excel (Cộng dồn xử lý riêng vì cần API)
@@ -1544,7 +1554,8 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
   const { fromDate, toDate, fromInput, toInput, activePreset, loadingAll, update } = useTabFilter(thuTuc);
 
   const applyDates = useCallback((from: string, to: string, preset?: string) => {
-    update({ fromDate: from, toDate: to, fromInput: toDMY(from), toInput: toDMY(to), activePreset: preset ?? "" });
+    const clampedTo = clampToToday(to);
+    update({ fromDate: from, toDate: clampedTo, fromInput: toDMY(from), toInput: toDMY(clampedTo), activePreset: preset ?? "" });
   }, [update]);
 
   const handleTatCa = useCallback(async () => {
@@ -1566,7 +1577,10 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 
   const handleToBlur = () => {
     const parsed = parseDMY(toInput);
-    if (parsed) update({ toDate: parsed, activePreset: "" });
+    if (parsed) {
+      const clamped = clampToToday(parsed);
+      update({ toDate: clamped, toInput: toDMY(clamped), activePreset: "" });
+    }
     else update({ toInput: toDMY(toDate) });
   };
 
