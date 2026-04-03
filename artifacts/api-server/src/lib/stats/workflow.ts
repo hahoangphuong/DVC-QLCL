@@ -507,6 +507,17 @@ const PENDING_LOOKUP_BASE_CTE = `WITH latest_case_facts AS (
   WHERE ($1::int IS NULL OR thu_tuc = $1)
   ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
 ),
+latest_workflow_experts AS (
+  SELECT DISTINCT ON (thu_tuc, ma_ho_so)
+    thu_tuc,
+    ma_ho_so,
+    REGEXP_REPLACE(TRIM(nguoi_xu_ly), '^CG\\s*:\\s*', '', 'i') AS chuyen_gia_name
+  FROM mv_stats_workflow_cases
+  WHERE ($1::int IS NULL OR thu_tuc = $1)
+    AND don_vi = 'Chuyên gia thẩm định'
+    AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
+  ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
+),
 workflow_base AS (
   SELECT
     w.thu_tuc,
@@ -535,6 +546,7 @@ workflow_base AS (
     END AS chuyen_vien,
     CASE
       WHEN w.don_vi = 'Phòng ban phân công' THEN NULL
+      WHEN NULLIF(TRIM(we.chuyen_gia_name), '') IS NOT NULL THEN we.chuyen_gia_name
       WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN REGEXP_REPLACE(TRIM(cf.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
       ELSE NULL
     END AS chuyen_gia,
@@ -552,6 +564,9 @@ workflow_base AS (
   LEFT JOIN latest_case_facts cf
     ON cf.thu_tuc = w.thu_tuc
    AND cf.ma_ho_so = w.ma_ho_so
+  LEFT JOIN latest_workflow_experts we
+    ON we.thu_tuc = w.thu_tuc
+   AND we.ma_ho_so = w.ma_ho_so
   WHERE ($1::int IS NULL OR w.thu_tuc = $1)
 )`;
 
@@ -573,6 +588,17 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
          WHERE ($1::int IS NULL OR thu_tuc = $1)
          ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
        ),
+       latest_workflow_experts AS (
+         SELECT DISTINCT ON (thu_tuc, ma_ho_so)
+           thu_tuc,
+           ma_ho_so,
+           REGEXP_REPLACE(TRIM(nguoi_xu_ly), '^CG\\s*:\\s*', '', 'i') AS chuyen_gia_name
+         FROM mv_stats_workflow_cases
+         WHERE ($1::int IS NULL OR thu_tuc = $1)
+           AND don_vi = 'Chuyên gia thẩm định'
+           AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
+         ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
+       ),
        option_rows AS (
          SELECT
            CASE
@@ -581,6 +607,7 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
            END AS chuyen_vien,
            CASE
              WHEN w.don_vi = 'Phòng ban phân công' THEN NULL
+             WHEN NULLIF(TRIM(we.chuyen_gia_name), '') IS NOT NULL THEN we.chuyen_gia_name
              WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN REGEXP_REPLACE(TRIM(cf.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
              ELSE NULL
            END AS chuyen_gia
@@ -588,6 +615,9 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
          LEFT JOIN latest_case_facts cf
            ON cf.thu_tuc = w.thu_tuc
           AND cf.ma_ho_so = w.ma_ho_so
+         LEFT JOIN latest_workflow_experts we
+           ON we.thu_tuc = w.thu_tuc
+          AND we.ma_ho_so = w.ma_ho_so
          WHERE ($1::int IS NULL OR w.thu_tuc = $1)
        )
        SELECT DISTINCT chuyen_vien, chuyen_gia
