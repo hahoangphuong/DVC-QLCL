@@ -376,15 +376,7 @@ router.get("/stats/tra-cuu-dang-xu-ly/export", async (req, res) => {
     const rows = sortLookupRows(data.rows, sortBy, sortDir);
 
     const filename = `Tra_cuu_dang_xu_ly_${new Date().toISOString().slice(0, 10)}.xlsx`;
-    res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Transfer-Encoding", "chunked");
-
-    const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
-      stream: res,
-      useStyles: false,
-      useSharedStrings: false,
-    });
+    const workbook = new ExcelJS.Workbook();
     const ws = workbook.addWorksheet("Tra_cuu_dang_xu_ly");
     ws.addRow([
       "STT",
@@ -397,7 +389,7 @@ router.get("/stats/tra-cuu-dang-xu-ly/export", async (req, res) => {
       "Chuyên gia",
       "Thời gian chờ",
       "Tình trạng",
-    ]).commit();
+    ]);
 
     rows.forEach((row, index) => {
       ws.addRow([
@@ -411,10 +403,14 @@ router.get("/stats/tra-cuu-dang-xu-ly/export", async (req, res) => {
         displayLookupCg(row.chuyen_gia),
         row.thoi_gian_cho_ngay > 0 ? `${row.thoi_gian_cho_ngay} ngày` : "",
         displayLookupTinhTrang(row.tinh_trang),
-      ]).commit();
+      ]);
     });
 
-    await workbook.commit();
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Length", String(buffer.length));
+    res.end(buffer);
   } catch (e: unknown) {
     if (!res.headersSent) {
       res.status(500).json({ detail: String(e) });

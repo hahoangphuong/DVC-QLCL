@@ -3499,7 +3499,7 @@ function ChuyenGiaTable({
             onChange={(e) => setHideEmpty(e.target.checked)}
             className="rounded border-white/40 text-green-700 focus:ring-green-200"
           />
-          Ẩn chuyên gia không có hồ sơ
+          Ẩn chuyên gia không có hồ sơ tồn
         </label>
       </div>
       <div className="overflow-x-auto">
@@ -4077,7 +4077,7 @@ function Dashboard() {
   const [activeTab, setActiveTab] = useState<string>(TABS[0].id);
   const [showAdmin, setShowAdmin] = useState(false);
   const [lookupState, setLookupState] = useState<TraCuuFilterState>(DEFAULT_TRA_CUU_FILTER_STATE);
-  const [hideEmptyExperts, setHideEmptyExperts] = useState(false);
+  const [hideEmptyExperts, setHideEmptyExperts] = useState(true);
   const isAdmin = authRole === "admin";
   const visibleTabs = useMemo(
     () => (isAdmin ? TABS : TABS.filter((tab) => tab.id !== "tra_cuu_dang_xl")),
