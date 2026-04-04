@@ -107,6 +107,17 @@ router.post("/admin/force-sync", async (req, res) => {
   }
 });
 
+router.post("/admin/migrate-stats", async (req, res) => {
+  if (!checkToken(req, res)) return;
+  try {
+    const pyRes = await fetch(`${PYTHON_API}/internal/migrate/stats`, { method: "POST" });
+    const data = await pyRes.json();
+    res.status(pyRes.ok ? 200 : 502).json(data);
+  } catch (e: unknown) {
+    res.status(502).json({ detail: `KhÃ´ng thá»ƒ káº¿t ná»‘i Python backend: ${String(e)}` });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // GET /admin/scheduler — lấy interval hiện tại
 // POST /admin/scheduler — cập nhật interval (body: {hours: N})

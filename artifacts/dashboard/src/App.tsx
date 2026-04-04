@@ -3501,6 +3501,8 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
 
   const [syncBusy,   setSyncBusy]   = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
+  const [migrateBusy, setMigrateBusy] = useState(false);
+  const [migrateResult, setMigrateResult] = useState<string | null>(null);
 
   const [scheduler,       setScheduler]       = useState<SchedulerInfo | null>(null);
   const [schedulerHours,  setSchedulerHours]  = useState<string>("");
@@ -3576,6 +3578,29 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
       setSyncResult(`❌ Lỗi kết nối: ${String(e)}`);
     } finally {
       setSyncBusy(false);
+    }
+  };
+
+  const handleMigrateStats = async () => {
+    if (!hasToken) { alert("Vui lòng nhập mã xác thực trước."); return; }
+    setMigrateBusy(true);
+    setMigrateResult(null);
+    try {
+      const r = await fetch(`${API}/admin/migrate-stats`, {
+        method: "POST",
+        headers: authHeaders(tk()),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        setMigrateResult(`❌ Lỗi: ${d.detail ?? `HTTP ${r.status}`}`);
+      } else {
+        const elapsed = typeof d.elapsed_sec === "number" ? ` (${d.elapsed_sec}s)` : "";
+        setMigrateResult(`✅ Đã chạy stats migration${elapsed}`);
+      }
+    } catch (e) {
+      setMigrateResult(`❌ Lỗi kết nối: ${String(e)}`);
+    } finally {
+      setMigrateBusy(false);
     }
   };
 
@@ -3775,6 +3800,20 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
                 {syncBusy ? "⏳ Đang sync..." : "▶ Sync ngay"}
               </button>
               {syncResult && <span className="text-xs text-slate-700 font-medium">{syncResult}</span>}
+            </div>
+          </Section>
+
+          <Section title="Stats Migration">
+            <p className="text-xs text-slate-500 mb-3">Chạy thủ công phần recreate materialized views stats sau khi deploy thay đổi schema stats. Tác vụ này không còn chạy lúc startup.</p>
+            <div className="flex items-center gap-3 flex-wrap">
+              <button
+                onClick={handleMigrateStats}
+                disabled={!hasToken || migrateBusy}
+                className="px-4 py-2 text-xs font-bold rounded-lg bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {migrateBusy ? "⏳ Đang migrate..." : "▶ Chạy stats migration"}
+              </button>
+              {migrateResult && <span className="text-xs text-slate-700 font-medium">{migrateResult}</span>}
             </div>
           </Section>
 
