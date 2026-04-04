@@ -14,12 +14,34 @@ STATS_MATERIALIZED_VIEWS = {
     "tt48_treo_by_loai": "mv_stats_tt48_treo_by_loai",
 }
 
+CONCURRENT_REFRESH_KINDS = {
+    "received",
+    "tt48_received_by_loai",
+    "received_bounds",
+    "resolved",
+    "inflight",
+    "case_facts",
+    "workflow_cases",
+    "treo_by_cv",
+    "tt48_treo_by_loai",
+}
 
-def refresh_stats_materialized_views(db, *kinds: str):
+
+def refresh_stats_materialized_views(db, *kinds: str, concurrently: bool = False):
     targets = kinds or tuple(STATS_MATERIALIZED_VIEWS.keys())
+    bind = db.get_bind()
+    if concurrently:
+        with bind.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            for kind in targets:
+                view_name = STATS_MATERIALIZED_VIEWS.get(kind)
+                if not view_name:
+                    raise ValueError(f"Unknown stats materialized view kind: {kind}")
+                stmt = "REFRESH MATERIALIZED VIEW CONCURRENTLY" if kind in CONCURRENT_REFRESH_KINDS else "REFRESH MATERIALIZED VIEW"
+                conn.execute(text(f"{stmt} {view_name}"))
+        return
+
     for kind in targets:
         view_name = STATS_MATERIALIZED_VIEWS.get(kind)
         if not view_name:
             raise ValueError(f"Unknown stats materialized view kind: {kind}")
         db.execute(text(f"REFRESH MATERIALIZED VIEW {view_name}"))
-

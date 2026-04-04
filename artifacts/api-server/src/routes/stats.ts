@@ -22,6 +22,8 @@ import {
 const router: IRouter = Router();
 const STATS_TTL_MS = 5 * 60 * 1000;
 const FAST_TTL_MS = 30 * 1000;
+const STATS_STALE_MS = 6 * 60 * 60 * 1000;
+const FAST_STALE_MS = 5 * 60 * 1000;
 const PYTHON_API = (process.env["PYTHON_API_BASE_URL"] ?? "http://localhost:8000").replace(/\/+$/, "");
 type LookupExportSortKey =
   | "stt"
@@ -141,8 +143,8 @@ function sortLookupRows(
   return copy;
 }
 
-async function cachedJson<T>(key: string, ttlMs: number, loader: () => Promise<T>): Promise<T> {
-  return getOrSetCached(key, ttlMs, loader);
+async function cachedJson<T>(key: string, ttlMs: number, staleMs: number, loader: () => Promise<T>): Promise<T> {
+  return getOrSetCached(key, ttlMs, loader, staleMs);
 }
 
 router.get("/stats/earliest-date", async (req, res) => {
@@ -153,6 +155,7 @@ router.get("/stats/earliest-date", async (req, res) => {
     const earliestDate = await cachedJson(
       `stats:earliest-date:${thuTuc}`,
       STATS_TTL_MS,
+      STATS_STALE_MS,
       () => getEarliestDate(thuTuc)
     );
     if (!earliestDate) return void res.status(404).json({ detail: "Khong co du lieu" });
@@ -173,6 +176,7 @@ router.get("/stats/summary", async (req, res) => {
     res.json(await cachedJson(
       `stats:summary:${thuTuc}:${fromDate}:${toDate}`,
       STATS_TTL_MS,
+      STATS_STALE_MS,
       () => getSummaryStats(thuTuc, fromDate, toDate)
     ));
   } catch (e: unknown) {
@@ -191,6 +195,7 @@ router.get("/stats/giai-quyet", async (req, res) => {
     res.json(await cachedJson(
       `stats:giai-quyet:${thuTuc}:${fromDate}:${toDate}`,
       STATS_TTL_MS,
+      STATS_STALE_MS,
       () => getGiaiQuyetStats(thuTuc, fromDate, toDate)
     ));
   } catch (e: unknown) {
@@ -208,6 +213,7 @@ router.get("/stats/ton-sau", async (req, res) => {
     res.json(await cachedJson(
       `stats:ton-sau:${thuTuc}:${toDate}`,
       STATS_TTL_MS,
+      STATS_STALE_MS,
       () => getTonSauStats(thuTuc, toDate)
     ));
   } catch (e: unknown) {
@@ -226,6 +232,7 @@ router.get("/stats/chuyen-vien", async (req, res) => {
     res.json(await cachedJson(
       `stats:chuyen-vien:${thuTuc}:${fromDate}:${toDate}`,
       STATS_TTL_MS,
+      STATS_STALE_MS,
       () => getChuyenVienStats(thuTuc, fromDate, toDate)
     ));
   } catch (e: unknown) {
@@ -241,6 +248,7 @@ router.get("/stats/monthly", async (req, res) => {
     res.json(await cachedJson(
       `stats:monthly:${thuTuc}`,
       STATS_TTL_MS,
+      STATS_STALE_MS,
       () => getMonthlyStats(thuTuc)
     ));
   } catch (e: unknown) {
@@ -257,6 +265,7 @@ router.get("/stats/tt48-phan-loai", async (req, res) => {
     res.json(await cachedJson(
       `stats:tt48-phan-loai:${fromDate}:${toDate}`,
       STATS_TTL_MS,
+      STATS_STALE_MS,
       () => getTt48LoaiHoSoStats(fromDate, toDate)
     ));
   } catch (e: unknown) {
@@ -269,6 +278,7 @@ router.get("/stats/tt48-monthly-received", async (_req, res) => {
     res.json(await cachedJson(
       "stats:tt48-monthly-received",
       STATS_TTL_MS,
+      STATS_STALE_MS,
       () => getTt48ReceivedMonthlyByLoaiStats()
     ));
   } catch (e: unknown) {
@@ -284,6 +294,7 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
     res.json(await cachedJson(
       `stats:dang-xu-ly:${thuTuc}`,
       STATS_TTL_MS,
+      STATS_STALE_MS,
       () => getDangXuLyStats(thuTuc)
     ));
   } catch (e: unknown) {
@@ -299,6 +310,7 @@ router.get("/stats/chuyen-gia", async (req, res) => {
     res.json(await cachedJson(
       `stats:chuyen-gia:${thuTuc}`,
       STATS_TTL_MS,
+      STATS_STALE_MS,
       () => getChuyenGiaStats(thuTuc)
     ));
   } catch (e: unknown) {
@@ -324,6 +336,7 @@ router.get("/stats/tra-cuu-dang-xu-ly", async (req, res) => {
     res.json(await cachedJson(
       `stats:tra-cuu-dang-xu-ly:${thuTuc ?? "all"}:${chuyenVien ?? ""}:${chuyenGia ?? ""}:${tinhTrang ?? ""}:${maHoSo ?? ""}`,
       FAST_TTL_MS,
+      FAST_STALE_MS,
       () => getDangXuLyLookup({ thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo })
     ));
   } catch (e: unknown) {
@@ -461,7 +474,7 @@ router.get("/dav/file", async (req, res) => {
 
 router.get("/sync-status", async (_req, res) => {
   try {
-    res.json(await cachedJson("stats:sync-status", FAST_TTL_MS, async () => {
+    res.json(await cachedJson("stats:sync-status", FAST_TTL_MS, FAST_STALE_MS, async () => {
       const [timeRow, sizeRow] = await Promise.all([
         queryOne<{ last_synced_at: string | null }>(`
           SELECT MAX(synced_at) AS last_synced_at

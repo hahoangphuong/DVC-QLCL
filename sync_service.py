@@ -61,9 +61,9 @@ class SyncService:
              "fs": round(fetch_sec, 2), "is": round(insert_sec, 2)},
         )
 
-    def _refresh_views_with_timing(self, db, *kinds: str) -> float:
+    def _refresh_views_with_timing(self, db, *kinds: str, concurrently: bool = False) -> float:
         started = _time.monotonic()
-        refresh_stats_materialized_views(db, *kinds)
+        refresh_stats_materialized_views(db, *kinds, concurrently=concurrently)
         return _time.monotonic() - started
 
     def _merge_refresh_kinds(self, target: list[str], *kinds: str):
@@ -789,7 +789,7 @@ class SyncService:
             if deferred_refresh_kinds:
                 db = self.session_factory()
                 try:
-                    refresh_sec = self._refresh_views_with_timing(db, *deferred_refresh_kinds)
+                    refresh_sec = self._refresh_views_with_timing(db, *deferred_refresh_kinds, concurrently=True)
                     db.commit()
                     self.runtime.sync_log.info(
                         f"[run #{run_id}] [refresh_stats_materialized_views] "
