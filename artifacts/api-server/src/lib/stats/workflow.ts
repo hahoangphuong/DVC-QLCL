@@ -732,6 +732,135 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
   };
 }
 
+export async function getDaXuLyLookup(filters: PendingLookupFilters) {
+  const thuTuc = filters.thuTuc ?? null;
+  const chuyenVien = normalizeLookupText(filters.chuyenVien);
+  const chuyenGia = normalizeLookupExpertText(filters.chuyenGia);
+  const tinhTrang = normalizeLookupText(filters.tinhTrang);
+  const maHoSo = normalizeLookupText(filters.maHoSo);
+
+  const [optionRows, rows] = await Promise.all([
+    query<PendingLookupOptionRow>(
+      `WITH latest_case_facts AS (
+         SELECT DISTINCT ON (thu_tuc, ma_ho_so)
+           thu_tuc,
+           ma_ho_so,
+           cv_name_raw,
+           chuyen_gia_name
+         FROM mv_stats_case_facts
+         WHERE ($1::int IS NULL OR thu_tuc = $1)
+           AND trang_thai IN ('4', '6', '7')
+         ORDER BY thu_tuc, ma_ho_so, ngay_tra DESC NULLS LAST, ngay_nhan DESC NULLS LAST
+       ),
+       option_rows AS (
+         SELECT
+           CASE
+             WHEN NULLIF(TRIM(cv_name_raw), '') IS NULL OR cv_name_raw = '__CHUA_PHAN__' THEN NULL
+             ELSE TRIM(cv_name_raw)
+           END AS chuyen_vien,
+           CASE
+             WHEN NULLIF(TRIM(chuyen_gia_name), '') IS NULL THEN NULL
+             ELSE REGEXP_REPLACE(TRIM(chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
+           END AS chuyen_gia
+         FROM latest_case_facts
+       )
+       SELECT DISTINCT chuyen_vien, chuyen_gia
+       FROM option_rows
+       ORDER BY chuyen_vien NULLS LAST, chuyen_gia NULLS LAST`,
+      [thuTuc]
+    ),
+    query<PendingLookupRow>(
+      `WITH latest_case_facts AS (
+         SELECT DISTINCT ON (thu_tuc, ma_ho_so)
+           thu_tuc,
+           ma_ho_so,
+           ngay_nhan AS ngay_tiep_nhan,
+           ngay_tra AS ngay_hen_tra,
+           loai_ho_so,
+           submission_kind,
+           CASE
+             WHEN trang_thai = '4' THEN 'can_bo_sung'
+             WHEN trang_thai = '7' THEN 'khong_dat'
+             WHEN trang_thai = '6' THEN 'da_hoan_thanh'
+             ELSE NULL
+           END AS tinh_trang,
+           CASE
+             WHEN NULLIF(TRIM(cv_name_raw), '') IS NULL OR cv_name_raw = '__CHUA_PHAN__' THEN NULL
+             ELSE TRIM(cv_name_raw)
+           END AS chuyen_vien,
+           CASE
+             WHEN NULLIF(TRIM(chuyen_gia_name), '') IS NULL THEN NULL
+             ELSE REGEXP_REPLACE(TRIM(chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
+           END AS chuyen_gia,
+           GREATEST(
+             0,
+             ((COALESCE(ngay_tra, ngay_nhan) AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - (ngay_nhan AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
+           )::int AS thoi_gian_cho_ngay
+         FROM mv_stats_case_facts
+         WHERE ($1::int IS NULL OR thu_tuc = $1)
+           AND trang_thai IN ('4', '6', '7')
+         ORDER BY thu_tuc, ma_ho_so, ngay_tra DESC NULLS LAST, ngay_nhan DESC NULLS LAST
+       )
+       SELECT
+         thu_tuc,
+         ma_ho_so,
+         ngay_tiep_nhan,
+         ngay_hen_tra,
+         loai_ho_so,
+         submission_kind,
+         tinh_trang,
+         chuyen_vien,
+         chuyen_gia,
+         thoi_gian_cho_ngay
+       FROM latest_case_facts
+       WHERE ($2::text IS NULL OR chuyen_vien = $2)
+         AND ($3::text IS NULL OR chuyen_gia = $3)
+         AND ($4::text IS NULL OR tinh_trang = $4)
+         AND ($5::text IS NULL OR LOWER(ma_ho_so) LIKE '%' || LOWER($5) || '%')
+       ORDER BY thu_tuc DESC, ngay_hen_tra DESC NULLS LAST, ma_ho_so ASC`,
+      [thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo]
+    ),
+  ]);
+
+  const chuyenVienOptions = Array.from(new Set(
+    optionRows
+      .map((row) => row.chuyen_vien)
+      .filter((value): value is string => Boolean(value))
+  )).sort((left, right) => left.localeCompare(right, "vi"));
+
+  const chuyenGiaOptions = Array.from(new Set(
+    optionRows
+      .map((row) => row.chuyen_gia)
+      .filter((value): value is string => Boolean(value))
+  )).sort((left, right) => left.localeCompare(right, "vi"));
+
+  return {
+    filters: {
+      thu_tuc: thuTuc,
+      chuyen_vien: chuyenVien,
+      chuyen_gia: chuyenGia,
+      tinh_trang: tinhTrang,
+      ma_ho_so: maHoSo,
+    },
+    options: {
+      chuyen_vien: chuyenVienOptions,
+      chuyen_gia: chuyenGiaOptions,
+    },
+    rows: rows.map((row) => ({
+      thu_tuc: row.thu_tuc,
+      ma_ho_so: row.ma_ho_so,
+      ngay_tiep_nhan: row.ngay_tiep_nhan,
+      ngay_hen_tra: row.ngay_hen_tra,
+      loai_ho_so: row.loai_ho_so,
+      submission_kind: row.submission_kind,
+      tinh_trang: row.tinh_trang,
+      chuyen_vien: row.chuyen_vien,
+      chuyen_gia: row.chuyen_gia,
+      thoi_gian_cho_ngay: toCount(row.thoi_gian_cho_ngay),
+    })),
+  };
+}
+
 
 
 

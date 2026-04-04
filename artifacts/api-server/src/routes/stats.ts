@@ -16,6 +16,7 @@ import {
 import {
   getChuyenGiaStats,
   getChuyenVienStats,
+  getDaXuLyLookup,
   getDangXuLyStats,
   getDangXuLyLookup,
 } from "../lib/stats/workflow";
@@ -322,6 +323,7 @@ router.get("/stats/chuyen-gia", async (req, res) => {
 });
 
 router.use("/stats/tra-cuu-dang-xu-ly", requireAdminSession);
+router.use("/stats/tra-cuu-da-xu-ly", requireAdminSession);
 router.use("/dav", requireAdminSession);
 
 router.get("/stats/tra-cuu-dang-xu-ly", async (req, res) => {
@@ -388,6 +390,102 @@ router.get("/stats/tra-cuu-dang-xu-ly/export", async (req, res) => {
       "Chuyên viên",
       "Chuyên gia",
       "Thời gian chờ",
+      "Tình trạng",
+    ]);
+
+    rows.forEach((row, index) => {
+      ws.addRow([
+        index + 1,
+        row.ma_ho_so,
+        isoToDisplay(row.ngay_tiep_nhan),
+        isoToDisplay(row.ngay_hen_tra),
+        displaySubmissionKind(row.submission_kind),
+        row.loai_ho_so ?? "",
+        displayLookupCv(row.chuyen_vien),
+        displayLookupCg(row.chuyen_gia),
+        row.thoi_gian_cho_ngay > 0 ? `${row.thoi_gian_cho_ngay} ngày` : "",
+        displayLookupTinhTrang(row.tinh_trang),
+      ]);
+    });
+
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Length", String(buffer.length));
+    res.end(buffer);
+  } catch (e: unknown) {
+    if (!res.headersSent) {
+      res.status(500).json({ detail: String(e) });
+    } else {
+      res.end();
+    }
+  }
+});
+
+router.get("/stats/tra-cuu-da-xu-ly", async (req, res) => {
+  const thuTuc = parseOptionalThuTuc(req.query["thu_tuc"]);
+  if (req.query["thu_tuc"] !== undefined && req.query["thu_tuc"] !== null) {
+    const raw = String(req.query["thu_tuc"]).trim().toLowerCase();
+    if (raw && raw !== "all" && !thuTuc) {
+      return void res.status(400).json({ detail: "thu_tuc phai la 46, 47, 48 hoac de trong" });
+    }
+  }
+
+  try {
+    const chuyenVien = typeof req.query["chuyen_vien"] === "string" ? req.query["chuyen_vien"] : null;
+    const chuyenGia = typeof req.query["chuyen_gia"] === "string" ? req.query["chuyen_gia"] : null;
+    const tinhTrang = typeof req.query["tinh_trang"] === "string" ? req.query["tinh_trang"] : null;
+    const maHoSo = typeof req.query["ma_ho_so"] === "string" ? req.query["ma_ho_so"] : null;
+
+    res.json(await cachedJson(
+      `stats:tra-cuu-da-xu-ly:${thuTuc ?? "all"}:${chuyenVien ?? ""}:${chuyenGia ?? ""}:${tinhTrang ?? ""}:${maHoSo ?? ""}`,
+      FAST_TTL_MS,
+      FAST_STALE_MS,
+      () => getDaXuLyLookup({ thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo })
+    ));
+  } catch (e: unknown) {
+    res.status(500).json({ detail: String(e) });
+  }
+});
+
+router.get("/stats/tra-cuu-da-xu-ly/export", async (req, res) => {
+  const thuTuc = parseOptionalThuTuc(req.query["thu_tuc"]);
+  if (req.query["thu_tuc"] !== undefined && req.query["thu_tuc"] !== null) {
+    const raw = String(req.query["thu_tuc"]).trim().toLowerCase();
+    if (raw && raw !== "all" && !thuTuc) {
+      return void res.status(400).json({ detail: "thu_tuc phai la 46, 47, 48 hoac de trong" });
+    }
+  }
+
+  try {
+    const chuyenVien = typeof req.query["chuyen_vien"] === "string" ? req.query["chuyen_vien"] : null;
+    const chuyenGia = typeof req.query["chuyen_gia"] === "string" ? req.query["chuyen_gia"] : null;
+    const tinhTrang = typeof req.query["tinh_trang"] === "string" ? req.query["tinh_trang"] : null;
+    const maHoSo = typeof req.query["ma_ho_so"] === "string" ? req.query["ma_ho_so"] : null;
+    const sortByRaw = typeof req.query["sort_by"] === "string" ? req.query["sort_by"] : "stt";
+    const sortDirRaw = typeof req.query["sort_dir"] === "string" ? req.query["sort_dir"] : "asc";
+    const sortBy = ([
+      "stt", "ma_ho_so", "ngay_tiep_nhan", "ngay_hen_tra", "loai_ho_so",
+      "submission_kind", "tinh_trang", "chuyen_vien", "chuyen_gia", "thoi_gian_cho_ngay",
+    ] as const).includes(sortByRaw as LookupExportSortKey) ? sortByRaw as LookupExportSortKey : "stt";
+    const sortDir = sortDirRaw === "desc" ? "desc" : "asc";
+
+    const data = await getDaXuLyLookup({ thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo });
+    const rows = sortLookupRows(data.rows, sortBy, sortDir);
+
+    const filename = `Tra_cuu_da_xu_ly_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const workbook = new ExcelJS.Workbook();
+    const ws = workbook.addWorksheet("Tra_cuu_da_xu_ly");
+    ws.addRow([
+      "STT",
+      "Mã hồ sơ",
+      "Ngày tiếp nhận",
+      "Ngày trả kết quả",
+      "Lần nộp",
+      "Loại hồ sơ",
+      "Chuyên viên",
+      "Chuyên gia",
+      "Thời gian xử lý",
       "Tình trạng",
     ]);
 
