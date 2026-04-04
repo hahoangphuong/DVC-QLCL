@@ -2309,11 +2309,15 @@ function DangXuLyTab({
   onCvLookup,
   onCgLookup,
   onTinhTrangLookup,
+  hideEmptyExperts = false,
+  setHideEmptyExperts,
 }: {
   thuTuc: 48 | 47 | 46;
   onCvLookup?: (tenCvRaw: string, thuTuc: 48 | 47 | 46) => void;
   onCgLookup?: (tenCg: string) => void;
   onTinhTrangLookup?: (thuTuc: 48 | 47 | 46, tinhTrang: LookupTinhTrang) => void;
+  hideEmptyExperts?: boolean;
+  setHideEmptyExperts?: (value: boolean) => void;
 }) {
   const [showTt48TotalBreakdown, setShowTt48TotalBreakdown] = useState(false);
   const { data, isLoading, isError } = useQuery({
@@ -2949,7 +2953,14 @@ function DangXuLyTab({
           </table>
         </div>
       </div>
-        {thuTuc === 48 && <ChuyenGiaTable thuTuc={thuTuc} onCgClick={onCgLookup} />}
+        {thuTuc === 48 && (
+          <ChuyenGiaTable
+            thuTuc={thuTuc}
+            onCgClick={onCgLookup}
+            hideEmpty={hideEmptyExperts}
+            setHideEmpty={setHideEmptyExperts ?? (() => undefined)}
+          />
+        )}
     </div>
   );
 }
@@ -3366,7 +3377,17 @@ function TraCuuDangXuLyTab(props?: {
 // ---------------------------------------------------------------------------
 // ChuyenGiaTable — bảng thống kê chuyên gia (chỉ dùng cho TT48)
 // ---------------------------------------------------------------------------
-function ChuyenGiaTable({ thuTuc, onCgClick }: { thuTuc: number; onCgClick?: (tenCg: string) => void }) {
+function ChuyenGiaTable({
+  thuTuc,
+  onCgClick,
+  hideEmpty,
+  setHideEmpty,
+}: {
+  thuTuc: number;
+  onCgClick?: (tenCg: string) => void;
+  hideEmpty: boolean;
+  setHideEmpty: (value: boolean) => void;
+}) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["chuyen-gia", thuTuc],
     queryFn:  () => fetchChuyenGia(thuTuc),
@@ -3457,7 +3478,9 @@ function ChuyenGiaTable({ thuTuc, onCgClick }: { thuTuc: number; onCgClick?: (te
     );
   };
 
-  const allRows = [...data.chuyen_gia, ...data.chuyen_vien_cg];
+  const visibleChuyenGia = hideEmpty ? data.chuyen_gia.filter((row) => row.tong > 0) : data.chuyen_gia;
+  const visibleChuyenVienCg = hideEmpty ? data.chuyen_vien_cg.filter((row) => row.tong > 0) : data.chuyen_vien_cg;
+  const allRows = [...visibleChuyenGia, ...visibleChuyenVienCg];
   const grandTong  = allRows.reduce((s, r) => s + r.tong,    0);
   const grandCon   = allRows.reduce((s, r) => s + r.con_han, 0);
   const grandQua   = allRows.reduce((s, r) => s + r.qua_han, 0);
@@ -3465,27 +3488,38 @@ function ChuyenGiaTable({ thuTuc, onCgClick }: { thuTuc: number; onCgClick?: (te
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-2 bg-green-700 text-white text-xs font-bold uppercase tracking-wide">
-        Thống kê hồ sơ đang ở bước Chuyên gia thẩm định — TT{thuTuc}
+      <div className="px-4 py-2 bg-green-700 text-white flex items-center justify-between gap-4">
+        <div className="text-xs font-bold uppercase tracking-wide">
+          Thống kê hồ sơ đang ở bước Chuyên gia thẩm định — TT{thuTuc}
+        </div>
+        <label className="flex items-center gap-2 text-[11px] font-semibold normal-case tracking-normal whitespace-nowrap">
+          <input
+            type="checkbox"
+            checked={hideEmpty}
+            onChange={(e) => setHideEmpty(e.target.checked)}
+            className="rounded border-white/40 text-green-700 focus:ring-green-200"
+          />
+          Ẩn chuyên gia không có hồ sơ
+        </label>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs border-collapse" style={{ minWidth: 900, tableLayout: "fixed" }}>
           <colgroup>
             <col style={{ width: 36 }} />
-            <col style={{ width: 160 }} />
+            <col style={{ width: 220 }} />
             {/* Chia đôi phần bề rộng còn lại cho 2 cụm cột lớn */}
-            <col style={{ width: "calc((100% - 196px) / 6)" }} />
-            <col style={{ width: "calc((100% - 196px) / 6)" }} />
-            <col style={{ width: "calc((100% - 196px) / 6)" }} />
-            <col style={{ width: "calc((100% - 196px) / 8)" }} />
-            <col style={{ width: "calc((100% - 196px) / 8)" }} />
-            <col style={{ width: "calc((100% - 196px) / 8)" }} />
-            <col style={{ width: "calc((100% - 196px) / 8)" }} />
+            <col style={{ width: "calc((100% - 256px) / 6)" }} />
+            <col style={{ width: "calc((100% - 256px) / 6)" }} />
+            <col style={{ width: "calc((100% - 256px) / 6)" }} />
+            <col style={{ width: "calc((100% - 256px) / 8)" }} />
+            <col style={{ width: "calc((100% - 256px) / 8)" }} />
+            <col style={{ width: "calc((100% - 256px) / 8)" }} />
+            <col style={{ width: "calc((100% - 256px) / 8)" }} />
           </colgroup>
           <thead>
             <tr className="bg-slate-700 text-white">
               <th className="px-2 py-2 text-center text-xs w-9" rowSpan={2}>STT</th>
-              <th className="px-3 py-2 text-left text-xs min-w-[160px]" rowSpan={2}>Chuyên gia</th>
+              <th className="px-3 py-2 text-left text-xs min-w-[220px]" rowSpan={2}>Chuyên gia</th>
               <th className="px-2 py-2 text-center text-xs bg-blue-600" colSpan={3}>ĐANG GIẢI QUYẾT</th>
               <th className="px-2 py-2 text-center text-xs bg-rose-700" colSpan={4}>Hồ sơ chậm nhất</th>
             </tr>
@@ -3506,10 +3540,10 @@ function ChuyenGiaTable({ thuTuc, onCgClick }: { thuTuc: number; onCgClick?: (te
                 Chuyên gia
               </td>
             </tr>
-            {data.chuyen_gia.length === 0 ? (
+            {visibleChuyenGia.length === 0 ? (
               <tr><td colSpan={9} className="px-3 py-2 text-xs text-slate-400 italic text-center">Không có hồ sơ đang ở bước chuyên gia</td></tr>
             ) : (
-              data.chuyen_gia.map((row, idx) => renderRow(row, idx, "bg-green-50"))
+              visibleChuyenGia.map((row, idx) => renderRow(row, idx, "bg-green-50"))
             )}
             {/* Section 2: Chuyên viên đóng vai chuyên gia */}
             <tr className="bg-amber-500 text-white">
@@ -3517,7 +3551,11 @@ function ChuyenGiaTable({ thuTuc, onCgClick }: { thuTuc: number; onCgClick?: (te
                 Chuyên viên đóng vai chuyên gia
               </td>
             </tr>
-            {data.chuyen_vien_cg.map((row, idx) => renderRow(row, idx, "bg-amber-50"))}
+            {visibleChuyenVienCg.length === 0 ? (
+              <tr><td colSpan={9} className="px-3 py-2 text-xs text-slate-400 italic text-center">Không có chuyên viên đóng vai chuyên gia</td></tr>
+            ) : (
+              visibleChuyenVienCg.map((row, idx) => renderRow(row, idx, "bg-amber-50"))
+            )}
           </tbody>
           <tfoot>
             <tr className="bg-slate-100 font-bold text-slate-700 border-t-2 border-slate-300">
@@ -4039,6 +4077,7 @@ function Dashboard() {
   const [activeTab, setActiveTab] = useState<string>(TABS[0].id);
   const [showAdmin, setShowAdmin] = useState(false);
   const [lookupState, setLookupState] = useState<TraCuuFilterState>(DEFAULT_TRA_CUU_FILTER_STATE);
+  const [hideEmptyExperts, setHideEmptyExperts] = useState(false);
   const isAdmin = authRole === "admin";
   const visibleTabs = useMemo(
     () => (isAdmin ? TABS : TABS.filter((tab) => tab.id !== "tra_cuu_dang_xl")),
@@ -4191,7 +4230,7 @@ function Dashboard() {
       case "tt48_thong_ke":
         return <ThongKeTab thuTuc={48} />;
       case "tt48_dang_xl":
-        return <DangXuLyTab thuTuc={48} onCvLookup={openLookupByChuyenVien} onCgLookup={openLookupByChuyenGia} onTinhTrangLookup={openLookupByTinhTrang} />;
+        return <DangXuLyTab thuTuc={48} onCvLookup={openLookupByChuyenVien} onCgLookup={openLookupByChuyenGia} onTinhTrangLookup={openLookupByTinhTrang} hideEmptyExperts={hideEmptyExperts} setHideEmptyExperts={setHideEmptyExperts} />;
       case "tt47_thong_ke":
         return <ThongKeTab thuTuc={47} />;
       case "tt47_dang_xl":

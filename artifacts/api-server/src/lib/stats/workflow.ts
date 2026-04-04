@@ -406,6 +406,11 @@ export async function getChuyenGiaStats(thuTuc: number) {
        WHERE NULLIF(TRIM(chuyen_gia_name), '') IS NOT NULL
        ORDER BY ma_ho_so, ngay_nhan DESC NULLS LAST
      ),
+     all_expert_names AS (
+       SELECT DISTINCT REGEXP_REPLACE(TRIM(chuyen_gia_name), '^CG\\s*:\\s*', '', 'i') AS ten_chuyen_gia
+       FROM case_facts
+       WHERE NULLIF(TRIM(chuyen_gia_name), '') IS NOT NULL
+     ),
      cg_base AS (
        SELECT
          COALESCE(
@@ -443,9 +448,18 @@ export async function getChuyenGiaStats(thuTuc: number) {
        FROM cg_base
        ORDER BY ten_chuyen_gia, qua_han_ngay DESC
      )
-     SELECT s.*, cn.cham_so_ngay, cn.cham_ma, cn.cham_ngay, cn.cham_cv
-     FROM stats s
-     JOIN cham_nhat cn ON cn.ten_chuyen_gia = s.ten_chuyen_gia`,
+     SELECT
+       names.ten_chuyen_gia,
+       COALESCE(s.tong, 0) AS tong,
+       COALESCE(s.con_han, 0) AS con_han,
+       COALESCE(s.qua_han, 0) AS qua_han,
+       COALESCE(cn.cham_so_ngay, 0) AS cham_so_ngay,
+       cn.cham_ma,
+       cn.cham_ngay,
+       cn.cham_cv
+     FROM all_expert_names names
+     LEFT JOIN stats s ON s.ten_chuyen_gia = names.ten_chuyen_gia
+     LEFT JOIN cham_nhat cn ON cn.ten_chuyen_gia = names.ten_chuyen_gia`,
     [thuTuc]
   );
 
@@ -461,11 +475,19 @@ export async function getChuyenGiaStats(thuTuc: number) {
   }));
 
   const resultMap = new Map(mappedRows.map((row) => [row.ten, row]));
-  const chuyenGia = mappedRows
-    .filter((row) => !CV_BARE_SET.has(row.ten))
-    .sort((left, right) => left.ten.localeCompare(right.ten, "vi"));
+  const expertNamesFromDb = Array.from(new Set(
+    mappedRows
+      .map((row) => row.ten)
+      .filter((name) => !CV_BARE_SET.has(name))
+  )).sort((left, right) => left.localeCompare(right, "vi"));
 
-  const chuyenVienCg = CV_BARE_NAMES.map((name) => (
+  const cvCgNamesFromDb = Array.from(new Set(
+    mappedRows
+      .map((row) => row.ten)
+      .filter((name) => CV_BARE_SET.has(name))
+  ));
+
+  const zeroRow = (name: string) => (
     resultMap.get(name) ?? {
       ten: name,
       tong: 0,
@@ -476,7 +498,10 @@ export async function getChuyenGiaStats(thuTuc: number) {
       cham_ngay: null,
       cham_cv: null,
     }
-  ));
+  );
+
+  const chuyenGia = expertNamesFromDb.map((name) => zeroRow(name));
+  const chuyenVienCg = sortByPriority(cvCgNamesFromDb, (name) => name).map((name) => zeroRow(name));
 
   return {
     thu_tuc: thuTuc,
