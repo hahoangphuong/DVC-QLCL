@@ -412,9 +412,9 @@ export async function getChuyenGiaStats(thuTuc: number) {
            NULLIF(TRIM(cf.chuyen_gia_name), ''),
            REGEXP_REPLACE(TRIM(nguoi_xu_ly), '^CG\\s*:\\s*', '', 'i')
          ) AS ten_chuyen_gia,
-         qua_han_ngay,
-         ngay_nhan,
-         ma_ho_so,
+         workflow_cases.qua_han_ngay,
+         workflow_cases.ngay_nhan,
+         workflow_cases.ma_ho_so,
          COALESCE(NULLIF(TRIM(cv_name), ''), '') AS cv_thu_ly
        FROM workflow_cases
        LEFT JOIN latest_case_facts cf ON cf.ma_ho_so = workflow_cases.ma_ho_so
