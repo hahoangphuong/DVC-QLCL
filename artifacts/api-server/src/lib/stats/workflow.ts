@@ -501,7 +501,7 @@ export async function getChuyenGiaStats(thuTuc: number) {
   );
 
   const chuyenGia = expertNamesFromDb.map((name) => zeroRow(name));
-  const chuyenVienCg = sortByPriority(cvCgNamesFromDb, (name) => name).map((name) => zeroRow(name));
+  const chuyenVienCg = sortByPriority(cvCgNamesFromDb, (name) => `CV thụ lý : ${name}`).map((name) => zeroRow(name));
 
   return {
     thu_tuc: thuTuc,
