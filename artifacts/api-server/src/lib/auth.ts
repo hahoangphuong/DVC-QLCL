@@ -6,6 +6,13 @@ export type DashboardRole = "viewer" | "admin";
 const SESSION_COOKIE = "dav_dashboard_session";
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
+function shouldUseSecureCookie(): boolean {
+  const raw = (process.env["DASHBOARD_COOKIE_SECURE"] ?? "").trim().toLowerCase();
+  if (raw === "true" || raw === "1" || raw === "yes") return true;
+  if (raw === "false" || raw === "0" || raw === "no") return false;
+  return false;
+}
+
 function getSessionSecret(): string {
   return process.env["DASHBOARD_SESSION_SECRET"] ?? "";
 }
@@ -76,7 +83,7 @@ export function setDashboardSession(res: Response, role: DashboardRole): void {
   res.cookie(SESSION_COOKIE, value, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env["NODE_ENV"] === "production",
+    secure: shouldUseSecureCookie(),
     maxAge: SESSION_MAX_AGE_MS,
     path: "/",
   });
@@ -86,7 +93,7 @@ export function clearDashboardSession(res: Response): void {
   res.clearCookie(SESSION_COOKIE, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env["NODE_ENV"] === "production",
+    secure: shouldUseSecureCookie(),
     path: "/",
   });
 }

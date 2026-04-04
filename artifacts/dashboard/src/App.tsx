@@ -47,7 +47,11 @@ async function loginDashboard(password: string): Promise<AuthMe> {
   });
   const data = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
   if (!res.ok) throw new Error(data.detail ?? `HTTP ${res.status}`);
-  return data as AuthMe;
+  const me = await fetchAuthMe();
+  if (!me.authenticated || !me.role) {
+    throw new Error("Đăng nhập không tạo được session trên trình duyệt.");
+  }
+  return me;
 }
 
 async function logoutDashboard(): Promise<void> {
