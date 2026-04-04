@@ -61,6 +61,16 @@ class SyncService:
              "fs": round(fetch_sec, 2), "is": round(insert_sec, 2)},
         )
 
+    def _refresh_views_with_timing(self, db, *kinds: str) -> float:
+        started = _time.monotonic()
+        refresh_stats_materialized_views(db, *kinds)
+        return _time.monotonic() - started
+
+    def _merge_refresh_kinds(self, target: list[str], *kinds: str):
+        for kind in kinds:
+            if kind and kind not in target:
+                target.append(kind)
+
     def prune_remote_fetch_logs(self, keep_rows: int | None = None) -> dict:
         keep_rows = keep_rows or self.runtime.prune_keep_rows
         db = self.session_factory()
@@ -315,6 +325,7 @@ class SyncService:
         label: str,
         referer: str | None = None,
         client: RemoteClient | None = None,
+        refresh_views: bool = True,
     ) -> dict:
         db = self.session_factory()
         try:
@@ -336,9 +347,12 @@ class SyncService:
             else:
                 raise ValueError(f"Không thể parse result từ response: type={type(result)}")
 
+            fetch_sec = _time.monotonic() - t_fetch
+
+            t_process = _time.monotonic()
             for item in items:
                 clean_record(item)
-            fetch_sec = _time.monotonic() - t_fetch
+            process_sec = _time.monotonic() - t_process
 
             t_insert = _time.monotonic()
             synced_at = datetime.now(timezone.utc)
@@ -352,16 +366,19 @@ class SyncService:
                 db, table_name, synced_at, len(items),
                 fetch_sec=fetch_sec, insert_sec=_time.monotonic() - t_insert,
             )
-            refresh_stats_materialized_views(
-                db,
-                "received",
-                "tt48_received_by_loai",
-                "received_bounds",
-                "case_facts",
-                "workflow_cases",
-                "treo_by_cv",
-                "tt48_treo_by_loai",
-            )
+            insert_sec = _time.monotonic() - t_insert
+            refresh_sec = 0.0
+            if refresh_views:
+                refresh_sec = self._refresh_views_with_timing(
+                    db,
+                    "received",
+                    "tt48_received_by_loai",
+                    "received_bounds",
+                    "case_facts",
+                    "workflow_cases",
+                    "treo_by_cv",
+                    "tt48_treo_by_loai",
+                )
             db.commit()
             return {
                 "ok": True,
@@ -369,6 +386,10 @@ class SyncService:
                 "inserted": len(items),
                 "total_from_api": total,
                 "synced_at": synced_at.isoformat(),
+                "fetch_sec": fetch_sec,
+                "process_sec": process_sec,
+                "insert_sec": insert_sec,
+                "refresh_sec": refresh_sec,
             }
         except RemoteAuthError as exc:
             db.rollback()
@@ -388,7 +409,7 @@ class SyncService:
         finally:
             db.close()
 
-    def sync_tra_cuu_chung(self, client: RemoteClient | None = None):
+    def sync_tra_cuu_chung(self, client: RemoteClient | None = None, refresh_views: bool = True):
         base_url = os.environ.get("BASE_URL", "").rstrip("/")
         api_url = f"{base_url}/api/services/app/traCuu_PQLCL/TraCuu"
         body = {
@@ -411,7 +432,7 @@ class SyncService:
             "ChuyenVienThuLyId": "",
             "thuTucId": "",
         }
-        return self.do_sync(TraCuuChung, api_url, body, "tra_cuu_chung", client=client)
+        return self.do_sync(TraCuuChung, api_url, body, "tra_cuu_chung", client=client, refresh_views=refresh_views)
 
     def _dashboard_body(self, thu_tuc: int, is_done: bool) -> dict:
         today = datetime.now(timezone.utc).strftime("%d/%m/%Y")
@@ -428,6 +449,7 @@ class SyncService:
         thu_tuc: int,
         is_done: bool,
         client: RemoteClient | None = None,
+        refresh_views: bool = True,
     ) -> dict:
         label = f"{'da' if is_done else 'dang'}_xu_ly (TT{thu_tuc})"
         trang_thai = "đã" if is_done else "đang"
@@ -460,9 +482,12 @@ class SyncService:
                 raise ValueError(f"Không thể parse result: type={type(result)}")
 
             fetch_sec = _time.monotonic() - t_fetch
+
+            t_process = _time.monotonic()
             for item in items:
                 clean_record(item)
                 item["thuTucId"] = thu_tuc
+            process_sec = _time.monotonic() - t_process
 
             t_insert = _time.monotonic()
             synced_at = datetime.now(timezone.utc)
@@ -476,12 +501,15 @@ class SyncService:
                 db, table_name, synced_at, len(items),
                 fetch_sec=fetch_sec, insert_sec=_time.monotonic() - t_insert,
             )
-            refresh_kinds = ["resolved" if is_done else "inflight", "case_facts"]
-            if not is_done:
-                refresh_kinds.append("workflow_cases")
-            if is_done:
-                refresh_kinds.extend(["resolved_facts", "treo_by_cv", "tt48_treo_by_loai"])
-            refresh_stats_materialized_views(db, *refresh_kinds)
+            insert_sec = _time.monotonic() - t_insert
+            refresh_sec = 0.0
+            if refresh_views:
+                refresh_kinds = ["resolved" if is_done else "inflight", "case_facts"]
+                if not is_done:
+                    refresh_kinds.append("workflow_cases")
+                if is_done:
+                    refresh_kinds.extend(["resolved_facts", "treo_by_cv", "tt48_treo_by_loai"])
+                refresh_sec = self._refresh_views_with_timing(db, *refresh_kinds)
             db.commit()
 
             inserted = len(items)
@@ -492,6 +520,10 @@ class SyncService:
                 "inserted": inserted,
                 "total_from_api": total,
                 "synced_at": synced_at.isoformat(),
+                "fetch_sec": fetch_sec,
+                "process_sec": process_sec,
+                "insert_sec": insert_sec,
+                "refresh_sec": refresh_sec,
             }
         except RemoteAuthError as exc:
             db.rollback()
@@ -511,25 +543,26 @@ class SyncService:
         finally:
             db.close()
 
-    def sync_tt48_da_xu_ly(self, client: RemoteClient | None = None):
-        return self.sync_unified(DaXuLy, thu_tuc=48, is_done=True, client=client)
+    def sync_tt48_da_xu_ly(self, client: RemoteClient | None = None, refresh_views: bool = True):
+        return self.sync_unified(DaXuLy, thu_tuc=48, is_done=True, client=client, refresh_views=refresh_views)
 
-    def sync_tt48_dang_xu_ly(self, client: RemoteClient | None = None):
-        return self.sync_unified(DangXuLy, thu_tuc=48, is_done=False, client=client)
+    def sync_tt48_dang_xu_ly(self, client: RemoteClient | None = None, refresh_views: bool = True):
+        return self.sync_unified(DangXuLy, thu_tuc=48, is_done=False, client=client, refresh_views=refresh_views)
 
-    def sync_tt47_da_xu_ly(self, client: RemoteClient | None = None):
-        return self.sync_unified(DaXuLy, thu_tuc=47, is_done=True, client=client)
+    def sync_tt47_da_xu_ly(self, client: RemoteClient | None = None, refresh_views: bool = True):
+        return self.sync_unified(DaXuLy, thu_tuc=47, is_done=True, client=client, refresh_views=refresh_views)
 
-    def sync_tt47_dang_xu_ly(self, client: RemoteClient | None = None):
-        return self.sync_unified(DangXuLy, thu_tuc=47, is_done=False, client=client)
+    def sync_tt47_dang_xu_ly(self, client: RemoteClient | None = None, refresh_views: bool = True):
+        return self.sync_unified(DangXuLy, thu_tuc=47, is_done=False, client=client, refresh_views=refresh_views)
 
-    def sync_tt46_da_xu_ly(self, client: RemoteClient | None = None):
-        return self.sync_unified(DaXuLy, thu_tuc=46, is_done=True, client=client)
+    def sync_tt46_da_xu_ly(self, client: RemoteClient | None = None, refresh_views: bool = True):
+        return self.sync_unified(DaXuLy, thu_tuc=46, is_done=True, client=client, refresh_views=refresh_views)
 
-    def sync_tt46_dang_xu_ly(self, client: RemoteClient | None = None):
-        return self.sync_unified(DangXuLy, thu_tuc=46, is_done=False, client=client)
+    def sync_tt46_dang_xu_ly(self, client: RemoteClient | None = None, refresh_views: bool = True):
+        return self.sync_unified(DangXuLy, thu_tuc=46, is_done=False, client=client, refresh_views=refresh_views)
 
-    def fetch_all_paged(self, client, api_url: str, body: dict, referer: str | None = None) -> list[dict]:
+    def fetch_all_paged(self, client, api_url: str, body: dict, referer: str | None = None) -> tuple[list[dict], float]:
+        started = _time.monotonic()
         page_size = 5000
         body = {**body, "skipCount": 0, "maxResultCount": page_size, "pageSize": page_size, "page": 1}
         response = client.post_json(api_url, body, referer=referer)
@@ -554,9 +587,9 @@ class SyncService:
             if not chunk:
                 break
             items.extend(chunk)
-        return items
+        return items, (_time.monotonic() - started)
 
-    def sync_tt48_cv_buoc(self, client: RemoteClient | None = None):
+    def sync_tt48_cv_buoc(self, client: RemoteClient | None = None, refresh_views: bool = True):
         base_url = os.environ.get("BASE_URL", "").rstrip("/")
         api_url = f"{base_url}/api/services/app/xuLyHoSoGridView48/GetListHoSoPaging"
         referer = f"{base_url}/Application"
@@ -573,9 +606,11 @@ class SyncService:
             active_client = client or self._login_remote_client()
 
             buoc_rows: dict[str, str] = {}
+            fetch_sec = 0.0
 
             body_a = {**common, "formId": 21, "formCase": 2, "formCase2": 0}
-            items_a = self.fetch_all_paged(active_client, api_url, body_a, referer=referer)
+            items_a, fetch_a_sec = self.fetch_all_paged(active_client, api_url, body_a, referer=referer)
+            fetch_sec += fetch_a_sec
             for item in items_a:
                 ma_ho_so = item.get("maHoSo") or item.get("strSoHieuHoSo") or ""
                 if ma_ho_so:
@@ -583,7 +618,8 @@ class SyncService:
             self.runtime.sync_log.info(f"[tt48_cv_buoc] (a) chua_xu_ly: {len(items_a)} records")
 
             body_b = {**common, "formId": 21, "formCase": 3, "formCase2": 0}
-            items_b = self.fetch_all_paged(active_client, api_url, body_b, referer=referer)
+            items_b, fetch_b_sec = self.fetch_all_paged(active_client, api_url, body_b, referer=referer)
+            fetch_sec += fetch_b_sec
             cnt_bi_tra = 0
             cnt_cho_th = 0
             for item in items_b:
@@ -605,13 +641,15 @@ class SyncService:
             )
 
             body_c = {**common, "formId": 4, "formCase": 5}
-            items_c = self.fetch_all_paged(active_client, api_url, body_c, referer=referer)
+            items_c, fetch_c_sec = self.fetch_all_paged(active_client, api_url, body_c, referer=referer)
+            fetch_sec += fetch_c_sec
             for item in items_c:
                 ma_ho_so = item.get("maHoSo") or item.get("strSoHieuHoSo") or ""
                 if ma_ho_so:
                     buoc_rows[ma_ho_so] = "cho_ket_thuc"
             self.runtime.sync_log.info(f"[tt48_cv_buoc] (c) cho_ket_thuc: {len(items_c)} records")
 
+            process_sec = max(0.0, _time.monotonic() - started - fetch_sec)
             t_insert = _time.monotonic()
             synced_at = datetime.now(timezone.utc)
             db.execute(text('TRUNCATE TABLE "tt48_cv_buoc" RESTART IDENTITY'))
@@ -620,21 +658,29 @@ class SyncService:
                     Tt48CvBuoc.__table__.insert(),
                     [{"ma_ho_so": key, "buoc": value} for key, value in buoc_rows.items()],
                 )
-            fetch_sec = t_insert - started
             self._upsert_sync_meta(
                 db, "tt48_cv_buoc", synced_at, len(buoc_rows),
                 fetch_sec=fetch_sec, insert_sec=_time.monotonic() - t_insert,
             )
-            refresh_stats_materialized_views(db, "workflow_cases")
+            insert_sec = _time.monotonic() - t_insert
+            refresh_sec = 0.0
+            if refresh_views:
+                refresh_sec = self._refresh_views_with_timing(db, "workflow_cases")
             db.commit()
             self.runtime.sync_log.info(
-                f"[tt48_cv_buoc] Tổng: {len(buoc_rows)} records → DB | fetch={fetch_sec:.1f}s"
+                f"[tt48_cv_buoc] Tổng: {len(buoc_rows)} records → "
+                f"fetch_raw={fetch_sec:.1f}s | process={process_sec:.1f}s | "
+                f"write_db={insert_sec:.1f}s | refresh_mv={refresh_sec:.1f}s"
             )
             return {
                 "ok": True,
                 "dataset": "tt48_cv_buoc",
                 "inserted": len(buoc_rows),
                 "synced_at": synced_at.isoformat(),
+                "fetch_sec": fetch_sec,
+                "process_sec": process_sec,
+                "insert_sec": insert_sec,
+                "refresh_sec": refresh_sec,
             }
         except RemoteAuthError as exc:
             db.rollback()
@@ -666,6 +712,7 @@ class SyncService:
             run_id = self.runtime.job_run_counter
             base_url = os.environ.get("BASE_URL", "").rstrip("/")
             client = self._login_remote_client()
+            deferred_refresh_kinds: list[str] = []
             tasks = [
                 ("tra_cuu_chung", self.sync_tra_cuu_chung, f"{base_url}/api/services/app/traCuu_PQLCL/TraCuu"),
                 ("tt48_da_xu_ly", self.sync_tt48_da_xu_ly, f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc [ThuTucEnum=48, isDone=True]"),
@@ -684,12 +731,46 @@ class SyncService:
             for label, fn, api_info in tasks:
                 started = _time.monotonic()
                 try:
-                    result = fn(client=client)
+                    result = fn(client=client, refresh_views=False)
                     elapsed = _time.monotonic() - started
                     inserted = result.get("inserted", "?")
                     total = result.get("total_from_api", "?")
+                    fetch_sec = result.get("fetch_sec", 0.0)
+                    process_sec = result.get("process_sec", 0.0)
+                    insert_sec = result.get("insert_sec", 0.0)
+                    if label == "tra_cuu_chung":
+                        self._merge_refresh_kinds(
+                            deferred_refresh_kinds,
+                            "received",
+                            "tt48_received_by_loai",
+                            "received_bounds",
+                            "case_facts",
+                            "workflow_cases",
+                            "treo_by_cv",
+                            "tt48_treo_by_loai",
+                        )
+                    elif label == "tt48_cv_buoc":
+                        self._merge_refresh_kinds(deferred_refresh_kinds, "workflow_cases")
+                    elif label.endswith("da_xu_ly"):
+                        self._merge_refresh_kinds(
+                            deferred_refresh_kinds,
+                            "resolved",
+                            "case_facts",
+                            "resolved_facts",
+                            "treo_by_cv",
+                            "tt48_treo_by_loai",
+                        )
+                    else:
+                        self._merge_refresh_kinds(
+                            deferred_refresh_kinds,
+                            "inflight",
+                            "case_facts",
+                            "workflow_cases",
+                        )
                     self.runtime.sync_log.info(
-                        f"[run #{run_id}] [{label}] POST {api_info} → OK | {inserted}/{total} records | {elapsed:.1f}s"
+                        f"[run #{run_id}] [{label}] POST {api_info} → OK | {inserted}/{total} records | "
+                        f"fetch_raw={fetch_sec:.1f}s | process={process_sec:.1f}s | "
+                        f"write_db={insert_sec:.1f}s | total={elapsed:.1f}s"
                     )
                     results.append(result)
                 except HTTPException as exc:
@@ -704,6 +785,25 @@ class SyncService:
                         f"[run #{run_id}] [{label}] POST {api_info} → EXCEPTION {type(exc).__name__} | {exc} | {elapsed:.1f}s"
                     )
                     errors.append({"dataset": label, "error": f"{type(exc).__name__}: {exc}"})
+
+            if deferred_refresh_kinds:
+                db = self.session_factory()
+                try:
+                    refresh_sec = self._refresh_views_with_timing(db, *deferred_refresh_kinds)
+                    db.commit()
+                    self.runtime.sync_log.info(
+                        f"[run #{run_id}] [refresh_stats_materialized_views] "
+                        f"{', '.join(deferred_refresh_kinds)} → OK | refresh_mv={refresh_sec:.1f}s"
+                    )
+                except Exception as exc:
+                    db.rollback()
+                    self.runtime.sync_log.error(
+                        f"[run #{run_id}] [refresh_stats_materialized_views] → EXCEPTION "
+                        f"{type(exc).__name__} | {exc}"
+                    )
+                    errors.append({"dataset": "refresh_stats_materialized_views", "error": f"{type(exc).__name__}: {exc}"})
+                finally:
+                    db.close()
 
             status_str = f"{len(results)} OK, {len(errors)} lỗi"
             if errors:
