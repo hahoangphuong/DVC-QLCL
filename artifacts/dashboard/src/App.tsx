@@ -29,6 +29,35 @@ function authHeaders(token: string): HeadersInit {
   return { "x-admin-token": token };
 }
 
+type DashboardRole = "viewer" | "admin";
+type AuthMe = { authenticated: boolean; role: DashboardRole | null };
+
+async function fetchAuthMe(): Promise<AuthMe> {
+  const res = await fetch(`${API}/auth/me`, { credentials: "same-origin" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function loginDashboard(password: string): Promise<AuthMe> {
+  const res = await fetch(`${API}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ password }),
+  });
+  const data = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+  if (!res.ok) throw new Error(data.detail ?? `HTTP ${res.status}`);
+  return data as AuthMe;
+}
+
+async function logoutDashboard(): Promise<void> {
+  const res = await fetch(`${API}/auth/logout`, {
+    method: "POST",
+    credentials: "same-origin",
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
 // Màu cho 4 chỉ số
 const COLORS = {
   ton_truoc:     { bar: "#f472b6", label: "TỒN TRƯỚC",     text: "#be185d" },
@@ -2210,6 +2239,67 @@ const CHO_COLORS_48 = [
   { key: "cho_van_thu",  fill: "#64748b", label: "Chờ Văn thư"  },
 ] as const;
 
+function LoginScreen({
+  password,
+  setPassword,
+  busy,
+  error,
+  onSubmit,
+}: {
+  password: string;
+  setPassword: (value: string) => void;
+  busy: boolean;
+  error: string | null;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-slate-800 px-6 py-5">
+          <p className="text-slate-300 text-xs font-bold uppercase tracking-[0.2em]">Dashboard DAV</p>
+          <h1 className="text-white text-lg font-bold mt-1">Đăng nhập truy cập hệ thống</h1>
+        </div>
+        <form
+          className="p-6 space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmit();
+          }}
+        >
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
+              Mật khẩu
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Nhập mật khẩu viewer hoặc admin"
+              className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              autoFocus
+            />
+          </div>
+          {error && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {error}
+            </div>
+          )}
+          <button
+            type="submit"
+            disabled={busy || !password.trim()}
+            className="w-full rounded-xl bg-blue-600 text-white font-bold text-sm px-4 py-3 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {busy ? "Đang đăng nhập..." : "Đăng nhập"}
+          </button>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Role viewer chỉ xem thống kê. Role admin được xem thêm Tra cứu và Admin panel.
+          </p>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function DangXuLyTab({
   thuTuc,
   onCvLookup,
@@ -3937,17 +4027,44 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
 // Main Dashboard
 // ---------------------------------------------------------------------------
 function Dashboard() {
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authRole, setAuthRole] = useState<DashboardRole | null>(null);
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginBusy, setLoginBusy] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>(TABS[0].id);
-  const current = TABS.find((t) => t.id === activeTab) ?? TABS[0];
-  const [showAdmin, setShowAdmin] = useState<boolean>(
-    () => window.location.hash === "#admin"
-  );
+  const [showAdmin, setShowAdmin] = useState(false);
   const [lookupState, setLookupState] = useState<TraCuuFilterState>(DEFAULT_TRA_CUU_FILTER_STATE);
+  const isAdmin = authRole === "admin";
+  const visibleTabs = useMemo(
+    () => (isAdmin ? TABS : TABS.filter((tab) => tab.id !== "tra_cuu_dang_xl")),
+    [isAdmin]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAuthMe()
+      .then((data) => {
+        if (cancelled) return;
+        setAuthRole(data.authenticated ? data.role : null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAuthRole(null);
+      })
+      .finally(() => {
+        if (!cancelled) setAuthLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Trạng thái sync gần nhất — tự động refresh mỗi 5 phút
   const { data: syncStatus } = useQuery({
-    queryKey: ["sync-status"],
+    queryKey: ["sync-status", authRole],
     queryFn: fetchSyncStatus,
+    enabled: Boolean(authRole),
     refetchInterval: 5 * 60 * 1000,
     staleTime: 60 * 1000,
   });
@@ -3968,15 +4085,27 @@ function Dashboard() {
     [filters, updateFilter]
   );
 
+  useEffect(() => {
+    if (!isAdmin && activeTab === "tra_cuu_dang_xl") {
+      setActiveTab(TABS[0].id);
+    }
+  }, [activeTab, isAdmin]);
+
   // Mở panel khi hash = #admin, đóng khi hash thay đổi
   useEffect(() => {
     const onHash = () => {
-      if (window.location.hash === "#admin") setShowAdmin(true);
-      else setShowAdmin(false);
+      if (window.location.hash === "#admin" && isAdmin) setShowAdmin(true);
+      else {
+        setShowAdmin(false);
+        if (window.location.hash === "#admin" && !isAdmin) {
+          history.pushState("", document.title, window.location.pathname + window.location.search);
+        }
+      }
     };
+    onHash();
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
-  }, []);
+  }, [isAdmin]);
 
   // Đóng panel bằng Esc
   useEffect(() => {
@@ -3995,16 +4124,45 @@ function Dashboard() {
     }
   };
 
+  const handleLogin = useCallback(async () => {
+    if (!loginPassword.trim()) return;
+    setLoginBusy(true);
+    setAuthError(null);
+    try {
+      const data = await loginDashboard(loginPassword);
+      setAuthRole(data.role);
+      setLoginPassword("");
+    } catch (e) {
+      setAuthError(String(e));
+    } finally {
+      setLoginBusy(false);
+    }
+  }, [loginPassword]);
+
+  const handleLogout = useCallback(async () => {
+    try {
+      await logoutDashboard();
+    } catch {
+      // ignore
+    }
+    closeAdmin();
+    setAuthRole(null);
+    setLookupState(DEFAULT_TRA_CUU_FILTER_STATE);
+    setActiveTab(TABS[0].id);
+  }, []);
+
   const openLookupByChuyenVien = useCallback((tenCvRaw: string, thuTuc: 48 | 47 | 46) => {
+    if (!isAdmin) return;
     setLookupState({
       ...DEFAULT_TRA_CUU_FILTER_STATE,
       thuTuc,
       chuyenVien: tenCvRaw,
     });
     setActiveTab("tra_cuu_dang_xl");
-  }, []);
+  }, [isAdmin]);
 
   const openLookupByChuyenGia = useCallback((tenCg: string) => {
+    if (!isAdmin) return;
     setLookupState({
       ...DEFAULT_TRA_CUU_FILTER_STATE,
       thuTuc: 48,
@@ -4012,16 +4170,17 @@ function Dashboard() {
       tinhTrang: "cho_chuyen_gia",
     });
     setActiveTab("tra_cuu_dang_xl");
-  }, []);
+  }, [isAdmin]);
 
   const openLookupByTinhTrang = useCallback((thuTuc: 48 | 47 | 46, tinhTrang: LookupTinhTrang) => {
+    if (!isAdmin) return;
     setLookupState({
       ...DEFAULT_TRA_CUU_FILTER_STATE,
       thuTuc,
       tinhTrang,
     });
     setActiveTab("tra_cuu_dang_xl");
-  }, []);
+  }, [isAdmin]);
 
   const renderTabContent = (tabId: string) => {
     switch (tabId) {
@@ -4038,11 +4197,31 @@ function Dashboard() {
       case "tt46_dang_xl":
         return <DangXuLyTab thuTuc={46} onCvLookup={openLookupByChuyenVien} />;
       case "tra_cuu_dang_xl":
-        return <TraCuuDangXuLyTab state={lookupState} setState={setLookupState} />;
+        return isAdmin ? <TraCuuDangXuLyTab state={lookupState} setState={setLookupState} /> : null;
       default:
         return null;
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div className="text-sm font-medium text-slate-500">Đang kiểm tra đăng nhập...</div>
+      </div>
+    );
+  }
+
+  if (!authRole) {
+    return (
+      <LoginScreen
+        password={loginPassword}
+        setPassword={setLoginPassword}
+        busy={loginBusy}
+        error={authError}
+        onSubmit={handleLogin}
+      />
+    );
+  }
 
   return (
     <FiltersCtx.Provider value={filtersValue}>
@@ -4058,6 +4237,28 @@ function Dashboard() {
               Dashboard Hồ Sơ PQLCL
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">Cục Quản lý Dược</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide ${isAdmin ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
+              {authRole}
+            </span>
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  window.location.hash = "admin";
+                  setShowAdmin(true);
+                }}
+                className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                Admin
+              </button>
+            )}
+            <button
+              onClick={handleLogout}
+              className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              Đăng xuất
+            </button>
           </div>
           {syncStatus && (() => {
             const iso = syncStatus.lastSyncedAt;
@@ -4087,7 +4288,7 @@ function Dashboard() {
 
         {/* Tab navigation */}
         <div className="max-w-screen-2xl mx-auto px-4 flex overflow-x-auto gap-0 scrollbar-none">
-          {TABS.map((tab) => (
+          {visibleTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -4106,7 +4307,7 @@ function Dashboard() {
 
       {/* Content */}
       <main className="max-w-screen-2xl mx-auto px-4 py-6">
-        {TABS.map((tab) => (
+        {visibleTabs.map((tab) => (
           <div key={tab.id} className={activeTab === tab.id ? "block" : "hidden"}>
             {renderTabContent(tab.id)}
           </div>
@@ -4114,7 +4315,7 @@ function Dashboard() {
       </main>
 
       {/* Admin Panel — chỉ hiển thị khi URL hash = #admin */}
-      {showAdmin && <AdminPanel onClose={closeAdmin} />}
+      {isAdmin && showAdmin && <AdminPanel onClose={closeAdmin} />}
     </div>
     </FiltersCtx.Provider>
   );

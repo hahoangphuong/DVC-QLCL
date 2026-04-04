@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { requireAdminSession } from "../lib/auth";
 import { query } from "../lib/db";
 import ExcelJS from "exceljs";
 
@@ -19,6 +20,8 @@ function checkToken(req: import("express").Request, res: import("express").Respo
   }
   return true;
 }
+
+router.use(requireAdminSession);
 
 // ---------------------------------------------------------------------------
 // GET /admin/db-stats — số bản ghi trong 3 bảng chính

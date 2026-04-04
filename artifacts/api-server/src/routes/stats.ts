@@ -1,6 +1,7 @@
 import { Readable } from "node:stream";
 import ExcelJS from "exceljs";
 import { Router, type IRouter } from "express";
+import { requireAdminSession, requireViewerSession } from "../lib/auth";
 import { queryOne } from "../lib/db";
 import { getOrSetCached } from "../lib/stats/cache";
 import {
@@ -146,6 +147,8 @@ function sortLookupRows(
 async function cachedJson<T>(key: string, ttlMs: number, staleMs: number, loader: () => Promise<T>): Promise<T> {
   return getOrSetCached(key, ttlMs, loader, staleMs);
 }
+
+router.use(requireViewerSession);
 
 router.get("/stats/earliest-date", async (req, res) => {
   const thuTuc = validateThuTuc(req.query["thu_tuc"]);
@@ -317,6 +320,9 @@ router.get("/stats/chuyen-gia", async (req, res) => {
     res.status(500).json({ detail: String(e) });
   }
 });
+
+router.use("/stats/tra-cuu-dang-xu-ly", requireAdminSession);
+router.use("/dav", requireAdminSession);
 
 router.get("/stats/tra-cuu-dang-xu-ly", async (req, res) => {
   const thuTuc = parseOptionalThuTuc(req.query["thu_tuc"]);
