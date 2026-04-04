@@ -31,6 +31,9 @@ def create_lifespan(base_metadata, engine, migrate_schema, runtime, sync_service
         runtime.sync_log.info(
             f"LOG ROTATION - remote_fetch_logs giu toi da {runtime.prune_keep_rows} dong, prune moi 24h"
         )
+        runtime.sync_log.info(
+            "STATS MV MIGRATION - khong chay tu dong luc startup, dung /internal/migrate/stats khi deploy schema stats"
+        )
         runtime.sync_log.info("=" * 70)
         yield
         runtime.scheduler.shutdown(wait=False)

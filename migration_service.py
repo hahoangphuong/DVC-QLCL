@@ -126,6 +126,9 @@ def migrate_schema(engine):
             "ON tt48_cv_buoc (buoc)"
         ))
 
+
+def migrate_stats_schema(engine):
+    with engine.begin() as conn:
         for view_name in (
             STATS_MATERIALIZED_VIEWS["tt48_treo_by_loai"],
             STATS_MATERIALIZED_VIEWS["treo_by_cv"],

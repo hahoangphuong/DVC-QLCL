@@ -1,10 +1,11 @@
 import os
+import time as _time
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Query
 
 
-def create_internal_router(sync_service, runtime):
+def create_internal_router(sync_service, runtime, engine=None, migrate_stats_schema=None):
     router = APIRouter()
 
     @router.post("/internal/sync/all/async")
@@ -83,6 +84,21 @@ def create_internal_router(sync_service, runtime):
         next_run = job.next_run_time.isoformat() if job and job.next_run_time else None
         runtime.sync_log.info(f"SCHEDULER cập nhật: interval={hours}h, next_run={next_run}")
         return {"ok": True, "interval_hours": hours, "next_run": next_run}
+
+    @router.post("/internal/migrate/stats")
+    def internal_migrate_stats():
+        if engine is None or migrate_stats_schema is None:
+            raise HTTPException(status_code=500, detail="Stats migration chua duoc cau hinh")
+        started = _time.monotonic()
+        try:
+            migrate_stats_schema(engine)
+            elapsed = _time.monotonic() - started
+            runtime.sync_log.info(f"STATS MIGRATION HOAN THANH | {elapsed:.1f}s")
+            return {"ok": True, "elapsed_sec": round(elapsed, 2)}
+        except Exception as exc:
+            elapsed = _time.monotonic() - started
+            runtime.sync_log.error(f"STATS MIGRATION THAT BAI | {type(exc).__name__}: {exc} | {elapsed:.1f}s")
+            raise HTTPException(status_code=500, detail=str(exc))
 
     @router.get("/internal/dav/tt48/ho-so/{ho_so_id}")
     def internal_dav_tt48_hoso_detail(ho_so_id: int):

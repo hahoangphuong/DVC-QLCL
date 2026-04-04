@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from db import Base, SessionLocal, engine
 from internal_routes import create_internal_router
-from migration_service import migrate_schema
+from migration_service import migrate_schema, migrate_stats_schema
 from public_routes import create_public_router
 from runtime_state import SyncRuntime
 from scheduler_service import create_lifespan
@@ -28,7 +28,7 @@ app.add_middleware(
 )
 
 app.include_router(create_public_router(sync_service))
-app.include_router(create_internal_router(sync_service, runtime))
+app.include_router(create_internal_router(sync_service, runtime, engine=engine, migrate_stats_schema=migrate_stats_schema))
 
 
 if __name__ == "__main__":
