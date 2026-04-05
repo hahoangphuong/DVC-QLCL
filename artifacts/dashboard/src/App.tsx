@@ -1818,7 +1818,7 @@ function LookupHoSoDetailModal({
       <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-slate-200 bg-slate-800 px-6 py-4">
           <div>
-            <h2 className="text-base font-bold text-white">Chi ti\u1ebft h\u1ed3 s\u01a1 TT48</h2>
+            <h2 className="text-base font-bold text-white">{"Chi tiết hồ sơ TT48"}</h2>
             <p className="mt-1 text-sm text-slate-300">{maHoSo}</p>
           </div>
           <button
@@ -1826,7 +1826,7 @@ function LookupHoSoDetailModal({
             onClick={onClose}
             className="rounded-md px-2 py-1 text-xl font-bold leading-none text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
           >
-            \u00d7
+            {"×"}
           </button>
         </div>
 
@@ -1834,11 +1834,11 @@ function LookupHoSoDetailModal({
           {isLoading ? (
             <div className="flex h-56 items-center justify-center gap-3 text-sm text-slate-500">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-              \u0110ang t\u1ea3i chi ti\u1ebft h\u1ed3 s\u01a1...
+              {"Đang tải chi tiết hồ sơ..."}
             </div>
           ) : isError || !data ? (
             <div className="flex h-56 items-center justify-center text-sm text-red-500">
-              Kh\u00f4ng th\u1ec3 t\u1ea3i chi ti\u1ebft h\u1ed3 s\u01a1 t\u1eeb DAV.
+              {"Không thể tải chi tiết hồ sơ từ DAV."}
             </div>
           ) : (
             <div className="space-y-6">
@@ -1928,9 +1928,9 @@ function LookupHoSoDetailModal({
               </section>
 
               <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">T\u00e0i li\u1ec7u \u0111\u00ednh k\u00e8m</h3>
+                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">{"Tài liệu đính kèm"}</h3>
                 {attachmentBundles.length === 0 ? (
-                  <div className="mt-3 text-sm text-slate-400">Kh\u00f4ng c\u00f3 t\u00e0i li\u1ec7u \u0111\u00ednh k\u00e8m.</div>
+                  <div className="mt-3 text-sm text-slate-400">{"Không có tài liệu đính kèm."}</div>
                 ) : (
                   <div className="mt-3 space-y-4">
                     <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
@@ -1964,10 +1964,10 @@ function LookupHoSoDetailModal({
                             <div className="shrink-0">
                               {url ? (
                                 <a href={url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-700 hover:text-blue-800">
-                                  M\u1edf
+                                  {"Mở"}
                                 </a>
                               ) : (
-                                <span className="text-sm text-slate-400">\u2014</span>
+                                <span className="text-sm text-slate-400">{"—"}</span>
                               )}
                             </div>
                           </div>
@@ -1979,9 +1979,9 @@ function LookupHoSoDetailModal({
               </section>
 
               <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">L\u1ecbch s\u1eed x\u1eed l\u00fd</h3>
+                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">{"Lịch sử xử lý"}</h3>
                 {lichSu.length === 0 ? (
-                  <div className="mt-3 text-sm text-slate-400">Ch\u01b0a c\u00f3 l\u1ecbch s\u1eed x\u1eed l\u00fd.</div>
+                  <div className="mt-3 text-sm text-slate-400">{"Chưa có lịch sử xử lý."}</div>
                 ) : (
                   <div className="mt-3 space-y-3">
                     {lichSu.map((item, index) => (

@@ -305,6 +305,7 @@ When tooling is unstable around Vietnamese text:
 
 - leave existing correct Vietnamese strings untouched whenever possible
 - for new or changed literals, Unicode escapes are acceptable and preferred over corrupting the file
+- never place `\u....` escapes directly as raw JSX text content; in JSX text nodes, wrap them in a JS string expression such as `{"\u0110ang t\u1ea3i..."}` or use a verified UTF-8 literal
 
 Examples:
 
@@ -439,11 +440,10 @@ Implementation details:
 
 - auth session is a signed cookie handled by the API server
 - admin routes additionally require `ADMIN_EXPORT_TOKEN`
-- if login appears successful but admin/lookup calls fail with “Chưa đăng nhập dashboard”, check:
+- if login appears successful but admin/lookup calls fail with `Chưa đăng nhập dashboard.`, check:
   - `DASHBOARD_COOKIE_SECURE`
   - browser hard refresh
   - whether the cookie was actually set
-
 ## 11. High-risk files
 
 Files that tend to have broad impact:
