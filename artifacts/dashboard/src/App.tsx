@@ -626,6 +626,7 @@ interface ChuyenGiaData {
   chuyen_gia:     ChuyenGiaRow[];
   chuyen_vien_cg: ChuyenGiaRow[];
 }
+const CHART_ANIMATION_MS = 750;
 async function fetchChuyenGia(thuTuc: number): Promise<ChuyenGiaData> {
   const url = `${API}/stats/chuyen-gia?thu_tuc=${thuTuc}`;
   const res = await fetch(url);
@@ -669,7 +670,7 @@ function SummaryBarChart({ data }: { data: BarData[] }) {
           tickFormatter={(v) => v.toLocaleString("vi-VN")}
         />
         <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-        <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={80}>
+        <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={80} animationDuration={CHART_ANIMATION_MS}>
           {data.map((entry, index) => (
             <Cell key={index} fill={entry.color} />
           ))}
@@ -1108,6 +1109,7 @@ function DonutChart({
                 endAngle={endAngle}
                 labelLine={false}
                 label={CombinedLabel}
+                animationDuration={CHART_ANIMATION_MS}
               >
                 {segments.map((s, i) => (
                   <Cell key={i} fill={s.color} stroke="none" />
@@ -1508,7 +1510,7 @@ function MonthlyTrendChart({ thuTuc, fromDate, toDate, hideTitle = false }: {
               return [value.toLocaleString("vi-VN"), labels[name] ?? name];
             }}
           />
-          <Bar yAxisId="left" dataKey="da_nhan" fill="#60a5fa" name="da_nhan" radius={[2, 2, 0, 0]}>
+          <Bar yAxisId="left" dataKey="da_nhan" fill="#60a5fa" name="da_nhan" radius={[2, 2, 0, 0]} animationDuration={CHART_ANIMATION_MS}>
             {showLabels && (
               <LabelList
                 dataKey="da_nhan"
@@ -1531,7 +1533,7 @@ function MonthlyTrendChart({ thuTuc, fromDate, toDate, hideTitle = false }: {
               />
             )}
           </Bar>
-          <Bar yAxisId="left" dataKey="da_giai_quyet" fill="#34d399" name="da_giai_quyet" radius={[2, 2, 0, 0]}>
+          <Bar yAxisId="left" dataKey="da_giai_quyet" fill="#34d399" name="da_giai_quyet" radius={[2, 2, 0, 0]} animationDuration={CHART_ANIMATION_MS}>
             {showLabels && (
               <LabelList
                 dataKey="da_giai_quyet"
@@ -1560,6 +1562,7 @@ function MonthlyTrendChart({ thuTuc, fromDate, toDate, hideTitle = false }: {
             strokeWidth={2}
             dot={months.length <= 24}
             name="ton_sau"
+            animationDuration={CHART_ANIMATION_MS}
           >
             {showLabels && (
               <LabelList
@@ -3205,7 +3208,7 @@ function DangXuLyTab({
             <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie data={catData} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
-                  dataKey="value" labelLine={false} label={renderPieLabel}>
+                  dataKey="value" labelLine={false} label={renderPieLabel} animationDuration={CHART_ANIMATION_MS}>
                   {catData.map((d, i) => <Cell key={i} fill={d.fill} />)}
                 </Pie>
                 <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
@@ -3221,7 +3224,7 @@ function DangXuLyTab({
           <ResponsiveContainer width="100%" height={180}>
             <PieChart>
               <Pie data={hanData} cx="50%" cy="50%" outerRadius={72}
-                dataKey="value" labelLine={false} label={renderHanLabel}
+                dataKey="value" labelLine={false} label={renderHanLabel} animationDuration={CHART_ANIMATION_MS}
                 startAngle={270} endAngle={-90}>
                 {hanData.map((d, i) => <Cell key={i} fill={d.fill} />)}
               </Pie>
@@ -3240,7 +3243,7 @@ function DangXuLyTab({
               <XAxis dataKey="label" tick={{ fontSize: 9 }} interval="preserveStartEnd" />
               <YAxis tick={{ fontSize: 9 }} />
               <Tooltip formatter={(v: number) => [v.toLocaleString("vi-VN"), "Số hồ sơ"]} />
-              <Area type="monotone" dataKey="cnt" stroke="#3b82f6" fill="#93c5fd" strokeWidth={2} />
+              <Area type="monotone" dataKey="cnt" stroke="#3b82f6" fill="#93c5fd" strokeWidth={2} animationDuration={CHART_ANIMATION_MS} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
