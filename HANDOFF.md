@@ -306,6 +306,8 @@ When tooling is unstable around Vietnamese text:
 - leave existing correct Vietnamese strings untouched whenever possible
 - for new or changed literals, Unicode escapes are acceptable and preferred over corrupting the file
 - never place `\u....` escapes directly as raw JSX text content; in JSX text nodes, wrap them in a JS string expression such as `{"\u0110ang t\u1ea3i..."}` or use a verified UTF-8 literal
+- in TSX/JSX, prefer storing changed Vietnamese UI labels in JS constants/arrays/objects first, then render them via `{label}` instead of typing Vietnamese directly across many text nodes
+- if a block has many Vietnamese labels, refactor that block to consume a small local text map rather than editing multiple inline literals one by one
 
 Examples:
 
@@ -321,6 +323,7 @@ Avoid these patterns on Vietnamese-heavy files unless absolutely necessary:
 - `Get-Content ... | Set-Content ...`
 - regex replacements that rewrite the whole file
 - write operations that do not explicitly control encoding
+- trusting terminal-rendered mojibake from PowerShell as proof that file bytes are wrong
 
 If a scripted write is unavoidable:
 
@@ -347,6 +350,18 @@ For TSX/JSX files:
   - `{"\u0110ang t\u1ea3i..."}`
 - after changing Vietnamese text in a modal or table header, verify the rendered UI, not just the source diff
 
+### Strict workflow for Vietnamese-heavy UI edits
+
+Use this workflow on every edit to a Vietnamese-heavy TSX file:
+
+1. change the smallest possible block with `apply_patch`
+2. avoid whole-file rewrite tools
+3. prefer JS string expressions or local text constants for every changed Vietnamese label
+4. inspect `git diff` for mojibake patterns before any commit
+5. if the change touches a modal, table header, or button label, verify the rendered UI before closing the task
+
+If any mojibake appears during the edit, stop and restore the file before retrying with a smaller patch.
+
 ### Attachment dedupe rule learned from DAV detail payloads
 
 For TT48 dossier detail attachments:
@@ -363,6 +378,7 @@ For [`D:\DVC-QLCL\artifacts\dashboard\src\App.tsx`](/D:/DVC-QLCL/artifacts/dashb
 - treat it as a high-risk encoding file
 - never do large blind rewrites
 - always inspect the diff before commit
+- when changing Vietnamese UI text in this file, prefer local constants or `{ "...escaped..." }` string expressions over inline raw JSX text
 
 ## 7. Stats migration workflow
 
