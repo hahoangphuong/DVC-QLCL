@@ -626,7 +626,7 @@ interface ChuyenGiaData {
   chuyen_gia:     ChuyenGiaRow[];
   chuyen_vien_cg: ChuyenGiaRow[];
 }
-const CHART_ANIMATION_MS = 750;
+const CHART_ANIMATION_MS = 500;
 async function fetchChuyenGia(thuTuc: number): Promise<ChuyenGiaData> {
   const url = `${API}/stats/chuyen-gia?thu_tuc=${thuTuc}`;
   const res = await fetch(url);
