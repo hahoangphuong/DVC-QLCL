@@ -269,7 +269,83 @@ sudo systemctl restart dvc-qlcl-python
 sudo systemctl status dvc-qlcl-python
 ```
 
-## 6. Stats migration workflow
+## 6. Vietnamese encoding safety rules
+
+This repo has repeatedly hit Vietnamese text corruption during code edits, especially in:
+
+- [`D:\DVC-QLCL\artifacts\dashboard\src\App.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/App.tsx)
+- large TSX/JSX files edited from PowerShell
+- scripted replacements that rewrite an entire file
+
+These rules should be treated as mandatory.
+
+### Required rules
+
+- Always preserve files as `UTF-8` without BOM.
+- Prefer minimal diffs. Do not rewrite a whole file when only one component or block needs to change.
+- Avoid bulk PowerShell replacements on Vietnamese-heavy files unless there is no safer option.
+- Before committing, always inspect `git diff` for mojibake such as:
+  - `Ã`
+  - `á»`
+  - `â€”`
+  - or obviously broken Vietnamese sequences
+- If Vietnamese corruption appears outside the intended change, discard that file change and reapply cleanly.
+
+### Preferred edit order
+
+Use this order of preference:
+
+1. `apply_patch` with small local hunks
+2. targeted edits that affect only the intended block
+3. only as a last resort, scripted replacement of one function/block followed by immediate diff inspection
+
+### String safety rule
+
+When tooling is unstable around Vietnamese text:
+
+- leave existing correct Vietnamese strings untouched whenever possible
+- for new or changed literals, Unicode escapes are acceptable and preferred over corrupting the file
+
+Examples:
+
+- `"\u0110ang t\u1ea3i chi ti\u1ebft h\u1ed3 s\u01a1..."`
+- `"\u2014"`
+
+This is less readable, but safer than accidental mojibake.
+
+### PowerShell caution
+
+Avoid these patterns on Vietnamese-heavy files unless absolutely necessary:
+
+- `Get-Content ... | Set-Content ...`
+- regex replacements that rewrite the whole file
+- write operations that do not explicitly control encoding
+
+If a scripted write is unavoidable:
+
+- read with UTF-8
+- write with UTF-8 **without BOM**
+- immediately re-check the diff to ensure no BOM or mojibake was introduced
+
+### Recovery procedure
+
+If a file starts showing corrupted Vietnamese after an edit:
+
+1. Stop editing immediately.
+2. Run `git diff -- <file>` and check whether the corruption is local or widespread.
+3. If widespread, restore the file from Git.
+4. Reapply only the intended functional change with smaller edits.
+5. Re-check `git diff` before staging.
+
+### Repo-specific rule
+
+For [`D:\DVC-QLCL\artifacts\dashboard\src\App.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/App.tsx):
+
+- treat it as a high-risk encoding file
+- never do large blind rewrites
+- always inspect the diff before commit
+
+## 7. Stats migration workflow
 
 Heavy stats migration is no longer executed automatically at Python startup.
 
@@ -294,7 +370,7 @@ Important:
 - do not run this after every `sync/all`
 - only run when stats schema changed
 
-## 7. Sync behavior and performance notes
+## 8. Sync behavior and performance notes
 
 Important recent changes:
 
@@ -315,7 +391,7 @@ Known operational reality:
   - final MV refresh duration
   - DB contention
 
-## 8. TT48 workflow logic
+## 9. TT48 workflow logic
 
 This is the functional workflow currently assumed in code and UI reasoning.
 
@@ -348,7 +424,7 @@ Implication for dashboard logic:
 - hồ sơ có thể quay vòng nhiều lần giữa chuyên viên, chuyên gia, tổ trưởng, trưởng phòng
 - expert and specialist statistics should be interpreted carefully against this loop
 
-## 9. Auth notes
+## 10. Auth notes
 
 Current dashboard access model:
 
@@ -368,7 +444,7 @@ Implementation details:
   - browser hard refresh
   - whether the cookie was actually set
 
-## 10. High-risk files
+## 11. High-risk files
 
 Files that tend to have broad impact:
 
@@ -384,7 +460,7 @@ Guideline:
 - read carefully before touching
 - avoid mixing unrelated fixes in these files
 
-## 11. Recommended startup prompt for a new Codex session
+## 12. Recommended startup prompt for a new Codex session
 
 Use something like this in a fresh account/session:
 
