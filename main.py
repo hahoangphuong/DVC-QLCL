@@ -29,11 +29,3 @@ app.add_middleware(
 
 app.include_router(create_public_router(sync_service))
 app.include_router(create_internal_router(sync_service, runtime, engine=engine, migrate_stats_schema=migrate_stats_schema))
-
-
-if __name__ == "__main__":
-    import os
-    import uvicorn
-
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
