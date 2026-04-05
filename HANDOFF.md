@@ -338,6 +338,24 @@ If a file starts showing corrupted Vietnamese after an edit:
 4. Reapply only the intended functional change with smaller edits.
 5. Re-check `git diff` before staging.
 
+### Extra TSX rule learned from production issue
+
+For TSX/JSX files:
+
+- if text is rendered directly between tags, do **not** paste `\u...` as raw text content
+- either use a verified UTF-8 literal or wrap the escaped string in a JS expression, for example:
+  - `{"\u0110ang t\u1ea3i..."}`
+- after changing Vietnamese text in a modal or table header, verify the rendered UI, not just the source diff
+
+### Attachment dedupe rule learned from DAV detail payloads
+
+For TT48 dossier detail attachments:
+
+- do not only dedupe within each `listTepHoSo` bundle
+- dedupe cumulatively across submission rounds in display order
+- if a file with the same `tenTep` and `duongDanTep` already appeared in an earlier round, hide it from later rounds
+- treat this as an upstream data cleanup rule for the UI, not as a source-of-truth change in backend data
+
 ### Repo-specific rule
 
 For [`D:\DVC-QLCL\artifacts\dashboard\src\App.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/App.tsx):

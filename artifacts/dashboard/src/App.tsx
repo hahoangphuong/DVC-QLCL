@@ -945,8 +945,8 @@ function TraCuuDaXuLyTab(props?: {
                 <tr className="bg-slate-100 text-slate-600">
                   <th className="px-3 py-3 text-center font-semibold uppercase tracking-wide whitespace-nowrap">STT</th>
                   <SortableHeader label="Mã hồ sơ" sortKey="ma_ho_so" />
-                  <SortableHeader label="Ngày tiếp nhận" sortKey="ngay_tiep_nhan" />
-                  <SortableHeader label="Ngày trả kết quả" sortKey="ngay_hen_tra" />
+                  <SortableHeader label="Ngày tiếp nhận" sortKey="ngay_tiep_nhan" center />
+                  <SortableHeader label="Ngày trả KQ" sortKey="ngay_hen_tra" center />
                   <SortableHeader label="Lần nộp" sortKey="submission_kind" />
                   <SortableHeader label="Loại hồ sơ" sortKey="loai_ho_so" center />
                   <SortableHeader label="Chuyên viên" sortKey="chuyen_vien" />
@@ -969,8 +969,8 @@ function TraCuuDaXuLyTab(props?: {
                   <tr key={`${row.thu_tuc}-${row.ma_ho_so}-${index}`} className={`${index % 2 === 0 ? "bg-white" : "bg-slate-50"} group hover:bg-blue-50`}>
                     <td className="px-3 py-2.5 text-center text-slate-500">{index + 1}</td>
                     <td className="px-3 py-2.5 text-slate-700 whitespace-nowrap">{row.ma_ho_so}</td>
-                    <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_tiep_nhan)}</td>
-                    <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_hen_tra)}</td>
+                    <td className="px-3 py-2.5 text-center text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_tiep_nhan)}</td>
+                    <td className="px-3 py-2.5 text-center text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_hen_tra)}</td>
                     <td className="px-3 py-2.5 text-slate-700">{displaySubmissionKind(row.submission_kind)}</td>
                     <td className="px-3 py-2.5 text-center text-slate-700">{row.loai_ho_so || ""}</td>
                     <td className="px-3 py-2.5 text-slate-700">{displayLookupCv(row.chuyen_vien)}</td>
@@ -1755,16 +1755,16 @@ function LookupHoSoDetailModal({
 
   const hoSo = data?.view.hoSo ?? {};
   const donHang = data?.view.parsedJsonDonHang ?? {};
-  const attachmentBundles = useMemo(() => (
-    (data?.view.listTepHoSo ?? [])
+  const attachmentBundles = useMemo(() => {
+    const seenAcrossBundles = new Set<string>();
+    return (data?.view.listTepHoSo ?? [])
       .map((bundle, index) => {
-        const seen = new Set<string>();
         const files = (bundle.danhSachTepDinhKem ?? [])
           .filter((file): file is Record<string, unknown> => !!file)
           .filter((file) => {
-            const key = String(file.duongDanTep ?? file.tenTep ?? file.code ?? `${index}`);
-            if (seen.has(key)) return false;
-            seen.add(key);
+            const key = `${String(file.tenTep ?? "")}||${String(file.duongDanTep ?? "")}`;
+            if (seenAcrossBundles.has(key)) return false;
+            seenAcrossBundles.add(key);
             return true;
           });
         const label = typeof bundle.moTaTep === "string" && bundle.moTaTep.trim()
@@ -1778,8 +1778,8 @@ function LookupHoSoDetailModal({
           files,
         };
       })
-      .filter((bundle) => bundle.files.length > 0)
-  ), [data?.view.listTepHoSo]);
+      .filter((bundle) => bundle.files.length > 0);
+  }, [data?.view.listTepHoSo]);
   const lichSu = data?.history.listYKien ?? [];
   const giayBaoThuUrl = buildDavViewFileUrl(data?.view.urlGiayBaoThu);
   const banDangKyUrl = buildDavViewFileUrl(data?.view.urlBanDangKy);
@@ -1880,27 +1880,27 @@ function LookupHoSoDetailModal({
                         <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["idCongTy"])}</div>
                       </div>
                       <div>
-                        <div className="text-xs font-semibold text-slate-500">N\u01b0\u1edbc s\u1edf t\u1ea1i</div>
+                        <div className="text-xs font-semibold text-slate-500">{"N\u01b0\u1edbc s\u1edf t\u1ea1i"}</div>
                         <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["nuocSoTai"])}</div>
                       </div>
                       <div className="md:col-span-2">
-                        <div className="text-xs font-semibold text-slate-500">T\u00ean c\u01a1 s\u1edf s\u1ea3n xu\u1ea5t</div>
+                        <div className="text-xs font-semibold text-slate-500">{"T\u00ean c\u01a1 s\u1edf s\u1ea3n xu\u1ea5t"}</div>
                         <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["tenCoSoSanXuat"] ?? hoSo["tenCoSo"])}</div>
                       </div>
                       <div className="md:col-span-2">
-                        <div className="text-xs font-semibold text-slate-500">\u0110\u1ecba ch\u1ec9 c\u01a1 s\u1edf s\u1ea3n xu\u1ea5t</div>
+                        <div className="text-xs font-semibold text-slate-500">{"\u0110\u1ecba ch\u1ec9 c\u01a1 s\u1edf s\u1ea3n xu\u1ea5t"}</div>
                         <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["diaChiCoSoSanXuat"] ?? hoSo["diaChiCoSo"])}</div>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-3">
                       {banDangKyUrl && (
                         <a href={banDangKyUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
-                          B\u1ea3n \u0111\u0103ng k\u00fd
+                          {"B\u1ea3n \u0111\u0103ng k\u00fd"}
                         </a>
                       )}
                       {giayBaoThuUrl && (
                         <a href={giayBaoThuUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">
-                          Gi\u1ea5y b\u00e1o thu
+                          {"Gi\u1ea5y b\u00e1o thu"}
                         </a>
                       )}
                     </div>
@@ -1908,15 +1908,15 @@ function LookupHoSoDetailModal({
                 ) : (
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     <div className="md:col-span-2">
-                      <div className="text-xs font-semibold text-slate-500">T\u00ean doanh nghi\u1ec7p</div>
+                      <div className="text-xs font-semibold text-slate-500">{"T\u00ean doanh nghi\u1ec7p"}</div>
                       <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["tenDoanhNghiep"])}</div>
                     </div>
                     <div className="md:col-span-2">
-                      <div className="text-xs font-semibold text-slate-500">\u0110\u1ecba ch\u1ec9 doanh nghi\u1ec7p</div>
+                      <div className="text-xs font-semibold text-slate-500">{"\u0110\u1ecba ch\u1ec9 doanh nghi\u1ec7p"}</div>
                       <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["diaChiCoSo"] ?? hoSo["diaChi"])}</div>
                     </div>
                     <div>
-                      <div className="text-xs font-semibold text-slate-500">M\u00e3 s\u1ed1 thu\u1ebf</div>
+                      <div className="text-xs font-semibold text-slate-500">{"M\u00e3 s\u1ed1 thu\u1ebf"}</div>
                       <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["maSoThue"])}</div>
                     </div>
                     <div>
@@ -3928,8 +3928,8 @@ function TraCuuDangXuLyTab(props?: {
                 <tr className="bg-slate-100 text-slate-600">
                   <th className="px-3 py-3 text-center font-semibold uppercase tracking-wide whitespace-nowrap">STT</th>
                   <SortableHeader label="Mã hồ sơ" sortKey="ma_ho_so" />
-                  <SortableHeader label="Ngày tiếp nhận" sortKey="ngay_tiep_nhan" />
-                  <SortableHeader label="Ngày hẹn trả" sortKey="ngay_hen_tra" />
+                  <SortableHeader label="Ngày tiếp nhận" sortKey="ngay_tiep_nhan" center />
+                  <SortableHeader label="Ngày hẹn trả" sortKey="ngay_hen_tra" center />
                   <SortableHeader label="Lần nộp" sortKey="submission_kind" />
                   <SortableHeader label="Loại hồ sơ" sortKey="loai_ho_so" center />
                   <SortableHeader label="Chuyên viên" sortKey="chuyen_vien" />
@@ -3956,8 +3956,8 @@ function TraCuuDangXuLyTab(props?: {
                   <tr key={`${row.thu_tuc}-${row.ma_ho_so}-${index}`} className={`${index % 2 === 0 ? "bg-white" : "bg-slate-50"} group hover:bg-blue-50`}>
                     <td className="px-3 py-2.5 text-center text-slate-500">{index + 1}</td>
                     <td className="px-3 py-2.5 text-slate-700 whitespace-nowrap">{row.ma_ho_so}</td>
-                    <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_tiep_nhan)}</td>
-                    <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_hen_tra)}</td>
+                    <td className="px-3 py-2.5 text-center text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_tiep_nhan)}</td>
+                    <td className="px-3 py-2.5 text-center text-slate-600 whitespace-nowrap">{isoToDisplay(row.ngay_hen_tra)}</td>
                     <td className="px-3 py-2.5 text-slate-700">{displaySubmissionKind(row.submission_kind)}</td>
                     <td className="px-3 py-2.5 text-center text-slate-700">{row.loai_ho_so || ""}</td>
                     <td className="px-3 py-2.5 text-slate-700">{displayLookupCv(row.chuyen_vien)}</td>
