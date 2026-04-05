@@ -1387,10 +1387,11 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTabl
 // ---------------------------------------------------------------------------
 // Biểu đồ xu hướng theo tháng (bar + line, giống thiết kế Excel)
 // ---------------------------------------------------------------------------
-function MonthlyTrendChart({ thuTuc, fromDate, toDate }: {
+function MonthlyTrendChart({ thuTuc, fromDate, toDate, hideTitle = false }: {
   thuTuc: 48 | 47 | 46;
   fromDate: string;
   toDate:   string;
+  hideTitle?: boolean;
 }) {
   const [showLabels, setShowLabels] = useState(false);
 
@@ -1424,10 +1425,13 @@ function MonthlyTrendChart({ thuTuc, fromDate, toDate }: {
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-          Xu hướng theo tháng — TT{thuTuc}
-        </h3>
-        {/* Legend + checkbox cùng hàng */}
+        {!hideTitle ? (
+          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+            Xu hướng theo tháng — TT{thuTuc}
+          </h3>
+        ) : (
+          <div />
+        )}
         <div className="flex items-center gap-4 text-xs text-slate-500 font-medium">
           <span className="flex items-center gap-1">
             <span className="inline-block w-3 h-3 rounded-sm bg-[#60a5fa]" /> Tiếp nhận
@@ -1438,7 +1442,6 @@ function MonthlyTrendChart({ thuTuc, fromDate, toDate }: {
           <span className="flex items-center gap-1">
             <span className="inline-block w-3 h-3 rounded-sm" style={{ background: "#f59e0b" }} /> Hồ sơ tồn
           </span>
-          {/* Checkbox hiện số liệu */}
           <label className="flex items-center gap-1 cursor-pointer select-none border-l border-slate-200 pl-4 ml-1">
             <input
               type="checkbox"
@@ -2202,7 +2205,7 @@ function TongQuanTab({
             </button>
             {expandedMonthly[thuTuc as 48 | 47 | 46] && (
               <div className="px-4 pb-4">
-                <MonthlyTrendChart thuTuc={thuTuc as 48 | 47 | 46} fromDate={fromDate} toDate={toDate} />
+                <MonthlyTrendChart thuTuc={thuTuc as 48 | 47 | 46} fromDate={fromDate} toDate={toDate} hideTitle />
               </div>
             )}
           </div>
