@@ -988,9 +988,21 @@ interface DonutChartProps {
   isError:      boolean;
   emptyMessage?: string;
   spinnerColor?: string;
+  startAngle?:  number;
+  endAngle?:    number;
 }
 
-function DonutChart({ title, segments, total, isLoading, isError, emptyMessage, spinnerColor = "#22c55e" }: DonutChartProps) {
+function DonutChart({
+  title,
+  segments,
+  total,
+  isLoading,
+  isError,
+  emptyMessage,
+  spinnerColor = "#22c55e",
+  startAngle = 270,
+  endAngle = -90,
+}: DonutChartProps) {
   // Renders center count (index=0 only) + % inside each slice
   const CombinedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }: any) => {
     const RADIAN = Math.PI / 180;
@@ -1065,8 +1077,8 @@ function DonutChart({ title, segments, total, isLoading, isError, emptyMessage, 
                 innerRadius={58}
                 outerRadius={88}
                 dataKey="value"
-                startAngle={270}
-                endAngle={-90}
+                startAngle={startAngle}
+                endAngle={endAngle}
                 labelLine={false}
                 label={CombinedLabel}
               >
@@ -1951,6 +1963,7 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
     { name: "ĐÃ GIẢI QUYẾT", value: data?.da_giai_quyet ?? 0, color: COLORS.da_giai_quyet.bar },
     { name: "TỒN SAU",        value: data?.ton_sau       ?? 0, color: COLORS.ton_sau.bar       },
   ];
+  const giaiQuyetRatioTotal = (data?.da_giai_quyet ?? 0) + (data?.ton_sau ?? 0);
 
   const ttLabel = `TT${thuTuc}`;
 
@@ -2026,8 +2039,8 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
         </div>
       </div>
 
-      {/* Biểu đồ — 3 cột cạnh nhau, luôn nằm ngang */}
-      <div className="grid gap-4" style={{ gridTemplateColumns: "4fr 3fr 3fr" }}>
+      {/* Biểu đồ — 4 cột cạnh nhau */}
+      <div className="grid gap-4" style={{ gridTemplateColumns: "3.7fr 2.1fr 2.1fr 2.1fr" }}>
         {/* Biểu đồ cột */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
           <div className="relative flex items-center justify-center mb-4">
@@ -2061,9 +2074,24 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
           </div>
         </div>
 
+        <DonutChart
+          title="TỶ LỆ GIẢI QUYẾT"
+          total={giaiQuyetRatioTotal}
+          segments={[
+            { name: "Đã giải quyết", value: data?.da_giai_quyet ?? 0, color: "#22c55e" },
+            { name: "Tồn trong kỳ", value: data?.ton_sau ?? 0, color: "#f59e0b" },
+          ]}
+          isLoading={isLoading}
+          isError={isError}
+          emptyMessage="Không có hồ sơ trong kỳ thống kê"
+          spinnerColor="#22c55e"
+          startAngle={270}
+          endAngle={-90}
+        />
+
         {/* Biểu đồ tròn 1: Đã giải quyết — Đúng hạn / Quá hạn */}
         <DonutChart
-          title="ĐÃ GIẢI QUYẾT"
+          title="ĐÃ GIẢI QUYẾT / HẠN"
           total={gqData?.total ?? 0}
           segments={[
             { name: "Đúng hạn", value: gqData?.dung_han ?? 0, color: "#22c55e" },
@@ -2077,7 +2105,7 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 
         {/* Biểu đồ tròn 2: Tồn sau — Còn hạn / Quá hạn */}
         <DonutChart
-          title="TỒN SAU"
+          title="TỒN SAU / HẠN"
           total={tsData?.total ?? 0}
           segments={[
             { name: "Còn hạn", value: tsData?.con_han ?? 0, color: "#60a5fa" },
