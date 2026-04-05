@@ -1,6 +1,6 @@
 import { Readable } from "node:stream";
 import { Router, type IRouter, type Response } from "express";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { requireAdminSession, requireViewerSession } from "../lib/auth";
 import { queryOne } from "../lib/db";
 import { getOrSetCached } from "../lib/stats/cache";
@@ -90,11 +90,19 @@ function isoToDisplay(iso: string | null): string {
   return y && m && d ? `${d}/${m}/${y}` : raw;
 }
 
-function sendXlsx(res: Response, filename: string, sheetName: string, rows: Array<Array<string | number>>) {
-  const workbook = XLSX.utils.book_new();
-  const worksheet = XLSX.utils.aoa_to_sheet(rows);
-  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-  const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
+async function sendXlsx(
+  res: Response,
+  filename: string,
+  sheetName: string,
+  rows: Array<Array<string | number>>,
+) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet(sheetName);
+  rows.forEach((row) => {
+    worksheet.addRow(row);
+  });
+  const written = await workbook.xlsx.writeBuffer();
+  const buffer = Buffer.isBuffer(written) ? written : Buffer.from(written);
   res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Length", String(buffer.length));
@@ -417,7 +425,7 @@ router.get("/stats/tra-cuu-dang-xu-ly/export", async (req, res) => {
       ]);
     });
 
-    sendXlsx(res, filename, "Tra_cuu_dang_xu_ly", exportRows);
+    await sendXlsx(res, filename, "Tra_cuu_dang_xu_ly", exportRows);
   } catch (e: unknown) {
     if (!res.headersSent) {
       res.status(500).json({ detail: String(e) });
@@ -507,7 +515,7 @@ router.get("/stats/tra-cuu-da-xu-ly/export", async (req, res) => {
       ]);
     });
 
-    sendXlsx(res, filename, "Tra_cuu_da_xu_ly", exportRows);
+    await sendXlsx(res, filename, "Tra_cuu_da_xu_ly", exportRows);
   } catch (e: unknown) {
     if (!res.headersSent) {
       res.status(500).json({ detail: String(e) });
