@@ -547,6 +547,7 @@ async function fetchTraCuuDangXuLy(params: {
   chuyenGia: string;
   tinhTrang: LookupTinhTrang | "all";
   maHoSo: string;
+  signal?: AbortSignal;
 }): Promise<TraCuuDangXuLyData> {
   const search = new URLSearchParams();
   if (params.thuTuc !== "all") search.set("thu_tuc", String(params.thuTuc));
@@ -556,7 +557,7 @@ async function fetchTraCuuDangXuLy(params: {
   if (params.maHoSo.trim()) search.set("ma_ho_so", params.maHoSo.trim());
 
   const qs = search.toString();
-  const res = await fetch(`${API}/stats/tra-cuu-dang-xu-ly${qs ? `?${qs}` : ""}`);
+  const res = await fetch(`${API}/stats/tra-cuu-dang-xu-ly${qs ? `?${qs}` : ""}`, { signal: params.signal });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -567,6 +568,7 @@ async function fetchTraCuuDaXuLy(params: {
   chuyenGia: string;
   tinhTrang: LookupTinhTrang | "all";
   maHoSo: string;
+  signal?: AbortSignal;
 }): Promise<TraCuuDaXuLyData> {
   const search = new URLSearchParams();
   if (params.thuTuc !== "all") search.set("thu_tuc", String(params.thuTuc));
@@ -576,7 +578,7 @@ async function fetchTraCuuDaXuLy(params: {
   if (params.maHoSo.trim()) search.set("ma_ho_so", params.maHoSo.trim());
 
   const qs = search.toString();
-  const res = await fetch(`${API}/stats/tra-cuu-da-xu-ly${qs ? `?${qs}` : ""}`);
+  const res = await fetch(`${API}/stats/tra-cuu-da-xu-ly${qs ? `?${qs}` : ""}`, { signal: params.signal });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -704,13 +706,29 @@ function KpiCard({ label, value, color, bgColor }: {
   );
 }
 
+function LookupProgressBar({ visible }: { visible: boolean }) {
+  if (!visible) return null;
+  return (
+    <div className="overflow-hidden rounded-lg border border-blue-100 bg-blue-50">
+      <div className="relative h-2 w-full overflow-hidden bg-blue-100">
+        <div className="h-full w-full animate-pulse bg-blue-500" />
+      </div>
+      <div className="px-3 py-2 text-xs font-medium text-blue-700">
+        Đang tải dữ liệu...
+      </div>
+    </div>
+  );
+}
+
 function TraCuuDaXuLyTab(props?: {
   state: TraCuuFilterState;
   setState: React.Dispatch<React.SetStateAction<TraCuuFilterState>>;
+  isActive?: boolean;
 }) {
   const [localState, setLocalState] = useState<TraCuuFilterState>(DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE);
   const state = props?.state ?? localState;
   const setState = props?.setState ?? setLocalState;
+  const isActive = props?.isActive ?? true;
   const { thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo, sortBy, sortDir } = state;
   const [selectedDetail, setSelectedDetail] = useState<{ hoSoId: number; maHoSo: string } | null>(null);
   const setChuyenVien = (value: string) => setState((prev) => ({ ...prev, chuyenVien: value }));
@@ -721,18 +739,26 @@ function TraCuuDaXuLyTab(props?: {
   const deferredMaHoSo = useDeferredValue(maHoSo);
   const [exporting, setExporting] = useState(false);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isFetching, isError } = useQuery({
     queryKey: ["tra-cuu-da-xu-ly", thuTuc, chuyenVien, chuyenGia, tinhTrang, deferredMaHoSo],
-    queryFn: () => fetchTraCuuDaXuLy({
+    queryFn: ({ signal }) => fetchTraCuuDaXuLy({
       thuTuc,
       chuyenVien,
       chuyenGia,
       tinhTrang,
       maHoSo: deferredMaHoSo,
+      signal,
     }),
+    enabled: isActive,
     placeholderData: (previousData) => previousData,
     retry: 2,
   });
+
+  useEffect(() => {
+    if (!isActive) {
+      void queryClient.cancelQueries({ queryKey: ["tra-cuu-da-xu-ly"] });
+    }
+  }, [isActive]);
 
   const chuyenVienOptions = data?.options.chuyen_vien ?? [];
   const chuyenGiaOptions = data?.options.chuyen_gia ?? [];
@@ -881,23 +907,20 @@ function TraCuuDaXuLyTab(props?: {
           </label>
           <div className="flex items-center gap-2">
             <button type="button" onClick={handleResetFilters} className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-800" title="Đặt lại bộ lọc" aria-label="Đặt lại bộ lọc">↺</button>
-            <button type="button" onClick={handleExportExcel} disabled={exporting || isLoading || !data} className="inline-flex h-10 items-center justify-center rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="button" onClick={handleExportExcel} disabled={exporting || isFetching || !data} className="inline-flex h-10 items-center justify-center rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">
               {exporting ? "Đang xuất..." : "Xuất Excel"}
             </button>
           </div>
           <div className="ml-auto text-xs text-slate-500 font-medium">
-            {isLoading ? "Đang tải dữ liệu..." : `Tìm thấy ${data?.rows.length.toLocaleString("vi-VN") ?? 0} hồ sơ`}
+            {isFetching ? "Đang tải dữ liệu..." : `Tìm thấy ${data?.rows.length.toLocaleString("vi-VN") ?? 0} hồ sơ`}
           </div>
         </div>
       </div>
 
+      <LookupProgressBar visible={isActive && (isLoading || isFetching)} />
+
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-48 text-slate-400 text-sm gap-2">
-            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-            Đang tải dữ liệu...
-          </div>
-        ) : isError || !data ? (
+        {isError ? (
           <div className="flex items-center justify-center h-48 text-red-400 text-sm">
             Không thể tải danh mục hồ sơ đã xử lý
           </div>
@@ -933,7 +956,11 @@ function TraCuuDaXuLyTab(props?: {
                 </tr>
               </thead>
               <tbody>
-                {sortedRows.length === 0 ? (
+                {!data ? (
+                  <tr>
+                    <td colSpan={11} className="px-4 py-10 text-center text-sm text-slate-400">Đang chuẩn bị dữ liệu tra cứu...</td>
+                  </tr>
+                ) : sortedRows.length === 0 ? (
                   <tr>
                     <td colSpan={11} className="px-4 py-10 text-center text-sm text-slate-400">Không có hồ sơ phù hợp với điều kiện lọc.</td>
                   </tr>
@@ -3570,10 +3597,12 @@ async function downloadTraCuuDaXuLyExcel(params: {
 function TraCuuDangXuLyTab(props?: {
   state: TraCuuFilterState;
   setState: React.Dispatch<React.SetStateAction<TraCuuFilterState>>;
+  isActive?: boolean;
 }) {
   const [localState, setLocalState] = useState<TraCuuFilterState>(DEFAULT_TRA_CUU_FILTER_STATE);
   const state = props?.state ?? localState;
   const setState = props?.setState ?? setLocalState;
+  const isActive = props?.isActive ?? true;
   const { thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo, sortBy, sortDir } = state;
   const [selectedDetail, setSelectedDetail] = useState<{ hoSoId: number; maHoSo: string } | null>(null);
   const setChuyenVien = (value: string) => setState((prev) => ({ ...prev, chuyenVien: value }));
@@ -3584,18 +3613,26 @@ function TraCuuDangXuLyTab(props?: {
   const deferredMaHoSo = useDeferredValue(maHoSo);
   const [exporting, setExporting] = useState(false);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isFetching, isError } = useQuery({
     queryKey: ["tra-cuu-dang-xu-ly", thuTuc, chuyenVien, chuyenGia, tinhTrang, deferredMaHoSo],
-    queryFn: () => fetchTraCuuDangXuLy({
+    queryFn: ({ signal }) => fetchTraCuuDangXuLy({
       thuTuc,
       chuyenVien,
       chuyenGia,
       tinhTrang,
       maHoSo: deferredMaHoSo,
+      signal,
     }),
+    enabled: isActive,
     placeholderData: (previousData) => previousData,
     retry: 2,
   });
+
+  useEffect(() => {
+    if (!isActive) {
+      void queryClient.cancelQueries({ queryKey: ["tra-cuu-dang-xu-ly"] });
+    }
+  }, [isActive]);
 
   const chuyenVienOptions = data?.options.chuyen_vien ?? [];
   const chuyenGiaOptions = data?.options.chuyen_gia ?? [];
@@ -3774,7 +3811,7 @@ function TraCuuDangXuLyTab(props?: {
             <button
               type="button"
               onClick={handleExportExcel}
-              disabled={exporting || isLoading || !data}
+              disabled={exporting || isFetching || !data}
               className="inline-flex h-10 items-center justify-center rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {exporting ? "Đang xuất..." : "Xuất Excel"}
@@ -3782,18 +3819,15 @@ function TraCuuDangXuLyTab(props?: {
           </div>
 
           <div className="ml-auto text-xs text-slate-500 font-medium">
-            {isLoading ? "Đang tải dữ liệu..." : `Tìm thấy ${data?.rows.length.toLocaleString("vi-VN") ?? 0} hồ sơ`}
+            {isFetching ? "Đang tải dữ liệu..." : `Tìm thấy ${data?.rows.length.toLocaleString("vi-VN") ?? 0} hồ sơ`}
           </div>
         </div>
       </div>
 
+      <LookupProgressBar visible={isActive && (isLoading || isFetching)} />
+
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-48 text-slate-400 text-sm gap-2">
-            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-            Đang tải dữ liệu...
-          </div>
-        ) : isError || !data ? (
+        {isError ? (
           <div className="flex items-center justify-center h-48 text-red-400 text-sm">
             Không thể tải danh mục hồ sơ đang xử lý
           </div>
@@ -3829,7 +3863,13 @@ function TraCuuDangXuLyTab(props?: {
                 </tr>
               </thead>
               <tbody>
-                {sortedRows.length === 0 ? (
+                {!data ? (
+                  <tr>
+                    <td colSpan={11} className="px-4 py-10 text-center text-sm text-slate-400">
+                      Đang chuẩn bị dữ liệu tra cứu...
+                    </td>
+                  </tr>
+                ) : sortedRows.length === 0 ? (
                   <tr>
                     <td colSpan={11} className="px-4 py-10 text-center text-sm text-slate-400">
                       Không có hồ sơ phù hợp với điều kiện lọc.
@@ -4769,9 +4809,9 @@ function Dashboard() {
       case "tt46_dang_xl":
         return <DangXuLyTab thuTuc={46} onCvLookup={openLookupByChuyenVien} />;
       case "tra_cuu_dang_xl":
-        return isAdmin ? <TraCuuDangXuLyTab state={lookupState} setState={setLookupState} /> : null;
+        return isAdmin ? <TraCuuDangXuLyTab state={lookupState} setState={setLookupState} isActive={activeTab === "tra_cuu_dang_xl"} /> : null;
       case "tra_cuu_da_xl":
-        return isAdmin ? <TraCuuDaXuLyTab state={lookupDoneState} setState={setLookupDoneState} /> : null;
+        return isAdmin ? <TraCuuDaXuLyTab state={lookupDoneState} setState={setLookupDoneState} isActive={activeTab === "tra_cuu_da_xl"} /> : null;
       default:
         return null;
     }
