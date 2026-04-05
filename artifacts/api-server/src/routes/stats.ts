@@ -1,6 +1,6 @@
 import { Readable } from "node:stream";
-import ExcelJS from "exceljs";
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Response } from "express";
+import * as XLSX from "xlsx";
 import { requireAdminSession, requireViewerSession } from "../lib/auth";
 import { queryOne } from "../lib/db";
 import { getOrSetCached } from "../lib/stats/cache";
@@ -88,6 +88,17 @@ function isoToDisplay(iso: string | null): string {
   const raw = iso.split("T")[0] ?? "";
   const [y, m, d] = raw.split("-");
   return y && m && d ? `${d}/${m}/${y}` : raw;
+}
+
+function sendXlsx(res: Response, filename: string, sheetName: string, rows: Array<Array<string | number>>) {
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+  const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
+  res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Length", String(buffer.length));
+  res.end(buffer);
 }
 
 const LOOKUP_STATUS_SORT_ORDER: Record<string, number> = {
@@ -378,9 +389,7 @@ router.get("/stats/tra-cuu-dang-xu-ly/export", async (req, res) => {
     const rows = sortLookupRows(data.rows, sortBy, sortDir);
 
     const filename = `Tra_cuu_dang_xu_ly_${new Date().toISOString().slice(0, 10)}.xlsx`;
-    const workbook = new ExcelJS.Workbook();
-    const ws = workbook.addWorksheet("Tra_cuu_dang_xu_ly");
-    ws.addRow([
+    const exportRows: Array<Array<string | number>> = [[
       "STT",
       "Mã hồ sơ",
       "Ngày tiếp nhận",
@@ -391,10 +400,10 @@ router.get("/stats/tra-cuu-dang-xu-ly/export", async (req, res) => {
       "Chuyên gia",
       "Thời gian chờ",
       "Tình trạng",
-    ]);
+    ]];
 
     rows.forEach((row, index) => {
-      ws.addRow([
+      exportRows.push([
         index + 1,
         row.ma_ho_so,
         isoToDisplay(row.ngay_tiep_nhan),
@@ -408,11 +417,7 @@ router.get("/stats/tra-cuu-dang-xu-ly/export", async (req, res) => {
       ]);
     });
 
-    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
-    res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Length", String(buffer.length));
-    res.end(buffer);
+    sendXlsx(res, filename, "Tra_cuu_dang_xu_ly", exportRows);
   } catch (e: unknown) {
     if (!res.headersSent) {
       res.status(500).json({ detail: String(e) });
@@ -474,23 +479,21 @@ router.get("/stats/tra-cuu-da-xu-ly/export", async (req, res) => {
     const rows = sortLookupRows(data.rows, sortBy, sortDir);
 
     const filename = `Tra_cuu_da_xu_ly_${new Date().toISOString().slice(0, 10)}.xlsx`;
-    const workbook = new ExcelJS.Workbook();
-    const ws = workbook.addWorksheet("Tra_cuu_da_xu_ly");
-    ws.addRow([
+    const exportRows: Array<Array<string | number>> = [[
       "STT",
       "Mã hồ sơ",
       "Ngày tiếp nhận",
-      "Ngày trả kết quả",
+      "Ngày trả KQ",
       "Lần nộp",
       "Loại hồ sơ",
       "Chuyên viên",
       "Chuyên gia",
       "Thời gian xử lý",
       "Tình trạng",
-    ]);
+    ]];
 
     rows.forEach((row, index) => {
-      ws.addRow([
+      exportRows.push([
         index + 1,
         row.ma_ho_so,
         isoToDisplay(row.ngay_tiep_nhan),
@@ -504,11 +507,7 @@ router.get("/stats/tra-cuu-da-xu-ly/export", async (req, res) => {
       ]);
     });
 
-    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
-    res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Length", String(buffer.length));
-    res.end(buffer);
+    sendXlsx(res, filename, "Tra_cuu_da_xu_ly", exportRows);
   } catch (e: unknown) {
     if (!res.headersSent) {
       res.status(500).json({ detail: String(e) });
