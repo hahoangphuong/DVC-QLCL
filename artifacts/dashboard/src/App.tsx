@@ -1926,7 +1926,9 @@ function ThongKeDateFilterPanel({
   const handleTatCa = useCallback(async () => {
     update({ loadingAll: true });
     try {
-      const earliest = await fetchEarliestDate(thuTuc === 0 ? 48 : thuTuc);
+      const earliest = thuTuc === 0
+        ? (await Promise.all([fetchEarliestDate(48), fetchEarliestDate(47), fetchEarliestDate(46)])).sort()[0]
+        : await fetchEarliestDate(thuTuc);
       const today = toYMD(new Date());
       applyDates(earliest, today, "tat_ca");
     } finally {
@@ -2130,8 +2132,20 @@ function ThongKeOverviewCharts({ thuTuc, fromDate, toDate }: {
   );
 }
 
-function TongQuanTab() {
+function TongQuanTab({
+  onOpenThongKe,
+  onOpenDangXuLy,
+}: {
+  onOpenThongKe: (thuTuc: 48 | 47 | 46, filter: TabFilter) => void;
+  onOpenDangXuLy: (thuTuc: 48 | 47 | 46) => void;
+}) {
   const { fromDate, toDate, fromInput, toInput, activePreset, loadingAll, update } = useTabFilter(0);
+  const [expandedMonthly, setExpandedMonthly] = useState<Record<48 | 47 | 46, boolean>>({
+    48: false,
+    47: false,
+    46: false,
+  });
+  const currentFilter: TabFilter = { fromDate, toDate, fromInput, toInput, activePreset, loadingAll };
 
   return (
     <div className="space-y-6">
@@ -2150,14 +2164,48 @@ function TongQuanTab() {
         <section key={thuTuc} className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700">Tổng quan TT{thuTuc}</h2>
-            <div className="text-xs font-medium text-slate-500">
-              Kỳ thống kê: <span className="text-slate-700">{toDMY(fromDate)}</span>
-              {" → "}
-              <span className="text-slate-700">{toDMY(toDate)}</span>
+            <div className="flex items-center gap-2">
+              <div className="text-xs font-medium text-slate-500 mr-2">
+                Kỳ thống kê: <span className="text-slate-700">{toDMY(fromDate)}</span>
+                {" → "}
+                <span className="text-slate-700">{toDMY(toDate)}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => onOpenThongKe(thuTuc as 48 | 47 | 46, currentFilter)}
+                className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-blue-700 hover:bg-blue-50"
+              >
+                Chi tiết thống kê
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenDangXuLy(thuTuc as 48 | 47 | 46)}
+                className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-amber-700 hover:bg-amber-50"
+              >
+                Chi tiết đang xử lý
+              </button>
             </div>
           </div>
           <ThongKeOverviewCharts thuTuc={thuTuc as 48 | 47 | 46} fromDate={fromDate} toDate={toDate} />
-          <MonthlyTrendChart thuTuc={thuTuc as 48 | 47 | 46} fromDate={fromDate} toDate={toDate} />
+          <div className="rounded-xl border border-slate-200 bg-white">
+            <button
+              type="button"
+              onClick={() => setExpandedMonthly((prev) => ({ ...prev, [thuTuc]: !prev[thuTuc as 48 | 47 | 46] }))}
+              className="flex w-full items-center gap-2 px-5 py-3 text-left"
+            >
+              <span className="flex h-5 w-5 items-center justify-center rounded border border-slate-300 bg-white text-xs font-bold text-slate-600">
+                {expandedMonthly[thuTuc as 48 | 47 | 46] ? "−" : "+"}
+              </span>
+              <span className="text-sm font-bold uppercase tracking-wide text-slate-700">
+                Xu hướng theo tháng — TT{thuTuc}
+              </span>
+            </button>
+            {expandedMonthly[thuTuc as 48 | 47 | 46] && (
+              <div className="px-4 pb-4">
+                <MonthlyTrendChart thuTuc={thuTuc as 48 | 47 | 46} fromDate={fromDate} toDate={toDate} />
+              </div>
+            )}
+          </div>
         </section>
       ))}
     </div>
@@ -4685,10 +4733,26 @@ function Dashboard() {
     setActiveTab("tra_cuu_dang_xl");
   }, [isAdmin]);
 
+  const openThongKeFromTongQuan = useCallback((thuTuc: 48 | 47 | 46, filter: TabFilter) => {
+    updateFilter(thuTuc, {
+      fromDate: filter.fromDate,
+      toDate: filter.toDate,
+      fromInput: filter.fromInput,
+      toInput: filter.toInput,
+      activePreset: filter.activePreset,
+      loadingAll: false,
+    });
+    setActiveTab(`tt${thuTuc}_thong_ke`);
+  }, [updateFilter]);
+
+  const openDangXuLyFromTongQuan = useCallback((thuTuc: 48 | 47 | 46) => {
+    setActiveTab(`tt${thuTuc}_dang_xl`);
+  }, []);
+
   const renderTabContent = (tabId: string) => {
     switch (tabId) {
       case "tong_quan":
-        return <TongQuanTab />;
+        return <TongQuanTab onOpenThongKe={openThongKeFromTongQuan} onOpenDangXuLy={openDangXuLyFromTongQuan} />;
       case "tt48_thong_ke":
         return <ThongKeTab thuTuc={48} />;
       case "tt48_dang_xl":
