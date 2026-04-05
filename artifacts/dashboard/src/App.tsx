@@ -1736,6 +1736,8 @@ function LookupHoSoDetailModal({
   maHoSo: string;
   onClose: () => void;
 }) {
+  const [infoTab, setInfoTab] = useState<"co_so" | "doanh_nghiep">("co_so");
+  const [attachmentTab, setAttachmentTab] = useState("");
   const { data, isLoading, isError } = useQuery({
     queryKey: ["dav-tt48-ho-so-detail", hoSoId],
     queryFn: () => fetchDavTt48HoSoDetail(hoSoId),
@@ -1753,25 +1755,60 @@ function LookupHoSoDetailModal({
 
   const hoSo = data?.view.hoSo ?? {};
   const donHang = data?.view.parsedJsonDonHang ?? {};
-  const attachments = (data?.view.listTepHoSo ?? []).flatMap((bundle) => bundle.danhSachTepDinhKem ?? []);
+  const attachmentBundles = useMemo(() => (
+    (data?.view.listTepHoSo ?? [])
+      .map((bundle, index) => {
+        const seen = new Set<string>();
+        const files = (bundle.danhSachTepDinhKem ?? [])
+          .filter((file): file is Record<string, unknown> => !!file)
+          .filter((file) => {
+            const key = String(file.duongDanTep ?? file.tenTep ?? file.code ?? `${index}`);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+        const label = typeof bundle.moTaTep === "string" && bundle.moTaTep.trim()
+          ? bundle.moTaTep.trim()
+          : typeof bundle.lanBoSung === "number" && bundle.lanBoSung > 0
+            ? `L\u1ea7n b\u1ed5 sung ${bundle.lanBoSung}`
+            : "L\u1ea7n \u0111\u1ea7u";
+        return {
+          key: `${bundle.lanBoSung ?? "null"}-${index}`,
+          label,
+          files,
+        };
+      })
+      .filter((bundle) => bundle.files.length > 0)
+  ), [data?.view.listTepHoSo]);
   const lichSu = data?.history.listYKien ?? [];
   const giayBaoThuUrl = buildDavViewFileUrl(data?.view.urlGiayBaoThu);
   const banDangKyUrl = buildDavViewFileUrl(data?.view.urlBanDangKy);
+  const activeAttachmentBundle = attachmentBundles.find((bundle) => bundle.key === attachmentTab) ?? attachmentBundles[0] ?? null;
+
+  useEffect(() => {
+    setAttachmentTab((prev) =>
+      attachmentBundles.some((bundle) => bundle.key === prev) ? prev : (attachmentBundles[0]?.key ?? ""),
+    );
+  }, [attachmentBundles]);
+
+  useEffect(() => {
+    setInfoTab("co_so");
+  }, [hoSoId]);
 
   const renderValue = (value: unknown) => {
-    if (value === null || value === undefined || value === "") return "—";
+    if (value === null || value === undefined || value === "") return "\u2014";
     return String(value);
   };
 
   const topCards: Array<[string, unknown]> = [
-    ["Mã hồ sơ", hoSo["maHoSo"]],
-    ["Hình thức đánh giá", donHang["hinhThucDanhGia"]],
+    ["M\u00e3 h\u1ed3 s\u01a1", hoSo["maHoSo"]],
+    ["H\u00ecnh th\u1ee9c \u0111\u00e1nh gi\u00e1", donHang["hinhThucDanhGia"]],
     [
-      "Ngày nộp",
+      "Ng\u00e0y n\u1ed9p",
       isoToDisplay(typeof hoSo["ngayDoanhNghiepNopHoSo"] === "string" ? hoSo["ngayDoanhNghiepNopHoSo"] : null),
     ],
     [
-      "Ngày tiếp nhận",
+      "Ng\u00e0y ti\u1ebfp nh\u1eadn",
       isoToDisplay(typeof hoSo["ngayTiepNhan"] === "string" ? hoSo["ngayTiepNhan"] : null),
     ],
   ];
@@ -1781,7 +1818,7 @@ function LookupHoSoDetailModal({
       <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-slate-200 bg-slate-800 px-6 py-4">
           <div>
-            <h2 className="text-base font-bold text-white">Chi tiết hồ sơ TT48</h2>
+            <h2 className="text-base font-bold text-white">Chi ti\u1ebft h\u1ed3 s\u01a1 TT48</h2>
             <p className="mt-1 text-sm text-slate-300">{maHoSo}</p>
           </div>
           <button
@@ -1789,7 +1826,7 @@ function LookupHoSoDetailModal({
             onClick={onClose}
             className="rounded-md px-2 py-1 text-xl font-bold leading-none text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
           >
-            ×
+            \u00d7
           </button>
         </div>
 
@@ -1797,11 +1834,11 @@ function LookupHoSoDetailModal({
           {isLoading ? (
             <div className="flex h-56 items-center justify-center gap-3 text-sm text-slate-500">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-              Đang tải chi tiết hồ sơ...
+              \u0110ang t\u1ea3i chi ti\u1ebft h\u1ed3 s\u01a1...
             </div>
           ) : isError || !data ? (
             <div className="flex h-56 items-center justify-center text-sm text-red-500">
-              Không thể tải chi tiết hồ sơ từ DAV.
+              Kh\u00f4ng th\u1ec3 t\u1ea3i chi ti\u1ebft h\u1ed3 s\u01a1 t\u1eeb DAV.
             </div>
           ) : (
             <div className="space-y-6">
@@ -1814,99 +1851,137 @@ function LookupHoSoDetailModal({
                 ))}
               </section>
 
-              <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
-                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Thông tin doanh nghiệp nộp hồ sơ</h3>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="md:col-span-2">
-                    <div className="text-xs font-semibold text-slate-500">Tên doanh nghiệp</div>
-                    <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["tenDoanhNghiep"])}</div>
-                  </div>
-                  <div className="md:col-span-2">
-                    <div className="text-xs font-semibold text-slate-500">Địa chỉ doanh nghiệp</div>
-                    <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["diaChiCoSo"] ?? hoSo["diaChi"])}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-slate-500">Mã số thuế</div>
-                    <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["maSoThue"])}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-slate-500">Email</div>
-                    <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["email"])}</div>
-                  </div>
-                </div>
-              </section>
-
-              <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
-                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Thông tin cơ sở sản xuất</h3>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div>
-                    <div className="text-xs font-semibold text-slate-500">IDCT</div>
-                    <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["idCongTy"])}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-slate-500">Nước sở tại</div>
-                    <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["nuocSoTai"])}</div>
-                  </div>
-                  <div className="md:col-span-2">
-                    <div className="text-xs font-semibold text-slate-500">Tên cơ sở sản xuất</div>
-                    <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["tenCoSoSanXuat"] ?? hoSo["tenCoSo"])}</div>
-                  </div>
-                  <div className="md:col-span-2">
-                    <div className="text-xs font-semibold text-slate-500">Địa chỉ cơ sở sản xuất</div>
-                    <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["diaChiCoSoSanXuat"])}</div>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  {banDangKyUrl && (
-                    <a href={banDangKyUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
-                      Bản đăng ký
-                    </a>
-                  )}
-                  {giayBaoThuUrl && (
-                    <a href={giayBaoThuUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">
-                      Giấy báo thu
-                    </a>
-                  )}
-                </div>
-              </section>
-
               <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Tài liệu đính kèm</h3>
-                {attachments.length === 0 ? (
-                  <div className="mt-3 text-sm text-slate-400">Không có tài liệu đính kèm.</div>
+                <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">
+                  {[
+                    { key: "co_so" as const, label: "Th\u00f4ng tin c\u01a1 s\u1edf s\u1ea3n xu\u1ea5t" },
+                    { key: "doanh_nghiep" as const, label: "Th\u00f4ng tin doanh nghi\u1ec7p n\u1ed9p h\u1ed3 s\u01a1" },
+                  ].map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setInfoTab(tab.key)}
+                      className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
+                        infoTab === tab.key
+                          ? "bg-blue-600 text-white"
+                          : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {infoTab === "co_so" ? (
+                  <div className="mt-4 space-y-4">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div>
+                        <div className="text-xs font-semibold text-slate-500">IDCT</div>
+                        <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["idCongTy"])}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-slate-500">N\u01b0\u1edbc s\u1edf t\u1ea1i</div>
+                        <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["nuocSoTai"])}</div>
+                      </div>
+                      <div className="md:col-span-2">
+                        <div className="text-xs font-semibold text-slate-500">T\u00ean c\u01a1 s\u1edf s\u1ea3n xu\u1ea5t</div>
+                        <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["tenCoSoSanXuat"] ?? hoSo["tenCoSo"])}</div>
+                      </div>
+                      <div className="md:col-span-2">
+                        <div className="text-xs font-semibold text-slate-500">\u0110\u1ecba ch\u1ec9 c\u01a1 s\u1edf s\u1ea3n xu\u1ea5t</div>
+                        <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["diaChiCoSoSanXuat"] ?? hoSo["diaChiCoSo"])}</div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {banDangKyUrl && (
+                        <a href={banDangKyUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
+                          B\u1ea3n \u0111\u0103ng k\u00fd
+                        </a>
+                      )}
+                      {giayBaoThuUrl && (
+                        <a href={giayBaoThuUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">
+                          Gi\u1ea5y b\u00e1o thu
+                        </a>
+                      )}
+                    </div>
+                  </div>
                 ) : (
-                  <div className="mt-3 space-y-2">
-                    {attachments.map((file, index) => {
-                      const url = buildDavViewFileUrl(file.duongDanTep);
-                      return (
-                        <div
-                          key={`${file.code ?? "tep"}-${index}`}
-                          className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="text-sm font-medium text-slate-800">{renderValue(file.moTaTep)}</div>
-                            <div className="mt-1 break-all text-xs text-slate-500">{renderValue(file.tenTep)}</div>
-                          </div>
-                          <div className="shrink-0">
-                            {url ? (
-                              <a href={url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-700 hover:text-blue-800">
-                                Mở
-                              </a>
-                            ) : (
-                              <span className="text-sm text-slate-400">—</span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="md:col-span-2">
+                      <div className="text-xs font-semibold text-slate-500">T\u00ean doanh nghi\u1ec7p</div>
+                      <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["tenDoanhNghiep"])}</div>
+                    </div>
+                    <div className="md:col-span-2">
+                      <div className="text-xs font-semibold text-slate-500">\u0110\u1ecba ch\u1ec9 doanh nghi\u1ec7p</div>
+                      <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["diaChiCoSo"] ?? hoSo["diaChi"])}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500">M\u00e3 s\u1ed1 thu\u1ebf</div>
+                      <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["maSoThue"])}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500">Email</div>
+                      <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["email"])}</div>
+                    </div>
                   </div>
                 )}
               </section>
 
               <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Lịch sử xử lý</h3>
+                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">T\u00e0i li\u1ec7u \u0111\u00ednh k\u00e8m</h3>
+                {attachmentBundles.length === 0 ? (
+                  <div className="mt-3 text-sm text-slate-400">Kh\u00f4ng c\u00f3 t\u00e0i li\u1ec7u \u0111\u00ednh k\u00e8m.</div>
+                ) : (
+                  <div className="mt-3 space-y-4">
+                    <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+                      {attachmentBundles.map((bundle) => (
+                        <button
+                          key={bundle.key}
+                          type="button"
+                          onClick={() => setAttachmentTab(bundle.key)}
+                          className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
+                            activeAttachmentBundle?.key === bundle.key
+                              ? "bg-blue-600 text-white"
+                              : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          {bundle.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="space-y-2">
+                      {(activeAttachmentBundle?.files ?? []).map((file, index) => {
+                        const url = buildDavViewFileUrl(file.duongDanTep);
+                        return (
+                          <div
+                            key={`${activeAttachmentBundle?.key ?? "bundle"}-${file.code ?? "tep"}-${index}`}
+                            className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-medium text-slate-800">{renderValue(file.moTaTep)}</div>
+                              <div className="mt-1 break-all text-xs text-slate-500">{renderValue(file.tenTep)}</div>
+                            </div>
+                            <div className="shrink-0">
+                              {url ? (
+                                <a href={url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-700 hover:text-blue-800">
+                                  M\u1edf
+                                </a>
+                              ) : (
+                                <span className="text-sm text-slate-400">\u2014</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              <section className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">L\u1ecbch s\u1eed x\u1eed l\u00fd</h3>
                 {lichSu.length === 0 ? (
-                  <div className="mt-3 text-sm text-slate-400">Chưa có lịch sử xử lý.</div>
+                  <div className="mt-3 text-sm text-slate-400">Ch\u01b0a c\u00f3 l\u1ecbch s\u1eed x\u1eed l\u00fd.</div>
                 ) : (
                   <div className="mt-3 space-y-3">
                     {lichSu.map((item, index) => (
@@ -1931,7 +2006,6 @@ function LookupHoSoDetailModal({
     </div>
   );
 }
-
 function ThongKeDateFilterPanel({
   thuTuc,
   fromDate,
