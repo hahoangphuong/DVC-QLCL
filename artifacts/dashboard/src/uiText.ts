@@ -1,0 +1,45 @@
+export const LOOKUP_TEXT = {
+  all: "Tất cả",
+  pendingAssignment: "Chờ phân công",
+  pendingSpecialist: "Chờ chuyên viên",
+  notProcessed: "Chưa xử lý",
+  returned: "Bị trả lại",
+  pendingSummary: "Chờ tổng hợp",
+  pendingExpert: "Chờ chuyên gia",
+  pendingLeader: "Chờ Tổ trưởng",
+  pendingManager: "Chờ Trưởng phòng",
+  pendingPublish: "Chờ công bố",
+  requiresSupplement: "Cần bổ sung",
+  failed: "Không đạt",
+  completed: "Đã hoàn thành",
+  dateReceived: "Ngày tiếp nhận",
+  dueDate: "Ngày hẹn trả",
+  resultDateShort: "Ngày trả KQ",
+} as const;
+
+export const DOSSIER_DETAIL_TEXT = {
+  title: "Chi tiết hồ sơ TT48",
+  loading: "Đang tải chi tiết hồ sơ...",
+  loadError: "Không thể tải chi tiết hồ sơ từ DAV.",
+  infoTabs: {
+    coSo: "Thông tin cơ sở sản xuất",
+    doanhNghiep: "Thông tin doanh nghiệp nộp hồ sơ",
+  },
+  fields: {
+    country: "Nước sở tại",
+    facilityName: "Tên cơ sở sản xuất",
+    facilityAddress: "Địa chỉ cơ sở sản xuất",
+    companyName: "Tên doanh nghiệp",
+    companyAddress: "Địa chỉ doanh nghiệp",
+    taxCode: "Mã số thuế",
+  },
+  actions: {
+    registrationForm: "Bản đăng ký",
+    receipt: "Giấy báo thu",
+    open: "Mở",
+  },
+  attachmentsTitle: "Tài liệu đính kèm",
+  noAttachments: "Không có tài liệu đính kèm.",
+  historyTitle: "Lịch sử xử lý",
+  noHistory: "Chưa có lịch sử xử lý.",
+} as const;

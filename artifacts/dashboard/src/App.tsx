@@ -9,6 +9,7 @@ import {
 } from "recharts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Router as WouterRouter } from "wouter";
+import { DOSSIER_DETAIL_TEXT, LOOKUP_TEXT } from "./uiText";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -945,8 +946,8 @@ function TraCuuDaXuLyTab(props?: {
                 <tr className="bg-slate-100 text-slate-600">
                   <th className="px-3 py-3 text-center font-semibold uppercase tracking-wide whitespace-nowrap">STT</th>
                   <SortableHeader label="Mã hồ sơ" sortKey="ma_ho_so" />
-                  <SortableHeader label="Ngày tiếp nhận" sortKey="ngay_tiep_nhan" center />
-                  <SortableHeader label="Ngày trả KQ" sortKey="ngay_hen_tra" center />
+                  <SortableHeader label={LOOKUP_TEXT.dateReceived} sortKey="ngay_tiep_nhan" center />
+                  <SortableHeader label={LOOKUP_TEXT.resultDateShort} sortKey="ngay_hen_tra" center />
                   <SortableHeader label="Lần nộp" sortKey="submission_kind" />
                   <SortableHeader label="Loại hồ sơ" sortKey="loai_ho_so" center />
                   <SortableHeader label="Chuyên viên" sortKey="chuyen_vien" />
@@ -1818,7 +1819,7 @@ function LookupHoSoDetailModal({
       <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-slate-200 bg-slate-800 px-6 py-4">
           <div>
-            <h2 className="text-base font-bold text-white">{"Chi tiết hồ sơ TT48"}</h2>
+            <h2 className="text-base font-bold text-white">{DOSSIER_DETAIL_TEXT.title}</h2>
             <p className="mt-1 text-sm text-slate-300">{maHoSo}</p>
           </div>
           <button
@@ -1826,7 +1827,7 @@ function LookupHoSoDetailModal({
             onClick={onClose}
             className="rounded-md px-2 py-1 text-xl font-bold leading-none text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
           >
-            {"×"}
+            {"\u00d7"}
           </button>
         </div>
 
@@ -1834,11 +1835,11 @@ function LookupHoSoDetailModal({
           {isLoading ? (
             <div className="flex h-56 items-center justify-center gap-3 text-sm text-slate-500">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-              {"Đang tải chi tiết hồ sơ..."}
+              {DOSSIER_DETAIL_TEXT.loading}
             </div>
           ) : isError || !data ? (
             <div className="flex h-56 items-center justify-center text-sm text-red-500">
-              {"Không thể tải chi tiết hồ sơ từ DAV."}
+              {DOSSIER_DETAIL_TEXT.loadError}
             </div>
           ) : (
             <div className="space-y-6">
@@ -1854,8 +1855,8 @@ function LookupHoSoDetailModal({
               <section className="rounded-2xl border border-slate-200 bg-white p-5">
                 <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">
                   {[
-                    { key: "co_so" as const, label: "Th\u00f4ng tin c\u01a1 s\u1edf s\u1ea3n xu\u1ea5t" },
-                    { key: "doanh_nghiep" as const, label: "Th\u00f4ng tin doanh nghi\u1ec7p n\u1ed9p h\u1ed3 s\u01a1" },
+                    { key: "co_so" as const, label: DOSSIER_DETAIL_TEXT.infoTabs.coSo },
+                    { key: "doanh_nghiep" as const, label: DOSSIER_DETAIL_TEXT.infoTabs.doanhNghiep },
                   ].map((tab) => (
                     <button
                       key={tab.key}
@@ -1880,27 +1881,27 @@ function LookupHoSoDetailModal({
                         <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["idCongTy"])}</div>
                       </div>
                       <div>
-                        <div className="text-xs font-semibold text-slate-500">{"N\u01b0\u1edbc s\u1edf t\u1ea1i"}</div>
+                        <div className="text-xs font-semibold text-slate-500">{DOSSIER_DETAIL_TEXT.fields.country}</div>
                         <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["nuocSoTai"])}</div>
                       </div>
                       <div className="md:col-span-2">
-                        <div className="text-xs font-semibold text-slate-500">{"T\u00ean c\u01a1 s\u1edf s\u1ea3n xu\u1ea5t"}</div>
+                        <div className="text-xs font-semibold text-slate-500">{DOSSIER_DETAIL_TEXT.fields.facilityName}</div>
                         <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["tenCoSoSanXuat"] ?? hoSo["tenCoSo"])}</div>
                       </div>
                       <div className="md:col-span-2">
-                        <div className="text-xs font-semibold text-slate-500">{"\u0110\u1ecba ch\u1ec9 c\u01a1 s\u1edf s\u1ea3n xu\u1ea5t"}</div>
+                        <div className="text-xs font-semibold text-slate-500">{DOSSIER_DETAIL_TEXT.fields.facilityAddress}</div>
                         <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["diaChiCoSoSanXuat"] ?? hoSo["diaChiCoSo"])}</div>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-3">
                       {banDangKyUrl && (
                         <a href={banDangKyUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
-                          {"B\u1ea3n \u0111\u0103ng k\u00fd"}
+                          {DOSSIER_DETAIL_TEXT.actions.registrationForm}
                         </a>
                       )}
                       {giayBaoThuUrl && (
                         <a href={giayBaoThuUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">
-                          {"Gi\u1ea5y b\u00e1o thu"}
+                          {DOSSIER_DETAIL_TEXT.actions.receipt}
                         </a>
                       )}
                     </div>
@@ -1908,15 +1909,15 @@ function LookupHoSoDetailModal({
                 ) : (
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     <div className="md:col-span-2">
-                      <div className="text-xs font-semibold text-slate-500">{"T\u00ean doanh nghi\u1ec7p"}</div>
+                      <div className="text-xs font-semibold text-slate-500">{DOSSIER_DETAIL_TEXT.fields.companyName}</div>
                       <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["tenDoanhNghiep"])}</div>
                     </div>
                     <div className="md:col-span-2">
-                      <div className="text-xs font-semibold text-slate-500">{"\u0110\u1ecba ch\u1ec9 doanh nghi\u1ec7p"}</div>
+                      <div className="text-xs font-semibold text-slate-500">{DOSSIER_DETAIL_TEXT.fields.companyAddress}</div>
                       <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["diaChiCoSo"] ?? hoSo["diaChi"])}</div>
                     </div>
                     <div>
-                      <div className="text-xs font-semibold text-slate-500">{"M\u00e3 s\u1ed1 thu\u1ebf"}</div>
+                      <div className="text-xs font-semibold text-slate-500">{DOSSIER_DETAIL_TEXT.fields.taxCode}</div>
                       <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["maSoThue"])}</div>
                     </div>
                     <div>
@@ -1928,9 +1929,9 @@ function LookupHoSoDetailModal({
               </section>
 
               <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">{"Tài liệu đính kèm"}</h3>
+                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">{DOSSIER_DETAIL_TEXT.attachmentsTitle}</h3>
                 {attachmentBundles.length === 0 ? (
-                  <div className="mt-3 text-sm text-slate-400">{"Không có tài liệu đính kèm."}</div>
+                  <div className="mt-3 text-sm text-slate-400">{DOSSIER_DETAIL_TEXT.noAttachments}</div>
                 ) : (
                   <div className="mt-3 space-y-4">
                     <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
@@ -1964,10 +1965,10 @@ function LookupHoSoDetailModal({
                             <div className="shrink-0">
                               {url ? (
                                 <a href={url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-700 hover:text-blue-800">
-                                  {"Mở"}
+                                  {DOSSIER_DETAIL_TEXT.actions.open}
                                 </a>
                               ) : (
-                                <span className="text-sm text-slate-400">{"—"}</span>
+                                <span className="text-sm text-slate-400">{"\u2014"}</span>
                               )}
                             </div>
                           </div>
@@ -1979,9 +1980,9 @@ function LookupHoSoDetailModal({
               </section>
 
               <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">{"Lịch sử xử lý"}</h3>
+                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">{DOSSIER_DETAIL_TEXT.historyTitle}</h3>
                 {lichSu.length === 0 ? (
-                  <div className="mt-3 text-sm text-slate-400">{"Chưa có lịch sử xử lý."}</div>
+                  <div className="mt-3 text-sm text-slate-400">{DOSSIER_DETAIL_TEXT.noHistory}</div>
                 ) : (
                   <div className="mt-3 space-y-3">
                     {lichSu.map((item, index) => (
@@ -3522,23 +3523,38 @@ function DangXuLyTab({
   );
 }
 
+const LOOKUP_TINH_TRANG_LABELS: Record<LookupTinhTrang, string> = {
+  cho_phan_cong: LOOKUP_TEXT.pendingAssignment,
+  cho_chuyen_vien: LOOKUP_TEXT.pendingSpecialist,
+  chua_xu_ly: LOOKUP_TEXT.notProcessed,
+  bi_tra_lai: LOOKUP_TEXT.returned,
+  cho_tong_hop: LOOKUP_TEXT.pendingSummary,
+  cho_chuyen_gia: LOOKUP_TEXT.pendingExpert,
+  cho_to_truong: LOOKUP_TEXT.pendingLeader,
+  cho_truong_phong: LOOKUP_TEXT.pendingManager,
+  cho_cong_bo: LOOKUP_TEXT.pendingPublish,
+  can_bo_sung: LOOKUP_TEXT.requiresSupplement,
+  khong_dat: LOOKUP_TEXT.failed,
+  da_hoan_thanh: LOOKUP_TEXT.completed,
+};
+
 const TRA_CUU_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang; label: string }> = [
-  { value: "all", label: "T\u1ea5t c\u1ea3" },
-  { value: "cho_phan_cong", label: "Ch\u1edd ph\u00e2n c\u00f4ng" },
-  { value: "cho_chuyen_vien", label: "Ch\u1edd chuy\u00ean vi\u00ean" },
-  { value: "chua_xu_ly", label: "Ch\u01b0a x\u1eed l\u00fd" },
-  { value: "bi_tra_lai", label: "B\u1ecb tr\u1ea3 l\u1ea1i" },
-  { value: "cho_tong_hop", label: "Ch\u1edd t\u1ed5ng h\u1ee3p" },
-  { value: "cho_chuyen_gia", label: "Ch\u1edd chuy\u00ean gia" },
-  { value: "cho_to_truong", label: "Ch\u1edd T\u1ed5 tr\u01b0\u1edfng" },
-  { value: "cho_truong_phong", label: "Ch\u1edd Tr\u01b0\u1edfng ph\u00f2ng" },
-  { value: "cho_cong_bo", label: "Ch\u1edd c\u00f4ng b\u1ed1" },
+  { value: "all", label: LOOKUP_TEXT.all },
+  { value: "cho_phan_cong", label: LOOKUP_TEXT.pendingAssignment },
+  { value: "cho_chuyen_vien", label: LOOKUP_TEXT.pendingSpecialist },
+  { value: "chua_xu_ly", label: LOOKUP_TEXT.notProcessed },
+  { value: "bi_tra_lai", label: LOOKUP_TEXT.returned },
+  { value: "cho_tong_hop", label: LOOKUP_TEXT.pendingSummary },
+  { value: "cho_chuyen_gia", label: LOOKUP_TEXT.pendingExpert },
+  { value: "cho_to_truong", label: LOOKUP_TEXT.pendingLeader },
+  { value: "cho_truong_phong", label: LOOKUP_TEXT.pendingManager },
+  { value: "cho_cong_bo", label: LOOKUP_TEXT.pendingPublish },
 ];
 const TRA_CUU_DA_XU_LY_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang; label: string }> = [
-  { value: "all", label: "T\u1ea5t c\u1ea3" },
-  { value: "can_bo_sung", label: "C\u1ea7n b\u1ed5 sung" },
-  { value: "khong_dat", label: "Kh\u00f4ng \u0111\u1ea1t" },
-  { value: "da_hoan_thanh", label: "\u0110\u00e3 ho\u00e0n th\u00e0nh" },
+  { value: "all", label: LOOKUP_TEXT.all },
+  { value: "can_bo_sung", label: LOOKUP_TEXT.requiresSupplement },
+  { value: "khong_dat", label: LOOKUP_TEXT.failed },
+  { value: "da_hoan_thanh", label: LOOKUP_TEXT.completed },
 ];
 const LOOKUP_TINH_TRANG_SORT_ORDER: Record<LookupTinhTrang, number> = {
   cho_phan_cong: 1,
@@ -3556,25 +3572,11 @@ const LOOKUP_TINH_TRANG_SORT_ORDER: Record<LookupTinhTrang, number> = {
 };
 
 function displayLookupTinhTrang(value: LookupTinhTrang): string {
-  switch (value) {
-    case "cho_phan_cong": return "Ch\u1edd ph\u00e2n c\u00f4ng";
-    case "cho_chuyen_vien": return "Ch\u1edd chuy\u00ean vi\u00ean";
-    case "chua_xu_ly": return "Ch\u01b0a x\u1eed l\u00fd";
-    case "bi_tra_lai": return "B\u1ecb tr\u1ea3 l\u1ea1i";
-    case "cho_tong_hop": return "Ch\u1edd t\u1ed5ng h\u1ee3p";
-    case "cho_chuyen_gia": return "Ch\u1edd chuy\u00ean gia";
-    case "cho_to_truong": return "Ch\u1edd T\u1ed5 tr\u01b0\u1edfng";
-    case "cho_truong_phong": return "Ch\u1edd Tr\u01b0\u1edfng ph\u00f2ng";
-    case "cho_cong_bo": return "Ch\u1edd c\u00f4ng b\u1ed1";
-    case "can_bo_sung": return "C\u1ea7n b\u1ed5 sung";
-    case "khong_dat": return "Kh\u00f4ng \u0111\u1ea1t";
-    case "da_hoan_thanh": return "\u0110\u00e3 ho\u00e0n th\u00e0nh";
-    default: return value;
-  }
+  return LOOKUP_TINH_TRANG_LABELS[value] ?? value;
 }
 function displayLookupCv(raw: string | null): string {
   if (!raw) return "";
-  if (raw === "__CHUA_PHAN__") return "Chờ phân công";
+  if (raw === "__CHUA_PHAN__") return LOOKUP_TEXT.pendingAssignment;
   return cleanCvName(raw);
 }
 
@@ -3928,8 +3930,8 @@ function TraCuuDangXuLyTab(props?: {
                 <tr className="bg-slate-100 text-slate-600">
                   <th className="px-3 py-3 text-center font-semibold uppercase tracking-wide whitespace-nowrap">STT</th>
                   <SortableHeader label="Mã hồ sơ" sortKey="ma_ho_so" />
-                  <SortableHeader label="Ngày tiếp nhận" sortKey="ngay_tiep_nhan" center />
-                  <SortableHeader label="Ngày hẹn trả" sortKey="ngay_hen_tra" center />
+                  <SortableHeader label={LOOKUP_TEXT.dateReceived} sortKey="ngay_tiep_nhan" center />
+                  <SortableHeader label={LOOKUP_TEXT.dueDate} sortKey="ngay_hen_tra" center />
                   <SortableHeader label="Lần nộp" sortKey="submission_kind" />
                   <SortableHeader label="Loại hồ sơ" sortKey="loai_ho_so" center />
                   <SortableHeader label="Chuyên viên" sortKey="chuyen_vien" />
