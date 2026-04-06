@@ -413,13 +413,13 @@ export async function getChuyenGiaStats(thuTuc: number) {
        WHERE NULLIF(TRIM(chuyen_gia_name), '') IS NOT NULL
      ),
      resolved_case_facts AS (
-       SELECT DISTINCT ON (ma_ho_so)
-         ma_ho_so,
+       SELECT DISTINCT
+         COALESCE(NULLIF(TRIM(da_xu_ly_id), ''), tcc_id) AS luot_xu_ly_id,
          REGEXP_REPLACE(TRIM(chuyen_gia_name), '^CG\\s*:\\s*', '', 'i') AS ten_chuyen_gia
        FROM case_facts
        WHERE NULLIF(TRIM(chuyen_gia_name), '') IS NOT NULL
          AND (da_xu_ly_id IS NOT NULL OR trang_thai IN ('4', '6', '7'))
-       ORDER BY ma_ho_so, COALESCE(ngay_tra, ngay_nhan) DESC NULLS LAST, ngay_nhan DESC NULLS LAST
+         AND COALESCE(NULLIF(TRIM(da_xu_ly_id), ''), tcc_id) IS NOT NULL
      ),
      resolved_stats AS (
        SELECT

@@ -1,6 +1,7 @@
 export function buildCaseFactsCte(thuTucParam: string): string {
   return `case_facts AS (
     SELECT
+      tcc_id,
       ma_ho_so,
       loai_ho_so,
       submission_kind,
