@@ -1,5 +1,6 @@
 import { Readable } from "node:stream";
 import { Router, type IRouter, type Response } from "express";
+import ExcelJS from "exceljs";
 import { requireAdminSession, requireViewerSession } from "../lib/auth";
 import { queryOne } from "../lib/db";
 import { getOrSetCached } from "../lib/stats/cache";
@@ -95,29 +96,19 @@ function isoToDisplay(value: string | Date | null): string {
   return y && m && d ? `${d}/${m}/${y}` : raw;
 }
 
-function escapeExcelCell(value: string | number): string {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;");
-}
-
-function sendExcelTable(
+async function sendXlsx(
   res: Response,
   filename: string,
   sheetName: string,
   rows: Array<Array<string | number>>,
 ) {
-  const html = [
-    "<html><head><meta charset=\"utf-8\" /></head><body>",
-    `<table data-sheet-name="${escapeExcelCell(sheetName)}">`,
-    ...rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeExcelCell(cell)}</td>`).join("")}</tr>`),
-    "</table></body></html>",
-  ].join("");
-  const buffer = Buffer.from(html, "utf8");
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet(sheetName);
+  rows.forEach((row) => worksheet.addRow(row));
+  const written = await workbook.xlsx.writeBuffer();
+  const buffer = Buffer.isBuffer(written) ? written : Buffer.from(written);
   res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
-  res.setHeader("Content-Type", "application/vnd.ms-excel; charset=utf-8");
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Length", String(buffer.length));
   res.end(buffer);
 }
@@ -409,7 +400,7 @@ router.get("/stats/tra-cuu-dang-xu-ly/export", async (req, res) => {
     const data = await getDangXuLyLookup({ thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo });
     const rows = sortLookupRows(data.rows, sortBy, sortDir);
 
-    const filename = `Tra_cuu_dang_xu_ly_${new Date().toISOString().slice(0, 10)}.xls`;
+    const filename = `Tra_cuu_dang_xu_ly_${new Date().toISOString().slice(0, 10)}.xlsx`;
     const exportRows: Array<Array<string | number>> = [[
       "STT",
       "Mã hồ sơ",
@@ -438,7 +429,7 @@ router.get("/stats/tra-cuu-dang-xu-ly/export", async (req, res) => {
       ]);
     });
 
-    sendExcelTable(res, filename, "Tra_cuu_dang_xu_ly", exportRows);
+    await sendXlsx(res, filename, "Tra_cuu_dang_xu_ly", exportRows);
   } catch (e: unknown) {
     if (!res.headersSent) {
       res.status(500).json({ detail: String(e) });
@@ -499,7 +490,7 @@ router.get("/stats/tra-cuu-da-xu-ly/export", async (req, res) => {
     const data = await getDaXuLyLookup({ thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo });
     const rows = sortLookupRows(data.rows, sortBy, sortDir);
 
-    const filename = `Tra_cuu_da_xu_ly_${new Date().toISOString().slice(0, 10)}.xls`;
+    const filename = `Tra_cuu_da_xu_ly_${new Date().toISOString().slice(0, 10)}.xlsx`;
     const exportRows: Array<Array<string | number>> = [[
       "STT",
       "Mã hồ sơ",
@@ -528,7 +519,7 @@ router.get("/stats/tra-cuu-da-xu-ly/export", async (req, res) => {
       ]);
     });
 
-    sendExcelTable(res, filename, "Tra_cuu_da_xu_ly", exportRows);
+    await sendXlsx(res, filename, "Tra_cuu_da_xu_ly", exportRows);
   } catch (e: unknown) {
     if (!res.headersSent) {
       res.status(500).json({ detail: String(e) });
