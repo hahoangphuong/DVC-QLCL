@@ -82,9 +82,15 @@ function displaySubmissionKind(value: string | null): string {
   return "";
 }
 
-function isoToDisplay(iso: string | null): string {
-  if (!iso) return "";
-  const raw = iso.split("T")[0] ?? "";
+function isoToDisplay(value: string | Date | null): string {
+  if (!value) return "";
+  const rawValue =
+    value instanceof Date
+      ? value.toISOString()
+      : typeof value === "string"
+        ? value
+        : String(value);
+  const raw = rawValue.split("T")[0] ?? "";
   const [y, m, d] = raw.split("-");
   return y && m && d ? `${d}/${m}/${y}` : raw;
 }
