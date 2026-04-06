@@ -615,6 +615,7 @@ function buildDavViewFileUrl(pathOrUrl: string | null | undefined): string | nul
 // ---------------------------------------------------------------------------
 interface ChuyenGiaRow {
   ten:          string;
+  da_giai_quyet:number;
   tong:         number;
   con_han:      number;
   qua_han:      number;
@@ -4076,6 +4077,9 @@ function ChuyenGiaTable({
           )}
         </td>
         {/* TỔNG */}
+        <td className={`px-2 py-1.5 text-center text-xs font-bold ${row.da_giai_quyet > 0 ? "text-emerald-700 bg-emerald-50" : "text-slate-300"}`}>
+          {row.da_giai_quyet || ""}
+        </td>
         <td className={`px-2 py-1.5 text-center text-xs font-bold ${row.tong > 15 ? "text-pink-700 bg-pink-50" : row.tong > 0 ? "text-slate-700" : "text-slate-300"}`}>
           {row.tong || ""}
         </td>
@@ -4110,6 +4114,7 @@ function ChuyenGiaTable({
   const visibleChuyenGia = hideEmpty ? data.chuyen_gia.filter((row) => row.tong > 0) : data.chuyen_gia;
   const visibleChuyenVienCg = hideEmpty ? data.chuyen_vien_cg.filter((row) => row.tong > 0) : data.chuyen_vien_cg;
   const allRows = [...visibleChuyenGia, ...visibleChuyenVienCg];
+  const grandResolved = allRows.reduce((s, r) => s + r.da_giai_quyet, 0);
   const grandTong  = allRows.reduce((s, r) => s + r.tong,    0);
   const grandCon   = allRows.reduce((s, r) => s + r.con_han, 0);
   const grandQua   = allRows.reduce((s, r) => s + r.qua_han, 0);
@@ -4132,27 +4137,29 @@ function ChuyenGiaTable({
         </label>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-xs border-collapse" style={{ minWidth: 900, tableLayout: "fixed" }}>
+        <table className="w-full text-xs border-collapse" style={{ minWidth: 980, tableLayout: "fixed" }}>
           <colgroup>
             <col style={{ width: 36 }} />
             <col style={{ width: 220 }} />
-            {/* Chia đôi phần bề rộng còn lại cho 2 cụm cột lớn */}
-            <col style={{ width: "calc((100% - 256px) / 6)" }} />
-            <col style={{ width: "calc((100% - 256px) / 6)" }} />
-            <col style={{ width: "calc((100% - 256px) / 6)" }} />
-            <col style={{ width: "calc((100% - 256px) / 8)" }} />
-            <col style={{ width: "calc((100% - 256px) / 8)" }} />
-            <col style={{ width: "calc((100% - 256px) / 8)" }} />
-            <col style={{ width: "calc((100% - 256px) / 8)" }} />
+            <col style={{ width: 92 }} />
+            <col style={{ width: "calc((100% - 348px) / 7)" }} />
+            <col style={{ width: "calc((100% - 348px) / 7)" }} />
+            <col style={{ width: "calc((100% - 348px) / 7)" }} />
+            <col style={{ width: "calc((100% - 348px) / 7)" }} />
+            <col style={{ width: "calc((100% - 348px) / 7)" }} />
+            <col style={{ width: "calc((100% - 348px) / 7)" }} />
+            <col style={{ width: "calc((100% - 348px) / 7)" }} />
           </colgroup>
           <thead>
             <tr className="bg-slate-700 text-white">
               <th className="px-2 py-2 text-center text-xs w-9" rowSpan={2}>STT</th>
               <th className="px-3 py-2 text-left text-xs min-w-[220px]" rowSpan={2}>Chuyên gia</th>
+              <th className="px-2 py-2 text-center text-xs bg-emerald-700" colSpan={1}>ĐÃ GIẢI QUYẾT</th>
               <th className="px-2 py-2 text-center text-xs bg-blue-600" colSpan={3}>ĐANG GIẢI QUYẾT</th>
               <th className="px-2 py-2 text-center text-xs bg-rose-700" colSpan={4}>Hồ sơ chậm nhất</th>
             </tr>
             <tr className="bg-slate-600 text-white">
+              <th className="px-2 py-1 text-center text-xs bg-emerald-700 font-bold">TỔNG</th>
               <th className="px-2 py-1 text-center text-xs bg-slate-600 font-bold">TỔNG</th>
               <th className="px-2 py-1 text-center text-xs bg-green-700">Còn hạn</th>
               <th className="px-2 py-1 text-center text-xs bg-orange-600">Quá hạn</th>
@@ -4165,23 +4172,23 @@ function ChuyenGiaTable({
           <tbody className="divide-y divide-slate-100">
             {/* Section 1: Chuyên gia */}
             <tr className="bg-cyan-600 text-white">
-              <td colSpan={9} className="px-3 py-1 text-xs font-bold uppercase tracking-wide">
+              <td colSpan={10} className="px-3 py-1 text-xs font-bold uppercase tracking-wide">
                 Chuyên gia
               </td>
             </tr>
             {visibleChuyenGia.length === 0 ? (
-              <tr><td colSpan={9} className="px-3 py-2 text-xs text-slate-400 italic text-center">Không có hồ sơ đang ở bước chuyên gia</td></tr>
+              <tr><td colSpan={10} className="px-3 py-2 text-xs text-slate-400 italic text-center">Không có hồ sơ đang ở bước chuyên gia</td></tr>
             ) : (
               visibleChuyenGia.map((row, idx) => renderRow(row, idx, "bg-green-50"))
             )}
             {/* Section 2: Chuyên viên đóng vai chuyên gia */}
             <tr className="bg-amber-500 text-white">
-              <td colSpan={9} className="px-3 py-1 text-xs font-bold uppercase tracking-wide">
+              <td colSpan={10} className="px-3 py-1 text-xs font-bold uppercase tracking-wide">
                 Chuyên viên đóng vai chuyên gia
               </td>
             </tr>
             {visibleChuyenVienCg.length === 0 ? (
-              <tr><td colSpan={9} className="px-3 py-2 text-xs text-slate-400 italic text-center">Không có chuyên viên đóng vai chuyên gia</td></tr>
+              <tr><td colSpan={10} className="px-3 py-2 text-xs text-slate-400 italic text-center">Không có chuyên viên đóng vai chuyên gia</td></tr>
             ) : (
               visibleChuyenVienCg.map((row, idx) => renderRow(row, idx, "bg-amber-50"))
             )}
@@ -4190,6 +4197,7 @@ function ChuyenGiaTable({
             <tr className="bg-slate-100 font-bold text-slate-700 border-t-2 border-slate-300">
               <td />
               <td className="px-3 py-2 text-xs font-bold">TỔNG</td>
+              <td className="px-2 py-2 text-center text-xs font-bold text-emerald-700">{grandResolved}</td>
               <td className="px-2 py-2 text-center text-xs font-bold">{grandTong}</td>
               <td className="px-2 py-2 text-center text-xs text-blue-700">{grandCon}</td>
               <td className="px-2 py-2 text-center text-xs text-orange-700 font-bold">{grandQua}</td>
@@ -5030,7 +5038,6 @@ export default function App() {
     </QueryClientProvider>
   );
 }
-
 
 
 

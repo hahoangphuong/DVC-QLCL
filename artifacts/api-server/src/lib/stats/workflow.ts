@@ -387,6 +387,7 @@ export async function getDangXuLyStats(thuTuc: number) {
 export async function getChuyenGiaStats(thuTuc: number) {
   const rows = await query<{
     ten_chuyen_gia: string;
+    da_giai_quyet: string;
     tong: string;
     con_han: string;
     qua_han: string;
@@ -410,6 +411,22 @@ export async function getChuyenGiaStats(thuTuc: number) {
        SELECT DISTINCT REGEXP_REPLACE(TRIM(chuyen_gia_name), '^CG\\s*:\\s*', '', 'i') AS ten_chuyen_gia
        FROM case_facts
        WHERE NULLIF(TRIM(chuyen_gia_name), '') IS NOT NULL
+     ),
+     resolved_case_facts AS (
+       SELECT DISTINCT ON (ma_ho_so)
+         ma_ho_so,
+         REGEXP_REPLACE(TRIM(chuyen_gia_name), '^CG\\s*:\\s*', '', 'i') AS ten_chuyen_gia
+       FROM case_facts
+       WHERE NULLIF(TRIM(chuyen_gia_name), '') IS NOT NULL
+         AND (da_xu_ly_id IS NOT NULL OR trang_thai IN ('4', '6', '7'))
+       ORDER BY ma_ho_so, COALESCE(ngay_tra, ngay_nhan) DESC NULLS LAST, ngay_nhan DESC NULLS LAST
+     ),
+     resolved_stats AS (
+       SELECT
+         ten_chuyen_gia,
+         COUNT(*) AS da_giai_quyet
+       FROM resolved_case_facts
+       GROUP BY ten_chuyen_gia
      ),
      cg_base AS (
        SELECT
@@ -450,6 +467,7 @@ export async function getChuyenGiaStats(thuTuc: number) {
      )
      SELECT
        names.ten_chuyen_gia,
+       COALESCE(rs.da_giai_quyet, 0) AS da_giai_quyet,
        COALESCE(s.tong, 0) AS tong,
        COALESCE(s.con_han, 0) AS con_han,
        COALESCE(s.qua_han, 0) AS qua_han,
@@ -458,6 +476,7 @@ export async function getChuyenGiaStats(thuTuc: number) {
        cn.cham_ngay,
        cn.cham_cv
      FROM all_expert_names names
+     LEFT JOIN resolved_stats rs ON rs.ten_chuyen_gia = names.ten_chuyen_gia
      LEFT JOIN stats s ON s.ten_chuyen_gia = names.ten_chuyen_gia
      LEFT JOIN cham_nhat cn ON cn.ten_chuyen_gia = names.ten_chuyen_gia`,
     [thuTuc]
@@ -465,6 +484,7 @@ export async function getChuyenGiaStats(thuTuc: number) {
 
   const mappedRows = rows.map((row) => ({
     ten: row.ten_chuyen_gia,
+    da_giai_quyet: toCount(row.da_giai_quyet),
     tong: toCount(row.tong),
     con_han: toCount(row.con_han),
     qua_han: toCount(row.qua_han),
@@ -490,6 +510,7 @@ export async function getChuyenGiaStats(thuTuc: number) {
   const zeroRow = (name: string) => (
     resultMap.get(name) ?? {
       ten: name,
+      da_giai_quyet: 0,
       tong: 0,
       con_han: 0,
       qua_han: 0,
