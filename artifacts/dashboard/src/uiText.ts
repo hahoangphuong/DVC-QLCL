@@ -9,6 +9,7 @@ export const LOOKUP_TEXT = {
   pendingLeader: "Chờ Tổ trưởng",
   pendingManager: "Chờ Trưởng phòng",
   pendingPublish: "Chờ công bố",
+  pendingClerical: "Chờ văn thư",
   requiresSupplement: "Cần bổ sung",
   failed: "Không đạt",
   completed: "Đã hoàn thành",

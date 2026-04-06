@@ -575,7 +575,8 @@ workflow_base AS (
         WHEN w.don_vi = 'Chuy\u00ean gia th\u1ea9m \u0111\u1ecbnh' THEN 'cho_chuyen_gia'
         WHEN w.don_vi = 'T\u1ed5 tr\u01b0\u1edfng chuy\u00ean gia' THEN 'cho_to_truong'
         WHEN w.don_vi = 'Tr\u01b0\u1edfng ph\u00f2ng' THEN 'cho_truong_phong'
-        WHEN w.buoc = 'cho_ket_thuc' OR w.don_vi IN ('Ph\u00f3 C\u1ee5c tr\u01b0\u1edfng', 'V\u0103n th\u01b0') THEN 'cho_cong_bo'
+        WHEN w.don_vi LIKE 'V\u0103n th\u01b0%' THEN 'cho_van_thu'
+        WHEN w.buoc = 'cho_ket_thuc' OR w.don_vi = 'Ph\u00f3 C\u1ee5c tr\u01b0\u1edfng' THEN 'cho_cong_bo'
         WHEN w.buoc IN ('chua_xu_ly', 'bi_tra_lai', 'cho_tong_hop')
           OR w.don_vi IN ('Chuy\u00ean vi\u00ean')
         THEN 'cho_chuyen_vien'

@@ -73,6 +73,7 @@ function displayLookupTinhTrang(value: string): string {
     case "cho_to_truong": return "Chờ Tổ trưởng";
     case "cho_truong_phong": return "Chờ Trưởng phòng";
     case "cho_cong_bo": return "Chờ công bố";
+    case "cho_van_thu": return "Ch\u1edd V\u0103n th\u01b0";
     default: return value;
   }
 }

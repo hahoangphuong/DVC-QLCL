@@ -425,6 +425,7 @@ type LookupTinhTrang =
   | "cho_to_truong"
   | "cho_truong_phong"
   | "cho_cong_bo"
+  | "cho_van_thu"
   | "can_bo_sung"
   | "khong_dat"
   | "da_hoan_thanh";
@@ -3378,7 +3379,7 @@ function DangXuLyTab({
                     {renderTinhTrangHeader(<>{ "Ch\u1edd" }<br/>{ "Tr\u01b0\u1edfng ph\u00f2ng" }</>, "cho_truong_phong", "px-2 py-1 text-center text-xs bg-orange-600")}
                     {renderTinhTrangHeader(<>{ "Ch\u1edd" }<br/>{ "c\u00f4ng b\u1ed1" }</>, "cho_cong_bo", "px-2 py-1 text-center text-xs bg-emerald-600")}
                     {showPct    && <th className="px-2 py-1 text-center text-xs bg-purple-600">Chờ PCT</th>}
-                    {showVanThu && <th className="px-2 py-1 text-center text-xs bg-slate-500">Chờ<br/>Văn thư</th>}
+                    {showVanThu && renderTinhTrangHeader(<>{ "Chờ" }<br/>{ "Văn thư" }</>, "cho_van_thu", "px-2 py-1 text-center text-xs bg-slate-500")}
                     <th className="px-2 py-1 text-center text-xs bg-green-700">Còn<br/>hạn</th>
                     <th className="px-2 py-1 text-center text-xs bg-orange-600">Quá<br/>hạn</th>
                     <th className="px-2 py-1 text-center text-xs bg-orange-700">% quá<br/>hạn</th>
@@ -3533,6 +3534,7 @@ const LOOKUP_TINH_TRANG_LABELS: Record<LookupTinhTrang, string> = {
   cho_to_truong: LOOKUP_TEXT.pendingLeader,
   cho_truong_phong: LOOKUP_TEXT.pendingManager,
   cho_cong_bo: LOOKUP_TEXT.pendingPublish,
+  cho_van_thu: LOOKUP_TEXT.pendingClerical,
   can_bo_sung: LOOKUP_TEXT.requiresSupplement,
   khong_dat: LOOKUP_TEXT.failed,
   da_hoan_thanh: LOOKUP_TEXT.completed,
@@ -3549,6 +3551,7 @@ const TRA_CUU_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang; label:
   { value: "cho_to_truong", label: LOOKUP_TEXT.pendingLeader },
   { value: "cho_truong_phong", label: LOOKUP_TEXT.pendingManager },
   { value: "cho_cong_bo", label: LOOKUP_TEXT.pendingPublish },
+  { value: "cho_van_thu", label: LOOKUP_TEXT.pendingClerical },
 ];
 const TRA_CUU_DA_XU_LY_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang; label: string }> = [
   { value: "all", label: LOOKUP_TEXT.all },
@@ -3566,9 +3569,10 @@ const LOOKUP_TINH_TRANG_SORT_ORDER: Record<LookupTinhTrang, number> = {
   cho_to_truong: 7,
   cho_truong_phong: 8,
   cho_cong_bo: 9,
-  can_bo_sung: 10,
-  khong_dat: 11,
-  da_hoan_thanh: 12,
+  cho_van_thu: 10,
+  can_bo_sung: 11,
+  khong_dat: 12,
+  da_hoan_thanh: 13,
 };
 
 function displayLookupTinhTrang(value: LookupTinhTrang): string {
