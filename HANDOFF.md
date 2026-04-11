@@ -83,19 +83,33 @@ Important behavior:
 
 ### Dashboard
 
-Main UI file:
+Current shell and feature files:
 
-- [`D:\DVC-QLCL\artifacts\dashboard\src\App.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/App.tsx)
-- [`D:\DVC-QLCL\artifacts\dashboard\src\uiText.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/uiText.ts)
+- shell:
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\App.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/App.tsx)
+- shared text:
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\uiText.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/uiText.ts)
+- shared date helpers:
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\shared\dateUtils.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/shared/dateUtils.ts)
+- auth feature:
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\authApi.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/authApi.ts)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\LoginScreen.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/LoginScreen.tsx)
+- lookup feature:
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\lookupShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/lookupShared.ts)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupHoSoDetailModal.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupHoSoDetailModal.tsx)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupTabs.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupTabs.tsx)
+- admin feature:
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\AdminPanel.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/AdminPanel.tsx)
 
 Important behavior:
 
-- single large app file
+- `App.tsx` should now act mainly as shell/orchestration for tabs, auth state, and cross-tab navigation
 - login screen before dashboard
 - role-based tab visibility
 - admin button only for `admin`
-- lookup tab is hidden for `viewer`
+- lookup tabs are hidden for `viewer`
 - mutable Vietnamese labels for lookup/detail surfaces should be centralized in `uiText.ts`
+- new UI work should prefer editing the feature file directly instead of adding more logic back into `App.tsx`
 
 ## 3. Production services
 
@@ -384,6 +398,12 @@ For [`D:\DVC-QLCL\artifacts\dashboard\src\App.tsx`](/D:/DVC-QLCL/artifacts/dashb
 - always inspect the diff before commit
 - do not introduce new mutable Vietnamese literals inline if they belong to lookup/detail modal; put them in [`D:\DVC-QLCL\artifacts\dashboard\src\uiText.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/uiText.ts)
 - when a direct inline change is unavoidable, prefer local constants or `{ "...escaped..." }` string expressions over raw JSX text
+- after the refactor, do not add new lookup/auth/admin UI blocks back into `App.tsx`; edit the feature files directly:
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupTabs.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupTabs.tsx)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupHoSoDetailModal.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupHoSoDetailModal.tsx)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\LoginScreen.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/LoginScreen.tsx)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\AdminPanel.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/AdminPanel.tsx)
+- for shared day parsing/formatting logic, edit [`D:\DVC-QLCL\artifacts\dashboard\src\shared\dateUtils.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/shared/dateUtils.ts) instead of duplicating helpers in `App.tsx`
 
 ## 7. Stats migration workflow
 
