@@ -1,9 +1,8 @@
-import { Fragment, useState, useCallback, useEffect, createContext, useContext, useMemo } from "react";
+import { Fragment, useState, useCallback, useEffect, useMemo, createContext, useContext } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, LabelList,
-  PieChart, Pie,
   ComposedChart, Line,
   AreaChart, Area,
 } from "recharts";
@@ -15,8 +14,9 @@ import { AdminPanel } from "./features/admin/AdminPanel";
 import { TraCuuDangXuLyTab, TraCuuDaXuLyTab } from "./features/lookup/LookupTabs";
 import { DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE, DEFAULT_TRA_CUU_FILTER_STATE, type LookupTinhTrang, type TraCuuFilterState } from "./features/lookup/lookupShared";
 import { DangXuLyTab } from "./features/pending/PendingTabs";
+import { ThongKeDateFilterPanel, ThongKeOverviewCharts } from "./features/stats/StatsOverview";
 import { CHART_ANIMATION_MS } from "./shared/chartConfig";
-import { clampToToday, getPreset, minYmd, parseDMY, toDMY, toYMD } from "./shared/dateUtils";
+import { getPreset, minYmd, toDMY } from "./shared/dateUtils";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,34 +31,34 @@ const queryClient = new QueryClient({
 });
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, ""); // e.g. "/dashboard"
-const API  = "/api"; // API base — tách biệt khỏi BASE để production routing hoạt động
+const API  = "/api"; // API base â€” tÃ¡ch biá»‡t khá»i BASE Ä‘á»ƒ production routing hoáº¡t Ä‘á»™ng
 
 
-// Màu cho 4 chỉ số
+// MÃ u cho 4 chá»‰ sá»‘
 const COLORS = {
-  ton_truoc:     { bar: "#f472b6", label: "TỒN TRƯỚC",     text: "#be185d" },
-  da_nhan:       { bar: "#3b82f6", label: "ĐÃ NHẬN",        text: "#1d4ed8" },
-  da_giai_quyet: { bar: "#22c55e", label: "ĐÃ GIẢI QUYẾT", text: "#15803d" },
-  ton_sau:       { bar: "#f59e0b", label: "TỒN SAU",        text: "#b45309" },
+  ton_truoc:     { bar: "#f472b6", label: "Tá»’N TRÆ¯á»šC",     text: "#be185d" },
+  da_nhan:       { bar: "#3b82f6", label: "ÄÃƒ NHáº¬N",        text: "#1d4ed8" },
+  da_giai_quyet: { bar: "#22c55e", label: "ÄÃƒ GIáº¢I QUYáº¾T", text: "#15803d" },
+  ton_sau:       { bar: "#f59e0b", label: "Tá»’N SAU",        text: "#b45309" },
 } as const;
 
 // ---------------------------------------------------------------------------
-// Helpers ngày tháng
+// Helpers ngÃ y thÃ¡ng
 // ---------------------------------------------------------------------------
 
-// Thứ tự nút lọc khớp với thiết kế Excel (Cộng dồn xử lý riêng vì cần API)
+// Thá»© tá»± nÃºt lá»c khá»›p vá»›i thiáº¿t káº¿ Excel (Cá»™ng dá»“n xá»­ lÃ½ riÃªng vÃ¬ cáº§n API)
 const QUICK_FILTERS = [
-  { key: "nam_nay",   label: "Năm nay" },
-  { key: "12_thang",  label: "12 tháng gần nhất" },
-  { key: "6_thang",   label: "6 tháng gần nhất" },
-  { key: "3_thang",   label: "3 tháng gần nhất" },
-  { key: "thang_nay", label: "Tháng này" },
+  { key: "nam_nay",   label: "NÄƒm nay" },
+  { key: "12_thang",  label: "12 thÃ¡ng gáº§n nháº¥t" },
+  { key: "6_thang",   label: "6 thÃ¡ng gáº§n nháº¥t" },
+  { key: "3_thang",   label: "3 thÃ¡ng gáº§n nháº¥t" },
+  { key: "thang_nay", label: "ThÃ¡ng nÃ y" },
 ];
 
 // ---------------------------------------------------------------------------
-// Shared Filter Context (giữ nguyên bộ lọc khi chuyển tab)
+// Shared Filter Context (giá»¯ nguyÃªn bá»™ lá»c khi chuyá»ƒn tab)
 // ---------------------------------------------------------------------------
-// Mỗi tab Thống kê có bộ lọc riêng, được lưu theo thuTuc
+// Má»—i tab Thá»‘ng kÃª cÃ³ bá»™ lá»c riÃªng, Ä‘Æ°á»£c lÆ°u theo thuTuc
 interface TabFilter {
   fromDate:     string;
   toDate:       string;
@@ -278,219 +278,15 @@ async function fetchTt48ReceivedMonthlyLoai(): Promise<Tt48ReceivedMonthlyLoaiDa
   return res.json();
 }
 
+// Báº£ng chi tiáº¿t theo chuyÃªn viÃªn (Ä‘áº§y Ä‘á»§ cá»™t theo thiáº¿t káº¿ Excel)
 // ---------------------------------------------------------------------------
-// Bar chart component
-// ---------------------------------------------------------------------------
-interface BarData { name: string; value: number; color: string; }
-
-function SummaryBarChart({ data }: { data: BarData[] }) {
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload?.length) {
-      return (
-        <div className="bg-white border border-slate-200 rounded-lg shadow-md px-4 py-2 text-sm">
-          <p className="font-semibold text-slate-700">{payload[0].payload.name}</p>
-          <p className="text-slate-900 font-bold text-lg">{payload[0].value.toLocaleString("vi-VN")}</p>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  return (
-    <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={data} margin={{ top: 32, right: 20, left: -10, bottom: 8 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-        <XAxis
-          dataKey="name"
-          tick={{ fontSize: 11, fontWeight: 600, fill: "#475569" }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          tick={{ fontSize: 11, fill: "#94a3b8" }}
-          axisLine={false}
-          tickLine={false}
-          width={44}
-          tickFormatter={(v) => v.toLocaleString("vi-VN")}
-        />
-        <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-        <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={80} animationDuration={CHART_ANIMATION_MS}>
-          {data.map((entry, index) => (
-            <Cell key={index} fill={entry.color} />
-          ))}
-          <LabelList
-            dataKey="value"
-            position="top"
-            formatter={(v: number) => v.toLocaleString("vi-VN")}
-            style={{ fontSize: 13, fontWeight: 700, fill: "#1e293b" }}
-          />
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// KPI card
-// ---------------------------------------------------------------------------
-function KpiCard({ label, value, color, bgColor }: {
-  label: string; value: number; color: string; bgColor: string;
-}) {
-  return (
-    <div
-      className="flex flex-col items-center justify-center rounded-xl p-4 text-center min-w-0 shadow-sm border border-slate-100"
-      style={{ backgroundColor: bgColor }}
-    >
-      <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color }}>
-        {label}
-      </div>
-      <div className="text-3xl font-bold" style={{ color }}>
-        {value.toLocaleString("vi-VN")}
-      </div>
-    </div>
-  );
-}
-
-interface DonutSegment { name: string; value: number; color: string; }
-interface DonutChartProps {
-  title:        string;
-  segments:     DonutSegment[];
-  total:        number;
-  isLoading:    boolean;
-  isError:      boolean;
-  emptyMessage?: string;
-  spinnerColor?: string;
-  startAngle?:  number;
-  endAngle?:    number;
-}
-
-function DonutChart({
-  title,
-  segments,
-  total,
-  isLoading,
-  isError,
-  emptyMessage,
-  spinnerColor = "#22c55e",
-  startAngle = 270,
-  endAngle = -90,
-}: DonutChartProps) {
-  // Renders center count (index=0 only) + % inside each slice
-  const CombinedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }: any) => {
-    const RADIAN = Math.PI / 180;
-    const r = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const sx = cx + r * Math.cos(-midAngle * RADIAN);
-    const sy = cy + r * Math.sin(-midAngle * RADIAN);
-    const pct = Math.round((percent ?? 0) * 100);
-    return (
-      <g>
-        {index === 0 && (
-          <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
-            <tspan x={cx} dy="-0.4em" fontSize={26} fontWeight={700} fill="#1e293b">
-              {total.toLocaleString("vi-VN")}
-            </tspan>
-            <tspan x={cx} dy="1.5em" fontSize={11} fill="#64748b" fontWeight={500}>
-              hồ sơ
-            </tspan>
-          </text>
-        )}
-        {pct >= 5 && (
-          <text x={sx} y={sy} fill="#fff" textAnchor="middle" dominantBaseline="central"
-            fontSize={13} fontWeight={700}>{pct}%</text>
-        )}
-      </g>
-    );
-  };
-
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload?.length) {
-      const item = payload[0];
-      const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0.0";
-      return (
-        <div className="bg-white border border-slate-200 rounded-lg shadow-md px-3 py-2 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ background: item.payload.color }} />
-            <span className="font-semibold text-slate-700">{item.name}</span>
-          </div>
-          <div className="mt-1 font-bold text-slate-900">{item.value.toLocaleString("vi-VN")} hồ sơ</div>
-          <div className="text-slate-500">{pct}%</div>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-      <div className="relative flex items-center justify-center mb-4">
-        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide text-center">{title}</h3>
-        {isLoading && <span className="text-xs text-blue-500 animate-pulse font-medium absolute right-0">Đang tải...</span>}
-        {isError   && <span className="text-xs text-red-500 font-medium absolute right-0">Lỗi tải dữ liệu</span>}
-      </div>
-
-      {isLoading ? (
-        <div className="h-52 flex items-center justify-center">
-          <div className="w-8 h-8 rounded-full border-4 border-t-transparent animate-spin"
-               style={{ borderColor: `${spinnerColor} transparent transparent transparent` }} />
-        </div>
-      ) : total === 0 ? (
-        <div className="h-52 flex flex-col items-center justify-center text-slate-400 text-sm">
-          <div className="text-3xl mb-2">—</div>
-          <div>{emptyMessage ?? "Không có dữ liệu"}</div>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center gap-3">
-          <ResponsiveContainer width="100%" height={190}>
-            <PieChart>
-              <Pie
-                data={segments}
-                cx="50%"
-                cy="50%"
-                innerRadius={58}
-                outerRadius={88}
-                dataKey="value"
-                startAngle={startAngle}
-                endAngle={endAngle}
-                labelLine={false}
-                label={CombinedLabel}
-                animationDuration={CHART_ANIMATION_MS}
-              >
-                {segments.map((s, i) => (
-                  <Cell key={i} fill={s.color} stroke="none" />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-
-          {/* Legend — nằm bên dưới, căn giữa, cân xứng */}
-          <div className="flex gap-8 justify-center flex-wrap pb-1">
-            {segments.map((s) => (
-              <div key={s.name} className="flex flex-col items-center gap-0.5">
-                <div className="w-3 h-3 rounded-full" style={{ background: s.color }} />
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mt-0.5">{s.name}</div>
-                <div className="text-xl font-bold leading-tight" style={{ color: s.color }}>
-                  {s.value.toLocaleString("vi-VN")}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Bảng chi tiết theo chuyên viên (đầy đủ cột theo thiết kế Excel)
-// ---------------------------------------------------------------------------
-const CV_PREFIX = "CV thụ lý : ";
+const CV_PREFIX = "CV thá»¥ lÃ½ : ";
 function cleanCvName(raw: string): string {
   return raw.startsWith(CV_PREFIX) ? raw.slice(CV_PREFIX.length).trim() : raw.trim();
 }
 
 function Num({ v, color, bold }: { v: number | null | undefined; color?: string; bold?: boolean }) {
-  if (v === null || v === undefined) return <span className="text-slate-300">—</span>;
+  if (v === null || v === undefined) return <span className="text-slate-300">â€”</span>;
   if (v === 0) return <span />;
   return (
     <span className={bold ? "font-bold" : "font-medium"} style={{ color: color ?? "#374151" }}>
@@ -528,14 +324,14 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTabl
 
   const thC  = "px-2 py-2 text-center text-xs font-bold uppercase tracking-wide";
   const thL  = "px-2 py-2 text-left   text-xs font-bold uppercase tracking-wide";
-  // Sub-header không uppercase (cho cột con — trừ TỔNG)
+  // Sub-header khÃ´ng uppercase (cho cá»™t con â€” trá»« Tá»”NG)
   const thS  = "px-2 py-2 text-center text-xs font-semibold";
   const tdC  = "px-2 py-2 text-center text-xs";
   const tdL  = "px-2 py-2 text-left   text-xs";
   const totRow = "bg-slate-200 font-bold border-t-2 border-slate-400";
 
-  // Sticky column helpers — STT fixed at left:0, CV fixed at left:36px
-  const STT_W = 36;  // pixel width của cột STT
+  // Sticky column helpers â€” STT fixed at left:0, CV fixed at left:36px
+  const STT_W = 36;  // pixel width cá»§a cá»™t STT
   const stickySTT = { position: "sticky" as const, left: 0,       zIndex: 10 };
   const stickyCV  = { position: "sticky" as const, left: STT_W,   zIndex: 10,
                       boxShadow: "2px 0 4px -1px rgba(0,0,0,0.12)" };
@@ -558,7 +354,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTabl
   const tot_pct_gq = (totals.ton_truoc + totals.da_nhan) > 0
     ? Math.round(totals.gq_tong / (totals.ton_truoc + totals.da_nhan) * 100) : 0;
 
-  // Tính ngưỡng top 30% cho từng cột cần highlight
+  // TÃ­nh ngÆ°á»¡ng top 30% cho tá»«ng cá»™t cáº§n highlight
   function topThresh(vals: (number | null)[]): number {
     const sorted = vals
       .filter((v): v is number => typeof v === "number" && v > 0)
@@ -576,7 +372,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTabl
   };
   const isHi = (thresh: number, v: number | null | undefined) =>
     v != null && v > 0 && v >= thresh;
-  // Trả về class td có thêm highlight nền vàng nhạt nếu đủ điều kiện
+  // Tráº£ vá» class td cÃ³ thÃªm highlight ná»n vÃ ng nháº¡t náº¿u Ä‘á»§ Ä‘iá»u kiá»‡n
   const hiTd = (thresh: number, v: number | null | undefined, extra = "") =>
     `${tdC}${extra ? " " + extra : ""}${isHi(thresh, v) ? " bg-amber-100" : ""}`;
 
@@ -633,10 +429,10 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTabl
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
       <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
         <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-          Chi tiết theo chuyên viên — TT{thuTuc}
+          Chi tiáº¿t theo chuyÃªn viÃªn â€” TT{thuTuc}
         </h3>
-        {isLoading && <span className="text-xs text-blue-500 animate-pulse font-medium">Đang tải...</span>}
-        {isError   && <span className="text-xs text-red-500 font-medium">Lỗi tải dữ liệu</span>}
+        {isLoading && <span className="text-xs text-blue-500 animate-pulse font-medium">Äang táº£i...</span>}
+        {isError   && <span className="text-xs text-red-500 font-medium">Lá»—i táº£i dá»¯ liá»‡u</span>}
       </div>
 
       <div className="overflow-x-auto">
@@ -649,7 +445,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTabl
             <col /><col /><col /><col /><col />
           </colgroup>
           <thead>
-            {/* Hàng 1: nhóm cột */}
+            {/* HÃ ng 1: nhÃ³m cá»™t */}
             <tr className="bg-slate-700 text-white">
               <th className={`${thC} bg-slate-700 text-white`} rowSpan={2}
                   style={{ ...stickySTT, backgroundColor: "#334155", width: STT_W, minWidth: STT_W }}>
@@ -657,27 +453,27 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTabl
               </th>
               <th className={`${thL} bg-slate-700 text-white min-w-[160px]`} rowSpan={2}
                   style={{ ...stickyCV, backgroundColor: "#334155" }}>
-                Chuyên viên
+                ChuyÃªn viÃªn
               </th>
-              <th className={`${thC} bg-pink-700 text-white`} rowSpan={2}>Tồn<br />trước</th>
-              <th className={`${thC} bg-blue-700 text-white`} rowSpan={2}>Đã<br />nhận</th>
-              <th className={`${thC} bg-green-700 text-white`} colSpan={9}>Đã giải quyết</th>
-              <th className={`${thC} bg-amber-700 text-white`} colSpan={3}>Tồn sau</th>
+              <th className={`${thC} bg-pink-700 text-white`} rowSpan={2}>Tá»“n<br />trÆ°á»›c</th>
+              <th className={`${thC} bg-blue-700 text-white`} rowSpan={2}>ÄÃ£<br />nháº­n</th>
+              <th className={`${thC} bg-green-700 text-white`} colSpan={9}>ÄÃ£ giáº£i quyáº¿t</th>
+              <th className={`${thC} bg-amber-700 text-white`} colSpan={3}>Tá»“n sau</th>
               <th className={`${thC} bg-orange-600 text-white`} rowSpan={2}>TREO</th>
             </tr>
             <tr className="bg-slate-100">
-              <th className={`${thC} bg-green-50`}>Tổng</th>
-              <th className={`${thS} bg-amber-50`}>Cần bổ sung</th>
-              <th className={`${thS} bg-red-50`}>Không đạt</th>
-              <th className={`${thS} bg-green-50`}>Hoàn thành</th>
-              <th className={`${thS} bg-green-50 text-green-700`}>Đúng hạn</th>
-              <th className={`${thS} bg-red-50 text-red-700`}>Quá hạn</th>
-              <th className={`${thS} bg-slate-50`}>Thời gian TB</th>
-              <th className={`${thS} bg-green-50 text-green-700`}>% Đúng hạn</th>
-              <th className={`${thS} bg-slate-50 text-slate-600`}>% Đã GQ</th>
-              <th className={`${thC} bg-amber-50`}>Tổng</th>
-              <th className={`${thS} bg-blue-50 text-blue-700`}>Còn hạn</th>
-              <th className={`${thS} bg-red-50 text-red-700`}>Quá hạn</th>
+              <th className={`${thC} bg-green-50`}>Tá»•ng</th>
+              <th className={`${thS} bg-amber-50`}>Cáº§n bá»• sung</th>
+              <th className={`${thS} bg-red-50`}>KhÃ´ng Ä‘áº¡t</th>
+              <th className={`${thS} bg-green-50`}>HoÃ n thÃ nh</th>
+              <th className={`${thS} bg-green-50 text-green-700`}>ÄÃºng háº¡n</th>
+              <th className={`${thS} bg-red-50 text-red-700`}>QuÃ¡ háº¡n</th>
+              <th className={`${thS} bg-slate-50`}>Thá»i gian TB</th>
+              <th className={`${thS} bg-green-50 text-green-700`}>% ÄÃºng háº¡n</th>
+              <th className={`${thS} bg-slate-50 text-slate-600`}>% ÄÃ£ GQ</th>
+              <th className={`${thC} bg-amber-50`}>Tá»•ng</th>
+              <th className={`${thS} bg-blue-50 text-blue-700`}>CÃ²n háº¡n</th>
+              <th className={`${thS} bg-red-50 text-red-700`}>QuÃ¡ háº¡n</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -685,23 +481,23 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTabl
               <tr><td colSpan={colSpan} className="py-10 text-center text-slate-400">
                 <div className="flex items-center justify-center gap-2">
                   <div className="w-5 h-5 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
-                  <span>Đang tải...</span>
+                  <span>Äang táº£i...</span>
                 </div>
               </td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={colSpan} className="py-10 text-center text-slate-400">Không có dữ liệu</td></tr>
+              <tr><td colSpan={colSpan} className="py-10 text-center text-slate-400">KhÃ´ng cÃ³ dá»¯ liá»‡u</td></tr>
             ) : (
               <>
-                {/* Hàng "Chờ phân công" nếu có */}
+                {/* HÃ ng "Chá» phÃ¢n cÃ´ng" náº¿u cÃ³ */}
                 {cpc && (cpc.ton_sau_tong > 0 || cpc.da_nhan > 0) && (
                   <tr className="bg-yellow-50 border-b-2 border-yellow-200">
                     <td className={`${tdC} text-slate-400`}
                         style={{ ...stickySTT, backgroundColor: "#fefce8", width: STT_W, minWidth: STT_W }}>
-                      —
+                      â€”
                     </td>
                     <td className={`${tdL} text-amber-700 font-semibold`}
                         style={{ ...stickyCV, backgroundColor: "#fefce8" }}>
-                      Chờ phân công...
+                      Chá» phÃ¢n cÃ´ng...
                     </td>
                     <td className={tdC}></td>
                     <td className={tdC}><Num v={cpc.da_nhan} color="#1d4ed8" bold /></td>
@@ -731,7 +527,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTabl
                     style={{ ...stickySTT, backgroundColor: "#e2e8f0", width: STT_W, minWidth: STT_W }} />
                 <td className={`${tdL} text-slate-700 font-bold`}
                     style={{ ...stickyCV, backgroundColor: "#e2e8f0" }}>
-                  TỔNG
+                  Tá»”NG
                 </td>
                 <td className={tdC}><Num v={totals.ton_truoc}       color="#be185d" bold /></td>
                 <td className={tdC}><Num v={totals.da_nhan}         color="#1d4ed8" bold /></td>
@@ -758,7 +554,7 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTabl
 }
 
 // ---------------------------------------------------------------------------
-// Biểu đồ xu hướng theo tháng (bar + line, giống thiết kế Excel)
+// Biá»ƒu Ä‘á»“ xu hÆ°á»›ng theo thÃ¡ng (bar + line, giá»‘ng thiáº¿t káº¿ Excel)
 // ---------------------------------------------------------------------------
 function MonthlyTrendChart({ thuTuc, fromDate, toDate, hideTitle = false }: {
   thuTuc: 48 | 47 | 46;
@@ -775,7 +571,7 @@ function MonthlyTrendChart({ thuTuc, fromDate, toDate, hideTitle = false }: {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Lọc các tháng nằm trong kỳ fromDate..toDate
+  // Lá»c cÃ¡c thÃ¡ng náº±m trong ká»³ fromDate..toDate
   const allMonths = data?.months ?? [];
   const [fy, fm] = fromDate ? [+fromDate.slice(0,4), +fromDate.slice(5,7)] : [0, 0];
   const [ty, tm] = toDate   ? [+toDate.slice(0,4),   +toDate.slice(5,7)]   : [9999, 12];
@@ -800,20 +596,20 @@ function MonthlyTrendChart({ thuTuc, fromDate, toDate, hideTitle = false }: {
       <div className="flex items-center justify-between mb-4">
         {!hideTitle ? (
           <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-            Xu hướng theo tháng — TT{thuTuc}
+            Xu hÆ°á»›ng theo thÃ¡ng â€” TT{thuTuc}
           </h3>
         ) : (
           <div />
         )}
         <div className="flex items-center gap-4 text-xs text-slate-500 font-medium">
           <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded-sm bg-[#60a5fa]" /> Tiếp nhận
+            <span className="inline-block w-3 h-3 rounded-sm bg-[#60a5fa]" /> Tiáº¿p nháº­n
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded-sm bg-[#34d399]" /> Giải quyết
+            <span className="inline-block w-3 h-3 rounded-sm bg-[#34d399]" /> Giáº£i quyáº¿t
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded-sm" style={{ background: "#f59e0b" }} /> Hồ sơ tồn
+            <span className="inline-block w-3 h-3 rounded-sm" style={{ background: "#f59e0b" }} /> Há»“ sÆ¡ tá»“n
           </span>
           <label className="flex items-center gap-1 cursor-pointer select-none border-l border-slate-200 pl-4 ml-1">
             <input
@@ -822,7 +618,7 @@ function MonthlyTrendChart({ thuTuc, fromDate, toDate, hideTitle = false }: {
               onChange={(e) => setShowLabels(e.target.checked)}
               className="w-3 h-3 accent-blue-600 cursor-pointer"
             />
-            <span>Hiện số liệu</span>
+            <span>Hiá»‡n sá»‘ liá»‡u</span>
           </label>
         </div>
       </div>
@@ -847,9 +643,9 @@ function MonthlyTrendChart({ thuTuc, fromDate, toDate, hideTitle = false }: {
             contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
             formatter={(value: number, name: string) => {
               const labels: Record<string, string> = {
-                da_nhan:       "Tiếp nhận",
-                da_giai_quyet: "Giải quyết",
-                ton_sau:       "Hồ sơ tồn",
+                da_nhan:       "Tiáº¿p nháº­n",
+                da_giai_quyet: "Giáº£i quyáº¿t",
+                ton_sau:       "Há»“ sÆ¡ tá»“n",
               };
               return [value.toLocaleString("vi-VN"), labels[name] ?? name];
             }}
@@ -862,8 +658,8 @@ function MonthlyTrendChart({ thuTuc, fromDate, toDate, hideTitle = false }: {
                   const { x, y, width, height, value } = props;
                   if (!value || height < 16) return null;
                   const cx = (x ?? 0) + (width ?? 0) / 2;
-                  // Đặt center của text cách đỉnh cột một khoảng = nửa chiều dài text
-                  // Tại fontSize 9, mỗi ký tự ≈ 6px; dự phòng 13px là đủ cho 3–4 chữ số
+                  // Äáº·t center cá»§a text cÃ¡ch Ä‘á»‰nh cá»™t má»™t khoáº£ng = ná»­a chiá»u dÃ i text
+                  // Táº¡i fontSize 9, má»—i kÃ½ tá»± â‰ˆ 6px; dá»± phÃ²ng 13px lÃ  Ä‘á»§ cho 3â€“4 chá»¯ sá»‘
                   const cy = (y ?? 0) + 13;
                   return (
                     <text x={cx} y={cy}
@@ -952,18 +748,18 @@ function Tt48LoaiHoSoMonthlyChart({ fromDate, toDate }: { fromDate: string; toDa
   if (isError || months.length === 0) return null;
 
   const series = [
-    { key: "A", label: "Loại A", color: "#ec4899" },
-    { key: "B", label: "Loại B", color: "#3b82f6" },
-    { key: "C", label: "Loại C", color: "#22c55e" },
-    { key: "D", label: "Loại D", color: "#f59e0b" },
-    { key: "total", label: "Tổng", color: "#7c3aed" },
+    { key: "A", label: "Loáº¡i A", color: "#ec4899" },
+    { key: "B", label: "Loáº¡i B", color: "#3b82f6" },
+    { key: "C", label: "Loáº¡i C", color: "#22c55e" },
+    { key: "D", label: "Loáº¡i D", color: "#f59e0b" },
+    { key: "total", label: "Tá»•ng", color: "#7c3aed" },
   ] as const;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-          Hồ sơ tiếp nhận theo tháng - TT48
+          Há»“ sÆ¡ tiáº¿p nháº­n theo thÃ¡ng - TT48
         </h3>
         <div className="flex items-center gap-4 text-xs text-slate-500 font-medium">
           {series.map((item) => (
@@ -978,7 +774,7 @@ function Tt48LoaiHoSoMonthlyChart({ fromDate, toDate }: { fromDate: string; toDa
               onChange={(e) => setShowLabels(e.target.checked)}
               className="w-3 h-3 accent-blue-600 cursor-pointer"
             />
-            <span>Hiện số liệu</span>
+            <span>Hiá»‡n sá»‘ liá»‡u</span>
           </label>
         </div>
       </div>
@@ -1002,11 +798,11 @@ function Tt48LoaiHoSoMonthlyChart({ fromDate, toDate }: { fromDate: string; toDa
             contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
             formatter={(value: number, name: string) => {
               const labels: Record<string, string> = {
-                A: "Loại A",
-                B: "Loại B",
-                C: "Loại C",
-                D: "Loại D",
-                total: "Tổng",
+                A: "Loáº¡i A",
+                B: "Loáº¡i B",
+                C: "Loáº¡i C",
+                D: "Loáº¡i D",
+                total: "Tá»•ng",
               };
               return [value.toLocaleString("vi-VN"), labels[name] ?? name];
             }}
@@ -1071,238 +867,6 @@ function Tt48LoaiHoSoMonthlyChart({ fromDate, toDate }: { fromDate: string; toDa
   );
 }
 
-function ThongKeDateFilterPanel({
-  thuTuc,
-  fromDate,
-  toDate,
-  fromInput,
-  toInput,
-  activePreset,
-  loadingAll,
-  update,
-}: {
-  thuTuc: number;
-  fromDate: string;
-  toDate: string;
-  fromInput: string;
-  toInput: string;
-  activePreset: string;
-  loadingAll: boolean;
-  update: (patch: Partial<TabFilter>) => void;
-}) {
-  const applyDates = useCallback((from: string, to: string, preset?: string) => {
-    const clampedTo = clampToToday(to);
-    update({ fromDate: from, toDate: clampedTo, fromInput: toDMY(from), toInput: toDMY(clampedTo), activePreset: preset ?? "" });
-  }, [update]);
-
-  const handleTatCa = useCallback(async () => {
-    update({ loadingAll: true });
-    try {
-      const earliest = thuTuc === 0
-        ? (await Promise.all([fetchEarliestDate(48), fetchEarliestDate(47), fetchEarliestDate(46)])).sort()[0]
-        : await fetchEarliestDate(thuTuc);
-      const today = toYMD(new Date());
-      applyDates(earliest, today, "tat_ca");
-    } finally {
-      update({ loadingAll: false });
-    }
-  }, [applyDates, thuTuc, update]);
-
-  const handleFromBlur = () => {
-    const parsed = parseDMY(fromInput);
-    if (parsed) update({ fromDate: parsed, activePreset: "" });
-    else update({ fromInput: toDMY(fromDate) });
-  };
-
-  const handleToBlur = () => {
-    const parsed = parseDMY(toInput);
-    if (parsed) {
-      const clamped = clampToToday(parsed);
-      update({ toDate: clamped, toInput: toDMY(clamped), activePreset: "" });
-    }
-    else update({ toInput: toDMY(toDate) });
-  };
-
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-      <div className="flex flex-wrap items-end gap-4">
-        <div className="flex items-end gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Từ</label>
-            <input
-              type="text"
-              placeholder="DD/MM/YYYY"
-              value={fromInput}
-              onChange={(e) => update({ fromInput: e.target.value })}
-              onBlur={handleFromBlur}
-              className="w-36 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-            />
-          </div>
-          <div className="pb-2 text-slate-400 font-semibold">—</div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Đến</label>
-            <input
-              type="text"
-              placeholder="DD/MM/YYYY"
-              value={toInput}
-              onChange={(e) => update({ toInput: e.target.value })}
-              onBlur={handleToBlur}
-              className="w-36 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={handleTatCa}
-            disabled={loadingAll}
-            className={[
-              "rounded-lg px-3 py-2 text-xs font-semibold transition-all border",
-              activePreset === "tat_ca"
-                ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                : "bg-white text-slate-600 border-slate-300 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700",
-              loadingAll ? "opacity-60 cursor-wait" : "",
-            ].join(" ")}
-          >
-            {loadingAll ? "..." : "Tất cả"}
-          </button>
-          {QUICK_FILTERS.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => { const p = getPreset(key); applyDates(p.from, p.to, key); }}
-              className={[
-                "rounded-lg px-3 py-2 text-xs font-semibold transition-all border",
-                activePreset === key
-                  ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                  : "bg-white text-slate-600 border-slate-300 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700",
-              ].join(" ")}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <div className="ml-auto text-xs text-slate-500 font-medium hidden lg:block">
-          Kỳ thống kê: <span className="text-slate-800 font-bold">{toDMY(fromDate)}</span>
-          {" → "}
-          <span className="text-slate-800 font-bold">{toDMY(toDate)}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ThongKeOverviewCharts({ thuTuc, fromDate, toDate }: {
-  thuTuc: 48 | 47 | 46;
-  fromDate: string;
-  toDate: string;
-}) {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["summary", thuTuc, fromDate, toDate],
-    queryFn: () => fetchSummary(thuTuc, fromDate, toDate),
-    enabled: !!fromDate && !!toDate,
-    placeholderData: (previousData) => previousData,
-  });
-
-  const { data: gqData, isLoading: gqLoading, isError: gqError } = useQuery({
-    queryKey: ["giai-quyet", thuTuc, fromDate, toDate],
-    queryFn: () => fetchGiaiQuyet(thuTuc, fromDate, toDate),
-    enabled: !!fromDate && !!toDate,
-    placeholderData: (previousData) => previousData,
-  });
-
-  const { data: tsData, isLoading: tsLoading, isError: tsError } = useQuery({
-    queryKey: ["ton-sau", thuTuc, toDate],
-    queryFn: () => fetchTonSau(thuTuc, toDate),
-    enabled: !!toDate,
-    placeholderData: (previousData) => previousData,
-  });
-
-  const barData: BarData[] = [
-    { name: "TỒN TRƯỚC", value: data?.ton_truoc ?? 0, color: COLORS.ton_truoc.bar },
-    { name: "ĐÃ NHẬN", value: data?.da_nhan ?? 0, color: COLORS.da_nhan.bar },
-    { name: "ĐÃ GIẢI QUYẾT", value: data?.da_giai_quyet ?? 0, color: COLORS.da_giai_quyet.bar },
-    { name: "TỒN SAU", value: data?.ton_sau ?? 0, color: COLORS.ton_sau.bar },
-  ];
-  const giaiQuyetRatioTotal = (data?.da_giai_quyet ?? 0) + (data?.ton_sau ?? 0);
-  const ttLabel = `TT${thuTuc}`;
-
-  return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: "3.7fr 2.1fr 2.1fr 2.1fr" }}>
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-        <div className="relative flex items-center justify-center mb-4">
-          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide text-center">
-            Tình trạng hồ sơ {ttLabel}
-          </h3>
-          {isLoading && (
-            <span className="text-xs text-blue-500 animate-pulse font-medium absolute right-0">Đang tải...</span>
-          )}
-          {isError && (
-            <span className="text-xs text-red-500 font-medium absolute right-0">Lỗi tải dữ liệu</span>
-          )}
-        </div>
-
-        {isLoading ? (
-          <div className="h-48 flex items-center justify-center">
-            <div className="w-8 h-8 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
-          </div>
-        ) : (
-          <SummaryBarChart data={barData} />
-        )}
-
-        <div className="mt-3 flex flex-wrap gap-3 justify-center">
-          {Object.values(COLORS).map(({ bar, label }) => (
-            <div key={label} className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: bar }} />
-              <span className="text-xs text-slate-500 font-medium">{label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <DonutChart
-        title="TỶ LỆ GIẢI QUYẾT"
-        total={giaiQuyetRatioTotal}
-        segments={[
-          { name: "Đã giải quyết", value: data?.da_giai_quyet ?? 0, color: "#22c55e" },
-          { name: "Tồn trong kỳ", value: data?.ton_sau ?? 0, color: "#f59e0b" },
-        ]}
-        isLoading={isLoading}
-        isError={isError}
-        emptyMessage="Không có hồ sơ trong kỳ thống kê"
-        spinnerColor="#22c55e"
-        startAngle={270}
-        endAngle={-90}
-      />
-
-      <DonutChart
-        title="ĐÃ GIẢI QUYẾT / HẠN"
-        total={gqData?.total ?? 0}
-        segments={[
-          { name: "Đúng hạn", value: gqData?.dung_han ?? 0, color: "#22c55e" },
-          { name: "Quá hạn", value: gqData?.qua_han ?? 0, color: "#ef4444" },
-        ]}
-        isLoading={gqLoading}
-        isError={gqError}
-        emptyMessage="Không có hồ sơ đã giải quyết trong kỳ"
-        spinnerColor="#22c55e"
-      />
-
-      <DonutChart
-        title="TỒN SAU / HẠN"
-        total={tsData?.total ?? 0}
-        segments={[
-          { name: "Còn hạn", value: tsData?.con_han ?? 0, color: "#60a5fa" },
-          { name: "Quá hạn", value: tsData?.qua_han ?? 0, color: "#f97316" },
-        ]}
-        isLoading={tsLoading}
-        isError={tsError}
-        emptyMessage="Không có hồ sơ tồn sau trong kỳ"
-        spinnerColor="#60a5fa"
-      />
-    </div>
-  );
-}
 
 function TongQuanTab({
   onOpenThongKe,
@@ -1335,11 +899,11 @@ function TongQuanTab({
       {[48, 47, 46].map((thuTuc) => (
         <section key={thuTuc} className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700">Tổng quan TT{thuTuc}</h2>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700">Tá»•ng quan TT{thuTuc}</h2>
             <div className="flex items-center gap-2">
               <div className="text-xs font-medium text-slate-500 mr-2">
-                Kỳ thống kê: <span className="text-slate-700">{toDMY(fromDate)}</span>
-                {" → "}
+                Ká»³ thá»‘ng kÃª: <span className="text-slate-700">{toDMY(fromDate)}</span>
+                {" â†’ "}
                 <span className="text-slate-700">{toDMY(toDate)}</span>
               </div>
               <button
@@ -1347,14 +911,14 @@ function TongQuanTab({
                 onClick={() => onOpenThongKe(thuTuc as 48 | 47 | 46, currentFilter)}
                 className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-blue-700 hover:bg-blue-50"
               >
-                Chi tiết thống kê
+                Chi tiáº¿t thá»‘ng kÃª
               </button>
               <button
                 type="button"
                 onClick={() => onOpenDangXuLy(thuTuc as 48 | 47 | 46)}
                 className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-amber-700 hover:bg-amber-50"
               >
-                Chi tiết đang xử lý
+                Chi tiáº¿t Ä‘ang xá»­ lÃ½
               </button>
             </div>
           </div>
@@ -1366,10 +930,10 @@ function TongQuanTab({
               className="flex w-full items-center gap-2 px-5 py-3 text-left"
             >
               <span className="flex h-5 w-5 items-center justify-center rounded border border-slate-300 bg-white text-xs font-bold text-slate-600">
-                {expandedMonthly[thuTuc as 48 | 47 | 46] ? "−" : "+"}
+                {expandedMonthly[thuTuc as 48 | 47 | 46] ? "âˆ’" : "+"}
               </span>
               <span className="text-sm font-bold uppercase tracking-wide text-slate-700">
-                Xu hướng theo tháng — TT{thuTuc}
+                Xu hÆ°á»›ng theo thÃ¡ng â€” TT{thuTuc}
               </span>
             </button>
             {expandedMonthly[thuTuc as 48 | 47 | 46] && (
@@ -1385,7 +949,7 @@ function TongQuanTab({
 }
 
 // ---------------------------------------------------------------------------
-// Tab: THỐNG KÊ (tab 1, 3, 5 — TT48 / TT47 / TT46)
+// Tab: THá»NG KÃŠ (tab 1, 3, 5 â€” TT48 / TT47 / TT46)
 // ---------------------------------------------------------------------------
 function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
   const { fromDate, toDate, fromInput, toInput, activePreset, loadingAll, update } = useTabFilter(thuTuc);
@@ -1405,10 +969,10 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 
       <ThongKeOverviewCharts thuTuc={thuTuc} fromDate={fromDate} toDate={toDate} />
 
-      {/* Bảng chi tiết theo chuyên viên */}
+      {/* Báº£ng chi tiáº¿t theo chuyÃªn viÃªn */}
       <ChuyenVienTable thuTuc={thuTuc} fromDate={fromDate} toDate={toDate} />
 
-      {/* Biểu đồ xu hướng theo tháng */}
+      {/* Biá»ƒu Ä‘á»“ xu hÆ°á»›ng theo thÃ¡ng */}
       <MonthlyTrendChart thuTuc={thuTuc} fromDate={fromDate} toDate={toDate} />
 
       {thuTuc === 48 && <Tt48LoaiHoSoTable fromDate={fromDate} toDate={toDate} />}
@@ -1418,14 +982,14 @@ function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
 }
 
 // ---------------------------------------------------------------------------
-// TT48 — Bảng phân loại hồ sơ theo A/B/C/D và lần nộp
+// TT48 â€” Báº£ng phÃ¢n loáº¡i há»“ sÆ¡ theo A/B/C/D vÃ  láº§n ná»™p
 // ---------------------------------------------------------------------------
 
 const TT48_LOAI_LABELS: Record<string, string> = {
-  A: "A - Hồ sơ mới",
-  B: "B - Hồ sơ cập nhật/duy trì",
-  C: "C - Hồ sơ điều chỉnh",
-  D: "D - Hồ sơ đính chính",
+  A: "A - Há»“ sÆ¡ má»›i",
+  B: "B - Há»“ sÆ¡ cáº­p nháº­t/duy trÃ¬",
+  C: "C - Há»“ sÆ¡ Ä‘iá»u chá»‰nh",
+  D: "D - Há»“ sÆ¡ Ä‘Ã­nh chÃ­nh",
 };
 
 function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: string }) {
@@ -1447,14 +1011,14 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
       <div className="flex items-center justify-center h-24 text-slate-400 text-sm gap-2">
         <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-        Đang tải bảng phân loại hồ sơ TT48...
+        Äang táº£i báº£ng phÃ¢n loáº¡i há»“ sÆ¡ TT48...
       </div>
     </div>
   );
 
   if (isError || !data) return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 text-sm text-red-500 text-center">
-      Không thể tải bảng phân loại hồ sơ TT48
+      KhÃ´ng thá»ƒ táº£i báº£ng phÃ¢n loáº¡i há»“ sÆ¡ TT48
     </div>
   );
 
@@ -1608,7 +1172,7 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
   const tdL = "px-3 py-2 text-left text-xs font-semibold text-slate-800";
   const totalRow = "bg-slate-200 font-bold border-t-2 border-slate-400";
   const ratioRow = "bg-slate-50 text-slate-600 border-t border-slate-200";
-  const subgroupLabels = ["TỔNG", "H.thức 1", "H.thức 2"];
+  const subgroupLabels = ["Tá»”NG", "H.thá»©c 1", "H.thá»©c 2"];
   const toggleRow = (key: string) => {
     setExpandedRows((prev) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -1620,7 +1184,7 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
         className="inline-flex items-center gap-2 text-left"
       >
         <span className="flex h-5 w-5 items-center justify-center rounded border border-slate-300 bg-white text-xs font-bold text-slate-600">
-          {expandedRows[key] ? "−" : "+"}
+          {expandedRows[key] ? "âˆ’" : "+"}
         </span>
         <span>{label}</span>
       </button>
@@ -1680,7 +1244,7 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
       <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
         <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-          Chi tiết theo loại hồ sơ & lần nộp - TT48
+          Chi tiáº¿t theo loáº¡i há»“ sÆ¡ & láº§n ná»™p - TT48
         </h3>
       </div>
       <div className="overflow-x-auto">
@@ -1695,12 +1259,12 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
           </colgroup>
           <thead>
             <tr>
-              <th rowSpan={2} className={`${thL} bg-slate-700 text-white`}>Phân loại hồ sơ</th>
-              <th colSpan={3} className={`${thC} bg-pink-700 text-white`}>TỒN TRƯỚC</th>
-              <th colSpan={3} className={`${thC} bg-blue-700 text-white`}>HỒ SƠ ĐÃ TIẾP NHẬN</th>
-              <th colSpan={3} className={`${thC} bg-green-700 text-white`}>HỒ SƠ ĐÃ GIẢI QUYẾT</th>
-              <th colSpan={3} className={`${thC} bg-amber-700 text-white`}>HỒ SƠ TỒN</th>
-              <th rowSpan={2} className={`${thC} bg-orange-600 text-white`}>HỒ SƠ TREO</th>
+              <th rowSpan={2} className={`${thL} bg-slate-700 text-white`}>PhÃ¢n loáº¡i há»“ sÆ¡</th>
+              <th colSpan={3} className={`${thC} bg-pink-700 text-white`}>Tá»’N TRÆ¯á»šC</th>
+              <th colSpan={3} className={`${thC} bg-blue-700 text-white`}>Há»’ SÆ  ÄÃƒ TIáº¾P NHáº¬N</th>
+              <th colSpan={3} className={`${thC} bg-green-700 text-white`}>Há»’ SÆ  ÄÃƒ GIáº¢I QUYáº¾T</th>
+              <th colSpan={3} className={`${thC} bg-amber-700 text-white`}>Há»’ SÆ  Tá»’N</th>
+              <th rowSpan={2} className={`${thC} bg-orange-600 text-white`}>Há»’ SÆ  TREO</th>
             </tr>
             <tr>
               {[0, 1, 2, 3].flatMap((groupIndex) =>
@@ -1740,7 +1304,7 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
               </tr>
               {expandedRows[row.loai_ho_so] && renderSubRow(
                 `${row.loai_ho_so}-first`,
-                "Lần đầu",
+                "Láº§n Ä‘áº§u",
                 {
                   ton_truoc: row.ton_truoc_first,
                   ton_truoc_hinh_thuc_1: row.ton_truoc_first_hinh_thuc_1,
@@ -1758,7 +1322,7 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
               )}
               {expandedRows[row.loai_ho_so] && renderSubRow(
                 `${row.loai_ho_so}-supplement`,
-                "Lần bổ sung",
+                "Láº§n bá»• sung",
                 {
                   ton_truoc: row.ton_truoc_supplement,
                   ton_truoc_hinh_thuc_1: row.ton_truoc_supplement_hinh_thuc_1,
@@ -1779,7 +1343,7 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
           </tbody>
           <tfoot>
             <tr className={totalRow}>
-              {renderExpandCell("TOTAL", "TỔNG", true)}
+              {renderExpandCell("TOTAL", "Tá»”NG", true)}
               {num(totals.ton_truoc_total, `${tdC} text-pink-700 font-bold`)}
               {renderInlineValueWithPct(totals.ton_truoc_hinh_thuc_1, totals.ton_truoc_total, `${tdC} text-pink-700 font-bold`)}
               {renderInlineValueWithPct(totals.ton_truoc_hinh_thuc_2, totals.ton_truoc_total, `${tdC} text-pink-700 font-bold`)}
@@ -1796,7 +1360,7 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
             </tr>
             {expandedRows.TOTAL && renderSubRow(
               "TOTAL-first",
-              "Lần đầu",
+              "Láº§n Ä‘áº§u",
               {
                 ton_truoc: totals.ton_truoc_first,
                 ton_truoc_hinh_thuc_1: totals.ton_truoc_first_hinh_thuc_1,
@@ -1815,7 +1379,7 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
             )}
             {expandedRows.TOTAL && renderSubRow(
               "TOTAL-supplement",
-              "Lần bổ sung",
+              "Láº§n bá»• sung",
               {
                 ton_truoc: totals.ton_truoc_supplement,
                 ton_truoc_hinh_thuc_1: totals.ton_truoc_supplement_hinh_thuc_1,
@@ -1843,19 +1407,19 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
 // Tab definitions
 // ---------------------------------------------------------------------------
 const TABS = [
-  { id: "tong_quan", label: "TỔNG QUAN", content: () => <TongQuanTab /> },
-  { id: "tt48_thong_ke",  label: "THỐNG KÊ TT48",       content: () => <ThongKeTab thuTuc={48} /> },
-  { id: "tt48_dang_xl",   label: "ĐANG XỬ LÝ TT48",     content: () => <DangXuLyTab thuTuc={48} /> },
-  { id: "tt47_thong_ke",  label: "THỐNG KÊ TT47",        content: () => <ThongKeTab thuTuc={47} /> },
-  { id: "tt47_dang_xl",   label: "ĐANG XỬ LÝ TT47",     content: () => <DangXuLyTab thuTuc={47} /> },
-  { id: "tt46_thong_ke",  label: "THỐNG KÊ TT46",        content: () => <ThongKeTab thuTuc={46} /> },
-  { id: "tt46_dang_xl",   label: "ĐANG XỬ LÝ TT46",     content: () => <DangXuLyTab thuTuc={46} /> },
-  { id: "tra_cuu_dang_xl", label: "TRA CỨU HS ĐANG XỬ LÝ", content: () => <TraCuuDangXuLyTab /> },
-  { id: "tra_cuu_da_xl", label: "TRA CỨU HS ĐÃ XỬ LÝ", content: () => <TraCuuDaXuLyTab /> },
+  { id: "tong_quan", label: "Tá»”NG QUAN", content: () => <TongQuanTab /> },
+  { id: "tt48_thong_ke",  label: "THá»NG KÃŠ TT48",       content: () => <ThongKeTab thuTuc={48} /> },
+  { id: "tt48_dang_xl",   label: "ÄANG Xá»¬ LÃ TT48",     content: () => <DangXuLyTab thuTuc={48} /> },
+  { id: "tt47_thong_ke",  label: "THá»NG KÃŠ TT47",        content: () => <ThongKeTab thuTuc={47} /> },
+  { id: "tt47_dang_xl",   label: "ÄANG Xá»¬ LÃ TT47",     content: () => <DangXuLyTab thuTuc={47} /> },
+  { id: "tt46_thong_ke",  label: "THá»NG KÃŠ TT46",        content: () => <ThongKeTab thuTuc={46} /> },
+  { id: "tt46_dang_xl",   label: "ÄANG Xá»¬ LÃ TT46",     content: () => <DangXuLyTab thuTuc={46} /> },
+  { id: "tra_cuu_dang_xl", label: "TRA Cá»¨U HS ÄANG Xá»¬ LÃ", content: () => <TraCuuDangXuLyTab /> },
+  { id: "tra_cuu_da_xl", label: "TRA Cá»¨U HS ÄÃƒ Xá»¬ LÃ", content: () => <TraCuuDaXuLyTab /> },
 ] as const;
 
 // ---------------------------------------------------------------------------
-// Admin Panel (chỉ hiển thị khi URL hash = #admin)
+// Admin Panel (chá»‰ hiá»ƒn thá»‹ khi URL hash = #admin)
 function Dashboard() {
   const [authLoading, setAuthLoading] = useState(true);
   const [authRole, setAuthRole] = useState<DashboardRole | null>(null);
@@ -1892,7 +1456,7 @@ function Dashboard() {
     };
   }, []);
 
-  // Trạng thái sync gần nhất — tự động refresh mỗi 5 phút
+  // Tráº¡ng thÃ¡i sync gáº§n nháº¥t â€” tá»± Ä‘á»™ng refresh má»—i 5 phÃºt
   const { data: syncStatus } = useQuery({
     queryKey: ["sync-status", authRole],
     queryFn: fetchSyncStatus,
@@ -1901,7 +1465,7 @@ function Dashboard() {
     staleTime: 60 * 1000,
   });
 
-  // Filter state riêng cho từng tab Thống kê (48 / 47 / 46) — không bị reset khi chuyển tab
+  // Filter state riÃªng cho tá»«ng tab Thá»‘ng kÃª (48 / 47 / 46) â€” khÃ´ng bá»‹ reset khi chuyá»ƒn tab
   const [filters, setFilters] = useState<Record<number, TabFilter>>({
     0: makeTabFilter("nam_nay"),
     48: makeTabFilter("nam_nay"),
@@ -1924,7 +1488,7 @@ function Dashboard() {
     }
   }, [activeTab, isAdmin]);
 
-  // Mở panel khi hash = #admin, đóng khi hash thay đổi
+  // Má»Ÿ panel khi hash = #admin, Ä‘Ã³ng khi hash thay Ä‘á»•i
   useEffect(() => {
     const onHash = () => {
       if (window.location.hash === "#admin" && isAdmin) setShowAdmin(true);
@@ -1940,7 +1504,7 @@ function Dashboard() {
     return () => window.removeEventListener("hashchange", onHash);
   }, [isAdmin]);
 
-  // Đóng panel bằng Esc
+  // ÄÃ³ng panel báº±ng Esc
   useEffect(() => {
     if (!showAdmin) return;
     const onKey = (e: KeyboardEvent) => {
@@ -2060,7 +1624,7 @@ function Dashboard() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <div className="text-sm font-medium text-slate-500">Đang kiểm tra đăng nhập...</div>
+        <div className="text-sm font-medium text-slate-500">Äang kiá»ƒm tra Ä‘Äƒng nháº­p...</div>
       </div>
     );
   }
@@ -2088,9 +1652,9 @@ function Dashboard() {
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-base font-bold text-slate-800 leading-none">
-              Dashboard Hồ Sơ PQLCL
+              Dashboard Há»“ SÆ¡ PQLCL
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">Cục Quản lý Dược</p>
+            <p className="text-xs text-slate-500 mt-0.5">Cá»¥c Quáº£n lÃ½ DÆ°á»£c</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide ${isAdmin ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
@@ -2111,16 +1675,16 @@ function Dashboard() {
               onClick={handleLogout}
               className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
             >
-              Đăng xuất
+              ÄÄƒng xuáº¥t
             </button>
           </div>
           {syncStatus && (() => {
             const iso = syncStatus.lastSyncedAt;
             if (!iso) return (
               <p className="text-xs text-slate-400 text-right leading-snug hidden sm:block">
-                Dữ liệu cập nhật lần cuối<br />
-                <span className="text-slate-400 italic">Chưa có dữ liệu sync</span>
-                <span className="text-slate-400"> · {syncStatus.totalSizeMB.toFixed(2)} MB</span>
+                Dá»¯ liá»‡u cáº­p nháº­t láº§n cuá»‘i<br />
+                <span className="text-slate-400 italic">ChÆ°a cÃ³ dá»¯ liá»‡u sync</span>
+                <span className="text-slate-400"> Â· {syncStatus.totalSizeMB.toFixed(2)} MB</span>
               </p>
             );
             const d   = new Date(iso);
@@ -2130,9 +1694,9 @@ function Dashboard() {
             const min = String(d.getMinutes()).padStart(2, "0");
             return (
               <p className="text-xs text-slate-400 text-right leading-snug hidden sm:block">
-                Dữ liệu cập nhật lần cuối<br />
+                Dá»¯ liá»‡u cáº­p nháº­t láº§n cuá»‘i<br />
                 <span className="font-medium text-slate-600">
-                  {dd}-{mm}-{d.getFullYear()} lúc {hh}:{min}
+                  {dd}-{mm}-{d.getFullYear()} lÃºc {hh}:{min}
                   {" "}({syncStatus.totalSizeMB.toFixed(2)} MB)
                 </span>
               </p>
@@ -2168,7 +1732,7 @@ function Dashboard() {
         ))}
       </main>
 
-      {/* Admin Panel — chỉ hiển thị khi URL hash = #admin */}
+      {/* Admin Panel â€” chá»‰ hiá»ƒn thá»‹ khi URL hash = #admin */}
       {isAdmin && showAdmin && <AdminPanel onClose={closeAdmin} />}
     </div>
     </FiltersCtx.Provider>

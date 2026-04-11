@@ -1,0 +1,399 @@
+import { useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  LabelList,
+  PieChart,
+  Pie,
+} from "recharts";
+import { CHART_ANIMATION_MS } from "../../shared/chartConfig";
+import { clampToToday, getPreset, parseDMY, toDMY, toYMD } from "../../shared/dateUtils";
+import {
+  COLORS,
+  QUICK_FILTERS,
+  fetchEarliestDate,
+  fetchGiaiQuyet,
+  fetchSummary,
+  fetchTonSau,
+  type TabFilter,
+} from "./statsShared";
+
+interface BarData {
+  name: string;
+  value: number;
+  color: string;
+}
+
+interface DonutSegment {
+  name: string;
+  value: number;
+  color: string;
+}
+
+interface DonutChartProps {
+  title: string;
+  segments: DonutSegment[];
+  total: number;
+  isLoading: boolean;
+  isError: boolean;
+  emptyMessage?: string;
+  spinnerColor?: string;
+  startAngle?: number;
+  endAngle?: number;
+}
+
+function SummaryBarChart({ data }: { data: BarData[] }) {
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload?.length) {
+      return (
+        <div className="bg-white border border-slate-200 rounded-lg shadow-md px-4 py-2 text-sm">
+          <p className="font-semibold text-slate-700">{payload[0].payload.name}</p>
+          <p className="text-slate-900 font-bold text-lg">{payload[0].value.toLocaleString("vi-VN")}</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <BarChart data={data} margin={{ top: 32, right: 20, left: -10, bottom: 8 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+        <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 600, fill: "#475569" }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} width={44} tickFormatter={(v) => v.toLocaleString("vi-VN")} />
+        <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
+        <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={80} animationDuration={CHART_ANIMATION_MS}>
+          {data.map((entry, index) => (
+            <Cell key={index} fill={entry.color} />
+          ))}
+          <LabelList dataKey="value" position="top" formatter={(v: number) => v.toLocaleString("vi-VN")} style={{ fontSize: 13, fontWeight: 700, fill: "#1e293b" }} />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function DonutChart({
+  title,
+  segments,
+  total,
+  isLoading,
+  isError,
+  emptyMessage,
+  spinnerColor = "#22c55e",
+  startAngle = 270,
+  endAngle = -90,
+}: DonutChartProps) {
+  const CombinedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }: any) => {
+    const RADIAN = Math.PI / 180;
+    const r = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const sx = cx + r * Math.cos(-midAngle * RADIAN);
+    const sy = cy + r * Math.sin(-midAngle * RADIAN);
+    const pct = Math.round((percent ?? 0) * 100);
+    return (
+      <g>
+        {index === 0 && (
+          <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
+            <tspan x={cx} dy="-0.4em" fontSize={26} fontWeight={700} fill="#1e293b">
+              {total.toLocaleString("vi-VN")}
+            </tspan>
+            <tspan x={cx} dy="1.5em" fontSize={11} fill="#64748b" fontWeight={500}>
+              {"h\u1ed3 s\u01a1"}
+            </tspan>
+          </text>
+        )}
+        {pct >= 5 && (
+          <text x={sx} y={sy} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight={700}>
+            {pct}%
+          </text>
+        )}
+      </g>
+    );
+  };
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload?.length) {
+      const item = payload[0];
+      const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0.0";
+      return (
+        <div className="bg-white border border-slate-200 rounded-lg shadow-md px-3 py-2 text-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full" style={{ background: item.payload.color }} />
+            <span className="font-semibold text-slate-700">{item.name}</span>
+          </div>
+          <div className="mt-1 font-bold text-slate-900">{item.value.toLocaleString("vi-VN")} {"h\u1ed3 s\u01a1"}</div>
+          <div className="text-slate-500">{pct}%</div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+      <div className="relative flex items-center justify-center mb-4">
+        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide text-center">{title}</h3>
+        {isLoading && <span className="text-xs text-blue-500 animate-pulse font-medium absolute right-0">{"\u0110ang t\u1ea3i..."}</span>}
+        {isError && <span className="text-xs text-red-500 font-medium absolute right-0">{"L\u1ed7i t\u1ea3i d\u1eef li\u1ec7u"}</span>}
+      </div>
+
+      {isLoading ? (
+        <div className="h-52 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full border-4 border-t-transparent animate-spin" style={{ borderColor: `${spinnerColor} transparent transparent transparent` }} />
+        </div>
+      ) : total === 0 ? (
+        <div className="h-52 flex flex-col items-center justify-center text-slate-400 text-sm">
+          <div className="text-3xl mb-2">{"\u2014"}</div>
+          <div>{emptyMessage ?? "Kh\u00f4ng c\u00f3 d\u1eef li\u1ec7u"}</div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-3">
+          <ResponsiveContainer width="100%" height={190}>
+            <PieChart>
+              <Pie
+                data={segments}
+                cx="50%"
+                cy="50%"
+                innerRadius={58}
+                outerRadius={88}
+                dataKey="value"
+                startAngle={startAngle}
+                endAngle={endAngle}
+                labelLine={false}
+                label={CombinedLabel}
+                animationDuration={CHART_ANIMATION_MS}
+              >
+                {segments.map((s, i) => (
+                  <Cell key={i} fill={s.color} stroke="none" />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+
+          <div className="flex gap-8 justify-center flex-wrap pb-1">
+            {segments.map((s) => (
+              <div key={s.name} className="flex flex-col items-center gap-0.5">
+                <div className="w-3 h-3 rounded-full" style={{ background: s.color }} />
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mt-0.5">{s.name}</div>
+                <div className="text-xl font-bold leading-tight" style={{ color: s.color }}>
+                  {s.value.toLocaleString("vi-VN")}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function ThongKeDateFilterPanel({
+  thuTuc,
+  fromDate,
+  toDate,
+  fromInput,
+  toInput,
+  activePreset,
+  loadingAll,
+  update,
+}: {
+  thuTuc: number;
+  fromDate: string;
+  toDate: string;
+  fromInput: string;
+  toInput: string;
+  activePreset: string;
+  loadingAll: boolean;
+  update: (patch: Partial<TabFilter>) => void;
+}) {
+  const applyDates = useCallback((from: string, to: string, preset?: string) => {
+    const clampedTo = clampToToday(to);
+    update({ fromDate: from, toDate: clampedTo, fromInput: toDMY(from), toInput: toDMY(clampedTo), activePreset: preset ?? "" });
+  }, [update]);
+
+  const handleTatCa = useCallback(async () => {
+    update({ loadingAll: true });
+    try {
+      const earliest = thuTuc === 0
+        ? (await Promise.all([fetchEarliestDate(48), fetchEarliestDate(47), fetchEarliestDate(46)])).sort()[0]
+        : await fetchEarliestDate(thuTuc);
+      const today = toYMD(new Date());
+      applyDates(earliest, today, "tat_ca");
+    } finally {
+      update({ loadingAll: false });
+    }
+  }, [applyDates, thuTuc, update]);
+
+  const handleFromBlur = () => {
+    const parsed = parseDMY(fromInput);
+    if (parsed) update({ fromDate: parsed, activePreset: "" });
+    else update({ fromInput: toDMY(fromDate) });
+  };
+
+  const handleToBlur = () => {
+    const parsed = parseDMY(toInput);
+    if (parsed) {
+      const clamped = clampToToday(parsed);
+      update({ toDate: clamped, toInput: toDMY(clamped), activePreset: "" });
+    } else {
+      update({ toInput: toDMY(toDate) });
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="flex items-end gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{"T\u1eeb"}</label>
+            <input type="text" placeholder="DD/MM/YYYY" value={fromInput} onChange={(e) => update({ fromInput: e.target.value })} onBlur={handleFromBlur} className="w-36 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" />
+          </div>
+          <div className="pb-2 text-slate-400 font-semibold">{"\u2014"}</div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{"\u0110\u1ebfn"}</label>
+            <input type="text" placeholder="DD/MM/YYYY" value={toInput} onChange={(e) => update({ toInput: e.target.value })} onBlur={handleToBlur} className="w-36 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button onClick={handleTatCa} disabled={loadingAll} className={["rounded-lg px-3 py-2 text-xs font-semibold transition-all border", activePreset === "tat_ca" ? "bg-blue-600 text-white border-blue-600 shadow-sm" : "bg-white text-slate-600 border-slate-300 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700", loadingAll ? "opacity-60 cursor-wait" : ""].join(" ")}>
+            {loadingAll ? "..." : "T\u1ea5t c\u1ea3"}
+          </button>
+          {QUICK_FILTERS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => {
+                const p = getPreset(key);
+                applyDates(p.from, p.to, key);
+              }}
+              className={["rounded-lg px-3 py-2 text-xs font-semibold transition-all border", activePreset === key ? "bg-blue-600 text-white border-blue-600 shadow-sm" : "bg-white text-slate-600 border-slate-300 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"].join(" ")}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="ml-auto text-xs text-slate-500 font-medium hidden lg:block">
+          {"K\u1ef3 th\u1ed1ng k\u00ea: "}
+          <span className="text-slate-800 font-bold">{toDMY(fromDate)}</span>
+          {" \u2192 "}
+          <span className="text-slate-800 font-bold">{toDMY(toDate)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ThongKeOverviewCharts({ thuTuc, fromDate, toDate }: {
+  thuTuc: 48 | 47 | 46;
+  fromDate: string;
+  toDate: string;
+}) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["summary", thuTuc, fromDate, toDate],
+    queryFn: () => fetchSummary(thuTuc, fromDate, toDate),
+    enabled: !!fromDate && !!toDate,
+    placeholderData: (previousData) => previousData,
+  });
+
+  const { data: gqData, isLoading: gqLoading, isError: gqError } = useQuery({
+    queryKey: ["giai-quyet", thuTuc, fromDate, toDate],
+    queryFn: () => fetchGiaiQuyet(thuTuc, fromDate, toDate),
+    enabled: !!fromDate && !!toDate,
+    placeholderData: (previousData) => previousData,
+  });
+
+  const { data: tsData, isLoading: tsLoading, isError: tsError } = useQuery({
+    queryKey: ["ton-sau", thuTuc, toDate],
+    queryFn: () => fetchTonSau(thuTuc, toDate),
+    enabled: !!toDate,
+    placeholderData: (previousData) => previousData,
+  });
+
+  const barData: BarData[] = [
+    { name: "T\u1ed2N TR\u01af\u1edaC", value: data?.ton_truoc ?? 0, color: COLORS.ton_truoc.bar },
+    { name: "\u0110\u00c3 NH\u1eacN", value: data?.da_nhan ?? 0, color: COLORS.da_nhan.bar },
+    { name: "\u0110\u00c3 GI\u1ea2I QUY\u1ebeT", value: data?.da_giai_quyet ?? 0, color: COLORS.da_giai_quyet.bar },
+    { name: "T\u1ed2N SAU", value: data?.ton_sau ?? 0, color: COLORS.ton_sau.bar },
+  ];
+  const giaiQuyetRatioTotal = (data?.da_giai_quyet ?? 0) + (data?.ton_sau ?? 0);
+  const ttLabel = `TT${thuTuc}`;
+
+  return (
+    <div className="grid gap-4" style={{ gridTemplateColumns: "3.7fr 2.1fr 2.1fr 2.1fr" }}>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <div className="relative flex items-center justify-center mb-4">
+          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide text-center">{`T\u00ccNH TR\u1ea0NG H\u1ed2 S\u01a0 ${ttLabel}`}</h3>
+          {isLoading && <span className="text-xs text-blue-500 animate-pulse font-medium absolute right-0">{"\u0110ang t\u1ea3i..."}</span>}
+          {isError && <span className="text-xs text-red-500 font-medium absolute right-0">{"L\u1ed7i t\u1ea3i d\u1eef li\u1ec7u"}</span>}
+        </div>
+
+        {isLoading ? (
+          <div className="h-48 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
+          </div>
+        ) : (
+          <SummaryBarChart data={barData} />
+        )}
+
+        <div className="mt-3 flex flex-wrap gap-3 justify-center">
+          {Object.values(COLORS).map(({ bar, label }) => (
+            <div key={label} className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: bar }} />
+              <span className="text-xs text-slate-500 font-medium">{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <DonutChart
+        title={"T\u1ef6 L\u1ec6 GI\u1ea2I QUY\u1ebeT"}
+        total={giaiQuyetRatioTotal}
+        segments={[
+          { name: "\u0110\u00e3 gi\u1ea3i quy\u1ebft", value: data?.da_giai_quyet ?? 0, color: "#22c55e" },
+          { name: "T\u1ed3n trong k\u1ef3", value: data?.ton_sau ?? 0, color: "#f59e0b" },
+        ]}
+        isLoading={isLoading}
+        isError={isError}
+        emptyMessage={"Kh\u00f4ng c\u00f3 h\u1ed3 s\u01a1 trong k\u1ef3 th\u1ed1ng k\u00ea"}
+        spinnerColor="#22c55e"
+        startAngle={270}
+        endAngle={-90}
+      />
+
+      <DonutChart
+        title={"\u0110\u00c3 GI\u1ea2I QUY\u1ebeT / H\u1ea0N"}
+        total={gqData?.total ?? 0}
+        segments={[
+          { name: "\u0110\u00fang h\u1ea1n", value: gqData?.dung_han ?? 0, color: "#22c55e" },
+          { name: "Qu\u00e1 h\u1ea1n", value: gqData?.qua_han ?? 0, color: "#ef4444" },
+        ]}
+        isLoading={gqLoading}
+        isError={gqError}
+        emptyMessage={"Kh\u00f4ng c\u00f3 h\u1ed3 s\u01a1 \u0111\u00e3 gi\u1ea3i quy\u1ebft trong k\u1ef3"}
+        spinnerColor="#22c55e"
+      />
+
+      <DonutChart
+        title={"T\u1ed2N SAU / H\u1ea0N"}
+        total={tsData?.total ?? 0}
+        segments={[
+          { name: "C\u00f2n h\u1ea1n", value: tsData?.con_han ?? 0, color: "#60a5fa" },
+          { name: "Qu\u00e1 h\u1ea1n", value: tsData?.qua_han ?? 0, color: "#f97316" },
+        ]}
+        isLoading={tsLoading}
+        isError={tsError}
+        emptyMessage={"Kh\u00f4ng c\u00f3 h\u1ed3 s\u01a1 t\u1ed3n sau trong k\u1ef3"}
+        spinnerColor="#60a5fa"
+      />
+    </div>
+  );
+}
