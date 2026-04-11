@@ -10,6 +10,7 @@ export const DASHBOARD_TABS = [
   { id: "tra_cuu_da_xl", label: "TRA C\u1ee8U HS \u0110\u00c3 X\u1eec L\u00dd", adminOnly: true },
 ] as const;
 
+export type DashboardTabItem = typeof DASHBOARD_TABS[number];
 export type DashboardTabId = typeof DASHBOARD_TABS[number]["id"];
 
 export const DEFAULT_DASHBOARD_TAB_ID: DashboardTabId = DASHBOARD_TABS[0].id;

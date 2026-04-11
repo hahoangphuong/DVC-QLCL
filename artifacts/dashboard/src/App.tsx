@@ -17,6 +17,7 @@ import {
 } from "./features/auth/authApiSafe";
 import { LoginScreen as AuthLoginScreen } from "./features/auth/LoginScreenSafe";
 import { DashboardHeaderActions } from "./features/layout/DashboardHeaderActions";
+import { DashboardTabBar } from "./features/navigation/DashboardTabBar";
 import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB_ID } from "./features/navigation/dashboardTabs";
 
 const queryClient = new QueryClient({
@@ -4952,22 +4953,7 @@ function Dashboard() {
         </div>
 
         {/* Tab navigation */}
-        <div className="max-w-screen-2xl mx-auto px-4 flex overflow-x-auto gap-0 scrollbar-none">
-          {visibleTabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={[
-                "flex-shrink-0 px-5 py-2.5 text-xs font-bold uppercase tracking-wide border-b-2 transition-all whitespace-nowrap",
-                activeTab === tab.id
-                  ? "border-blue-600 text-blue-700 bg-blue-50"
-                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300",
-              ].join(" ")}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <DashboardTabBar tabs={visibleTabs} activeTab={activeTab} onSelectTab={setActiveTab} />
       </header>
 
       {/* Content */}
