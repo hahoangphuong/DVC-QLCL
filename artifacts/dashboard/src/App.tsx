@@ -16,9 +16,7 @@ import {
   logoutDashboard as logoutDashboardFeature,
 } from "./features/auth/authApiSafe";
 import { LoginScreen as AuthLoginScreen } from "./features/auth/LoginScreenSafe";
-import { DashboardHeaderActions } from "./features/layout/DashboardHeaderActions";
-import { DashboardHeaderBrand } from "./features/layout/DashboardHeaderBrand";
-import { DashboardTabBar } from "./features/navigation/DashboardTabBar";
+import { DashboardShellHeader } from "./features/layout/DashboardShellHeader";
 import { DashboardTabPanels } from "./features/navigation/DashboardTabPanels";
 import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB_ID } from "./features/navigation/dashboardTabs";
 
@@ -4930,25 +4928,19 @@ function Dashboard() {
   return (
     <FiltersCtx.Provider value={filtersValue}>
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-40">
-        <div className="max-w-screen-2xl mx-auto px-4 py-3 flex items-center gap-3">
-          <DashboardHeaderBrand />
-          <DashboardHeaderActions
-            authRole={authRole}
-            isAdmin={isAdmin}
-            syncStatus={syncStatus}
-            onOpenAdmin={() => {
-              window.location.hash = "admin";
-              setShowAdmin(true);
-            }}
-            onLogout={handleLogout}
-          />
-        </div>
-
-        {/* Tab navigation */}
-        <DashboardTabBar tabs={visibleTabs} activeTab={activeTab} onSelectTab={setActiveTab} />
-      </header>
+      <DashboardShellHeader
+        authRole={authRole}
+        isAdmin={isAdmin}
+        syncStatus={syncStatus}
+        visibleTabs={visibleTabs}
+        activeTab={activeTab}
+        onOpenAdmin={() => {
+          window.location.hash = "admin";
+          setShowAdmin(true);
+        }}
+        onLogout={handleLogout}
+        onSelectTab={setActiveTab}
+      />
 
       <DashboardTabPanels tabs={visibleTabs} activeTab={activeTab} renderTabContent={renderTabContent} />
 
