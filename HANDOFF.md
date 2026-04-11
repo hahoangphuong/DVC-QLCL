@@ -103,6 +103,7 @@ Current shell and feature files:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\pending\PendingTabs.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/pending/PendingTabs.tsx)
 - stats feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\statsShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/statsShared.ts)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\statsFilterContext.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/statsFilterContext.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\StatsOverview.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/StatsOverview.tsx)
 - admin feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\AdminPanel.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/AdminPanel.tsx)
@@ -118,6 +119,7 @@ Important behavior:
 - new UI work should prefer editing the feature file directly instead of adding more logic back into `App.tsx`
 - pending workflow UI and charts should now be edited in `features/pending/*`, not in `App.tsx`
 - stats overview/filter panel should now be edited in `features/stats/*`, not re-added inline to `App.tsx`
+- stats filter context should live in `features/stats/statsFilterContext.tsx`, not be recreated inside `App.tsx`
 - lookup shared source of truth:
   - labels, sort order, option lists, submission display, export helpers:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\lookupShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/lookupShared.ts)
