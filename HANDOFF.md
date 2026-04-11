@@ -110,6 +110,8 @@ Current shell and feature files:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\StatsOverview.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/StatsOverview.tsx)
 - navigation feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\navigation\dashboardTabs.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/navigation/dashboardTabs.ts)
+- layout feature:
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\layout\SyncStatusBadge.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/layout/SyncStatusBadge.tsx)
 - admin feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\AdminPanel.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/AdminPanel.tsx)
 
@@ -126,6 +128,7 @@ Important behavior:
 - stats overview/filter panel should now be edited in `features/stats/*`, not re-added inline to `App.tsx`
 - stats filter context should live in `features/stats/statsFilterContext.tsx`, not be recreated inside `App.tsx`
 - dashboard tab ids/labels should live in `features/navigation/dashboardTabs.ts`, not be redefined inline in `App.tsx`
+- dashboard header sync-status rendering should live in `features/layout/SyncStatusBadge.tsx`, not be expanded inline again in `App.tsx`
 - lookup shared source of truth:
   - labels, sort order, option lists, submission display, export helpers:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\lookupShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/lookupShared.ts)

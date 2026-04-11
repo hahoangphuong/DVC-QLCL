@@ -16,6 +16,7 @@ import {
   logoutDashboard as logoutDashboardFeature,
 } from "./features/auth/authApiSafe";
 import { LoginScreen as AuthLoginScreen } from "./features/auth/LoginScreenSafe";
+import { SyncStatusBadge } from "./features/layout/SyncStatusBadge";
 import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB_ID } from "./features/navigation/dashboardTabs";
 
 const queryClient = new QueryClient({
@@ -4960,30 +4961,7 @@ function Dashboard() {
               Đăng xuất
             </button>
           </div>
-          {syncStatus && (() => {
-            const iso = syncStatus.lastSyncedAt;
-            if (!iso) return (
-              <p className="text-xs text-slate-400 text-right leading-snug hidden sm:block">
-                Dữ liệu cập nhật lần cuối<br />
-                <span className="text-slate-400 italic">Chưa có dữ liệu sync</span>
-                <span className="text-slate-400"> · {syncStatus.totalSizeMB.toFixed(2)} MB</span>
-              </p>
-            );
-            const d   = new Date(iso);
-            const dd  = String(d.getDate()).padStart(2, "0");
-            const mm  = String(d.getMonth() + 1).padStart(2, "0");
-            const hh  = String(d.getHours()).padStart(2, "0");
-            const min = String(d.getMinutes()).padStart(2, "0");
-            return (
-              <p className="text-xs text-slate-400 text-right leading-snug hidden sm:block">
-                Dữ liệu cập nhật lần cuối<br />
-                <span className="font-medium text-slate-600">
-                  {dd}-{mm}-{d.getFullYear()} lúc {hh}:{min}
-                  {" "}({syncStatus.totalSizeMB.toFixed(2)} MB)
-                </span>
-              </p>
-            );
-          })()}
+          <SyncStatusBadge syncStatus={syncStatus} />
         </div>
 
         {/* Tab navigation */}
