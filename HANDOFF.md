@@ -110,6 +110,18 @@ Important behavior:
 - lookup tabs are hidden for `viewer`
 - mutable Vietnamese labels for lookup/detail surfaces should be centralized in `uiText.ts`
 - new UI work should prefer editing the feature file directly instead of adding more logic back into `App.tsx`
+- lookup shared source of truth:
+  - labels, sort order, option lists, submission display, export helpers:
+    - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\lookupShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/lookupShared.ts)
+  - name formatting shared helpers:
+    - [`D:\DVC-QLCL\artifacts\dashboard\src\shared\nameFormatters.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/shared/nameFormatters.ts)
+  - admin export table metadata:
+    - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\adminShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/adminShared.ts)
+- do not duplicate lookup/admin constants inside `App.tsx` or feature components; if a constant is used in more than one place, move it to a shared module first
+- preferred edit order for dashboard changes:
+  1. shared constants/types/helpers
+  2. feature component
+  3. `App.tsx` shell only if wiring actually changes
 
 ## 3. Production services
 

@@ -1,14 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { LOOKUP_TEXT } from "../../uiText";
 import { LookupHoSoDetailModal } from "./LookupHoSoDetailModal";
-import { DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE, DEFAULT_TRA_CUU_FILTER_STATE, extractHoSoId, fetchTraCuuDaXuLy, fetchTraCuuDangXuLy, isoToDisplay, type LookupThuTuc, type LookupTinhTrang, type TraCuuDangXuLyRow, type TraCuuFilterState, type TraCuuSortKey } from "./lookupShared";
-
-const API = "/api";
-
-function cleanCvName(raw: string): string {
-  return raw.replace(/^CV thụ lý\s*:\s*/i, "").trim();
-}
+import { DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE, DEFAULT_TRA_CUU_FILTER_STATE, LOOKUP_TINH_TRANG_SORT_ORDER, TRA_CUU_DA_XU_LY_TINH_TRANG_OPTIONS, TRA_CUU_TINH_TRANG_OPTIONS, displayLookupCg, displayLookupCv, displayLookupTinhTrang, displaySubmissionKind, downloadTraCuuDaXuLyExcel, downloadTraCuuDangXuLyExcel, extractHoSoId, fetchTraCuuDaXuLy, fetchTraCuuDangXuLy, isoToDisplay, type LookupThuTuc, type LookupTinhTrang, type TraCuuDangXuLyRow, type TraCuuFilterState } from "./lookupShared";
 
 export function LookupProgressBar({ visible }: { visible: boolean }) {
   if (!visible) return null;
@@ -312,7 +305,7 @@ export function TraCuuDaXuLyTab(props?: {
 // Generic DonutChart — tái sử dụng cho mọi biểu đồ tròn
 // ---------------------------------------------------------------------------
 
-const TRA_CUU_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang; label: string }> = [
+/* const TRA_CUU_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang; label: string }> = [
   { value: "all", label: LOOKUP_TEXT.all },
   { value: "cho_phan_cong", label: LOOKUP_TEXT.pendingAssignment },
   { value: "cho_chuyen_vien", label: LOOKUP_TEXT.pendingSpecialist },
@@ -465,6 +458,7 @@ async function downloadTraCuuDaXuLyExcel(params: {
   URL.revokeObjectURL(a.href);
 }
 
+*/
 export function TraCuuDangXuLyTab(props?: {
   state: TraCuuFilterState;
   setState: Dispatch<SetStateAction<TraCuuFilterState>>;
