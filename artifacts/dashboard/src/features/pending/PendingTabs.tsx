@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { PieChart, Pie, ResponsiveContainer, Cell, Tooltip, AreaChart, Area, CartesianGrid, XAxis, YAxis } from "recharts";
+import { PieChart, Pie, ResponsiveContainer, Cell, Tooltip, AreaChart, Area, CartesianGrid, XAxis, YAxis, Legend } from "recharts";
 import { cleanCvName } from "../../shared/nameFormatters";
 import { isoToDisplay } from "../../shared/displayFormatters";
 import { CHART_ANIMATION_MS } from "../../shared/chartConfig";
