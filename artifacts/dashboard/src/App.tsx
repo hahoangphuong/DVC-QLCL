@@ -16,7 +16,7 @@ import {
   logoutDashboard as logoutDashboardFeature,
 } from "./features/auth/authApiSafe";
 import { LoginScreen as AuthLoginScreen } from "./features/auth/LoginScreenSafe";
-import { SyncStatusBadge } from "./features/layout/SyncStatusBadge";
+import { DashboardHeaderActions } from "./features/layout/DashboardHeaderActions";
 import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB_ID } from "./features/navigation/dashboardTabs";
 
 const queryClient = new QueryClient({
@@ -4939,29 +4939,16 @@ function Dashboard() {
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">Cục Quản lý Dược</p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide ${isAdmin ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
-              {authRole}
-            </span>
-            {isAdmin && (
-              <button
-                onClick={() => {
-                  window.location.hash = "admin";
-                  setShowAdmin(true);
-                }}
-                className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                Admin
-              </button>
-            )}
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
-            >
-              Đăng xuất
-            </button>
-          </div>
-          <SyncStatusBadge syncStatus={syncStatus} />
+          <DashboardHeaderActions
+            authRole={authRole}
+            isAdmin={isAdmin}
+            syncStatus={syncStatus}
+            onOpenAdmin={() => {
+              window.location.hash = "admin";
+              setShowAdmin(true);
+            }}
+            onLogout={handleLogout}
+          />
         </div>
 
         {/* Tab navigation */}
