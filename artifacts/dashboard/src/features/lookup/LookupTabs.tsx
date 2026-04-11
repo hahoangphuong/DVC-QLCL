@@ -367,7 +367,7 @@ export function displayLookupCv(raw: string | null): string {
 
 export function displayLookupCg(raw: string | null): string {
   if (!raw) return "";
-  return raw.replace(/^CG\s*:\s*/i, "").trim();
+  return raw.replace(new RegExp("^CG\\\\s*:\\\\s*", "i"), "").trim();
 }
 
 export function displaySubmissionKind(value: string | null): string {
