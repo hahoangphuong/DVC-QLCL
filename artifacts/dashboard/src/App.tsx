@@ -17,6 +17,7 @@ import {
 } from "./features/auth/authApiSafe";
 import { LoginScreen as AuthLoginScreen } from "./features/auth/LoginScreenSafe";
 import { DashboardHeaderActions } from "./features/layout/DashboardHeaderActions";
+import { DashboardHeaderBrand } from "./features/layout/DashboardHeaderBrand";
 import { DashboardTabBar } from "./features/navigation/DashboardTabBar";
 import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB_ID } from "./features/navigation/dashboardTabs";
 
@@ -4931,15 +4932,7 @@ function Dashboard() {
       {/* Header */}
       <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-40">
         <div className="max-w-screen-2xl mx-auto px-4 py-3 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow flex-shrink-0">
-            DAV
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-base font-bold text-slate-800 leading-none">
-              Dashboard Hồ Sơ PQLCL
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5">Cục Quản lý Dược</p>
-          </div>
+          <DashboardHeaderBrand />
           <DashboardHeaderActions
             authRole={authRole}
             isAdmin={isAdmin}

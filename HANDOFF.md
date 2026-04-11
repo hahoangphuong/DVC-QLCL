@@ -114,6 +114,7 @@ Current shell and feature files:
 - layout feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\layout\SyncStatusBadge.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/layout/SyncStatusBadge.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\layout\DashboardHeaderActions.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/layout/DashboardHeaderActions.tsx)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\layout\DashboardHeaderBrand.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/layout/DashboardHeaderBrand.tsx)
 - admin feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\AdminPanel.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/AdminPanel.tsx)
 
@@ -133,6 +134,7 @@ Important behavior:
 - dashboard tab navigation rendering should live in `features/navigation/DashboardTabBar.tsx`, not be expanded inline again in `App.tsx`
 - dashboard header sync-status rendering should live in `features/layout/SyncStatusBadge.tsx`, not be expanded inline again in `App.tsx`
 - dashboard header auth controls (role badge, Admin button, logout button) should live in `features/layout/DashboardHeaderActions.tsx`, not be expanded inline again in `App.tsx`
+- dashboard header brand/title rendering should live in `features/layout/DashboardHeaderBrand.tsx`, not be expanded inline again in `App.tsx`
 - lookup shared source of truth:
   - labels, sort order, option lists, submission display, export helpers:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\lookupShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/lookupShared.ts)
