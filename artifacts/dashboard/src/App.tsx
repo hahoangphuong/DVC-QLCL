@@ -19,6 +19,7 @@ import { LoginScreen as AuthLoginScreen } from "./features/auth/LoginScreenSafe"
 import { DashboardHeaderActions } from "./features/layout/DashboardHeaderActions";
 import { DashboardHeaderBrand } from "./features/layout/DashboardHeaderBrand";
 import { DashboardTabBar } from "./features/navigation/DashboardTabBar";
+import { DashboardTabPanels } from "./features/navigation/DashboardTabPanels";
 import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB_ID } from "./features/navigation/dashboardTabs";
 
 const queryClient = new QueryClient({
@@ -4949,14 +4950,7 @@ function Dashboard() {
         <DashboardTabBar tabs={visibleTabs} activeTab={activeTab} onSelectTab={setActiveTab} />
       </header>
 
-      {/* Content */}
-      <main className="max-w-screen-2xl mx-auto px-4 py-6">
-        {visibleTabs.map((tab) => (
-          <div key={tab.id} className={activeTab === tab.id ? "block" : "hidden"}>
-            {renderTabContent(tab.id)}
-          </div>
-        ))}
-      </main>
+      <DashboardTabPanels tabs={visibleTabs} activeTab={activeTab} renderTabContent={renderTabContent} />
 
       {/* Admin Panel — chỉ hiển thị khi URL hash = #admin */}
       {isAdmin && showAdmin && <AdminPanel onClose={closeAdmin} />}
