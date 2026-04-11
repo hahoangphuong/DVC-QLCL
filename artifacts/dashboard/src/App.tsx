@@ -16,6 +16,7 @@ import {
   logoutDashboard as logoutDashboardFeature,
 } from "./features/auth/authApiSafe";
 import { LoginScreen as AuthLoginScreen } from "./features/auth/LoginScreenSafe";
+import { AdminPanelMount } from "./features/admin/AdminPanelMount";
 import { DashboardShellHeader } from "./features/layout/DashboardShellHeader";
 import { DashboardTabPanels } from "./features/navigation/DashboardTabPanels";
 import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB_ID } from "./features/navigation/dashboardTabs";
@@ -4944,8 +4945,9 @@ function Dashboard() {
 
       <DashboardTabPanels tabs={visibleTabs} activeTab={activeTab} renderTabContent={renderTabContent} />
 
-      {/* Admin Panel — chỉ hiển thị khi URL hash = #admin */}
-      {isAdmin && showAdmin && <AdminPanel onClose={closeAdmin} />}
+      <AdminPanelMount isAdmin={isAdmin} showAdmin={showAdmin}>
+        <AdminPanel onClose={closeAdmin} />
+      </AdminPanelMount>
     </div>
     </FiltersCtx.Provider>
   );

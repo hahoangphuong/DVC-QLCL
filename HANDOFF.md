@@ -119,6 +119,7 @@ Current shell and feature files:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\layout\DashboardShellHeader.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/layout/DashboardShellHeader.tsx)
 - admin feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\AdminPanel.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/AdminPanel.tsx)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\AdminPanelMount.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/AdminPanelMount.tsx)
 
 Important behavior:
 
@@ -150,6 +151,7 @@ Important behavior:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\shared\displayFormatters.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/shared/displayFormatters.ts)
   - admin export table metadata:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\adminShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/adminShared.ts)
+- admin panel shell mounting should live in `features/admin/AdminPanelMount.tsx`; `App.tsx` should only pass gate flags and panel content
 - do not duplicate lookup/admin constants inside `App.tsx` or feature components; if a constant is used in more than one place, move it to a shared module first
 - do not reintroduce `DangXuLyTab`, `ChuyenGiaTable`, or pending fetch/types into `App.tsx`; the shell should only wire them
 - preferred edit order for dashboard changes:
