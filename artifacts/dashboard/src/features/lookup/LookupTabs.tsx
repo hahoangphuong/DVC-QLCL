@@ -6,6 +6,10 @@ import { DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE, DEFAULT_TRA_CUU_FILTER_STATE, ex
 
 const API = "/api";
 
+function cleanCvName(raw: string): string {
+  return raw.replace(/^CV thụ lý\s*:\s*/i, "").trim();
+}
+
 export function LookupProgressBar({ visible }: { visible: boolean }) {
   if (!visible) return null;
   return (
@@ -327,6 +331,22 @@ const TRA_CUU_DA_XU_LY_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTran
   { value: "khong_dat", label: LOOKUP_TEXT.failed },
   { value: "da_hoan_thanh", label: LOOKUP_TEXT.completed },
 ];
+
+const LOOKUP_TINH_TRANG_LABELS: Record<LookupTinhTrang, string> = {
+  cho_phan_cong: LOOKUP_TEXT.pendingAssignment,
+  cho_chuyen_vien: LOOKUP_TEXT.pendingSpecialist,
+  chua_xu_ly: LOOKUP_TEXT.notProcessed,
+  bi_tra_lai: LOOKUP_TEXT.returned,
+  cho_tong_hop: LOOKUP_TEXT.pendingSummary,
+  cho_chuyen_gia: LOOKUP_TEXT.pendingExpert,
+  cho_to_truong: LOOKUP_TEXT.pendingLeader,
+  cho_truong_phong: LOOKUP_TEXT.pendingManager,
+  cho_cong_bo: LOOKUP_TEXT.pendingPublish,
+  cho_van_thu: LOOKUP_TEXT.pendingClerical,
+  can_bo_sung: LOOKUP_TEXT.requiresSupplement,
+  khong_dat: LOOKUP_TEXT.failed,
+  da_hoan_thanh: LOOKUP_TEXT.completed,
+};
 const LOOKUP_TINH_TRANG_SORT_ORDER: Record<LookupTinhTrang, number> = {
   cho_phan_cong: 1,
   cho_chuyen_vien: 2,
