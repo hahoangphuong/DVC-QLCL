@@ -16,6 +16,7 @@ import {
   logoutDashboard as logoutDashboardFeature,
 } from "./features/auth/authApiSafe";
 import { LoginScreen as AuthLoginScreen } from "./features/auth/LoginScreenSafe";
+import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB_ID } from "./features/navigation/dashboardTabs";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -4222,18 +4223,6 @@ function ChuyenGiaTable({
 // ---------------------------------------------------------------------------
 // Tab definitions
 // ---------------------------------------------------------------------------
-const TABS = [
-  { id: "tong_quan", label: "TỔNG QUAN", content: () => <TongQuanTab /> },
-  { id: "tt48_thong_ke",  label: "THỐNG KÊ TT48",       content: () => <ThongKeTab thuTuc={48} /> },
-  { id: "tt48_dang_xl",   label: "ĐANG XỬ LÝ TT48",     content: () => <DangXuLyTab thuTuc={48} /> },
-  { id: "tt47_thong_ke",  label: "THỐNG KÊ TT47",        content: () => <ThongKeTab thuTuc={47} /> },
-  { id: "tt47_dang_xl",   label: "ĐANG XỬ LÝ TT47",     content: () => <DangXuLyTab thuTuc={47} /> },
-  { id: "tt46_thong_ke",  label: "THỐNG KÊ TT46",        content: () => <ThongKeTab thuTuc={46} /> },
-  { id: "tt46_dang_xl",   label: "ĐANG XỬ LÝ TT46",     content: () => <DangXuLyTab thuTuc={46} /> },
-  { id: "tra_cuu_dang_xl", label: "TRA CỨU HS ĐANG XỬ LÝ", content: () => <TraCuuDangXuLyTab /> },
-  { id: "tra_cuu_da_xl", label: "TRA CỨU HS ĐÃ XỬ LÝ", content: () => <TraCuuDaXuLyTab /> },
-] as const;
-
 // ---------------------------------------------------------------------------
 // Admin Panel (chỉ hiển thị khi URL hash = #admin)
 // ---------------------------------------------------------------------------
@@ -4719,14 +4708,14 @@ function Dashboard() {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<string>(TABS[0].id);
+  const [activeTab, setActiveTab] = useState<string>(DEFAULT_DASHBOARD_TAB_ID);
   const [showAdmin, setShowAdmin] = useState(false);
   const [lookupState, setLookupState] = useState<TraCuuFilterState>(DEFAULT_TRA_CUU_FILTER_STATE);
   const [lookupDoneState, setLookupDoneState] = useState<TraCuuFilterState>(DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE);
   const [hideEmptyExperts, setHideEmptyExperts] = useState(true);
   const isAdmin = authRole === "admin";
   const visibleTabs = useMemo(
-    () => (isAdmin ? TABS : TABS.filter((tab) => !["tra_cuu_dang_xl", "tra_cuu_da_xl"].includes(tab.id))),
+    () => (isAdmin ? DASHBOARD_TABS : DASHBOARD_TABS.filter((tab) => !tab.adminOnly)),
     [isAdmin]
   );
 
@@ -4777,7 +4766,7 @@ function Dashboard() {
 
   useEffect(() => {
     if (!isAdmin && ["tra_cuu_dang_xl", "tra_cuu_da_xl"].includes(activeTab)) {
-      setActiveTab(TABS[0].id);
+      setActiveTab(DEFAULT_DASHBOARD_TAB_ID);
     }
   }, [activeTab, isAdmin]);
 
@@ -4839,7 +4828,7 @@ function Dashboard() {
     setAuthRole(null);
     setLookupState(DEFAULT_TRA_CUU_FILTER_STATE);
     setLookupDoneState(DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE);
-    setActiveTab(TABS[0].id);
+    setActiveTab(DEFAULT_DASHBOARD_TAB_ID);
   }, []);
 
   const openLookupByChuyenVien = useCallback((tenCvRaw: string, thuTuc: 48 | 47 | 46) => {
