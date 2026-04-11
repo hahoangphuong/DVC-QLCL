@@ -10,6 +10,12 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Router as WouterRouter } from "wouter";
 import { DOSSIER_DETAIL_TEXT, LOOKUP_TEXT } from "./uiText";
+import {
+  fetchAuthMe as fetchAuthMeFeature,
+  loginDashboard as loginDashboardFeature,
+  logoutDashboard as logoutDashboardFeature,
+} from "./features/auth/authApiSafe";
+import { LoginScreen as AuthLoginScreen } from "./features/auth/LoginScreenSafe";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -4726,7 +4732,7 @@ function Dashboard() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchAuthMe()
+    fetchAuthMeFeature()
       .then((data) => {
         if (cancelled) return;
         setAuthRole(data.authenticated ? data.role : null);
@@ -4813,7 +4819,7 @@ function Dashboard() {
     setLoginBusy(true);
     setAuthError(null);
     try {
-      const data = await loginDashboard(loginPassword);
+      const data = await loginDashboardFeature(loginPassword);
       setAuthRole(data.role);
       setLoginPassword("");
     } catch (e) {
@@ -4825,7 +4831,7 @@ function Dashboard() {
 
   const handleLogout = useCallback(async () => {
     try {
-      await logoutDashboard();
+      await logoutDashboardFeature();
     } catch {
       // ignore
     }
@@ -4918,7 +4924,7 @@ function Dashboard() {
 
   if (!authRole) {
     return (
-      <LoginScreen
+      <AuthLoginScreen
         password={loginPassword}
         setPassword={setLoginPassword}
         busy={loginBusy}

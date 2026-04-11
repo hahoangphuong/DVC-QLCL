@@ -94,6 +94,9 @@ Current shell and feature files:
 - auth feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\authApi.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/authApi.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\LoginScreen.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/LoginScreen.tsx)
+  - runtime-safe auth slice currently uses:
+    - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\authApiSafe.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/authApiSafe.ts)
+    - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\LoginScreenSafe.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/LoginScreenSafe.tsx)
 - lookup feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\lookupShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/lookupShared.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupHoSoDetailModal.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupHoSoDetailModal.tsx)
