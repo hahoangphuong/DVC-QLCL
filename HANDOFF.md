@@ -327,6 +327,8 @@ These rules should be treated as mandatory.
 - Always preserve files as `UTF-8` without BOM.
 - Prefer minimal diffs. Do not rewrite a whole file when only one component or block needs to change.
 - Avoid bulk PowerShell replacements on Vietnamese-heavy files unless there is no safer option.
+- Do not use PowerShell line-array rewrite flows such as `Get-Content` -> mutate array -> `WriteAllLines` on TSX/JSX files; this has repeatedly introduced mojibake into Vietnamese UI text.
+- If a large TSX edit cannot be expressed safely with `apply_patch`, split the component first or move the target block into a smaller helper/feature file before editing.
 - Before committing, always inspect `git diff` for mojibake such as:
   - `Ã`
   - `á»`
