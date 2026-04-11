@@ -1,5 +1,6 @@
 import { LOOKUP_TEXT } from "../../uiText";
 import { cleanCgName, cleanCvName } from "../../shared/nameFormatters";
+export { isoToDisplay } from "../../shared/displayFormatters";
 
 const API = "/api";
 
@@ -178,13 +179,6 @@ export async function fetchDavTt48HoSoDetail(hoSoId: number): Promise<DavTt48Det
   const res = await fetch(`${API}/dav/tt48/ho-so/${hoSoId}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
-}
-
-export function isoToDisplay(iso: string | null): string {
-  if (!iso) return "";
-  const d = iso.split("T")[0];
-  const [y, m, day] = d.split("-");
-  return `${day}-${m}-${y}`;
 }
 
 export function extractHoSoId(maHoSo: string): number | null {

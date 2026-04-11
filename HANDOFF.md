@@ -98,6 +98,9 @@ Current shell and feature files:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\lookupShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/lookupShared.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupHoSoDetailModal.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupHoSoDetailModal.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupTabs.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupTabs.tsx)
+- pending feature:
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\pending\pendingShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/pending/pendingShared.ts)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\pending\PendingTabs.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/pending/PendingTabs.tsx)
 - admin feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\AdminPanel.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/AdminPanel.tsx)
 
@@ -110,14 +113,20 @@ Important behavior:
 - lookup tabs are hidden for `viewer`
 - mutable Vietnamese labels for lookup/detail surfaces should be centralized in `uiText.ts`
 - new UI work should prefer editing the feature file directly instead of adding more logic back into `App.tsx`
+- pending workflow UI and charts should now be edited in `features/pending/*`, not in `App.tsx`
 - lookup shared source of truth:
   - labels, sort order, option lists, submission display, export helpers:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\lookupShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/lookupShared.ts)
   - name formatting shared helpers:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\shared\nameFormatters.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/shared/nameFormatters.ts)
+  - shared chart timing:
+    - [`D:\DVC-QLCL\artifacts\dashboard\src\shared\chartConfig.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/shared/chartConfig.ts)
+  - shared ISO date display formatting:
+    - [`D:\DVC-QLCL\artifacts\dashboard\src\shared\displayFormatters.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/shared/displayFormatters.ts)
   - admin export table metadata:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\adminShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/adminShared.ts)
 - do not duplicate lookup/admin constants inside `App.tsx` or feature components; if a constant is used in more than one place, move it to a shared module first
+- do not reintroduce `DangXuLyTab`, `ChuyenGiaTable`, or pending fetch/types into `App.tsx`; the shell should only wire them
 - preferred edit order for dashboard changes:
   1. shared constants/types/helpers
   2. feature component
