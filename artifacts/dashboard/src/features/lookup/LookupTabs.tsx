@@ -1,5 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { LOOKUP_TEXT } from "../../uiText";
 import { LookupHoSoDetailModal } from "./LookupHoSoDetailModal";
 import { DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE, DEFAULT_TRA_CUU_FILTER_STATE, LOOKUP_TINH_TRANG_SORT_ORDER, TRA_CUU_DA_XU_LY_TINH_TRANG_OPTIONS, TRA_CUU_TINH_TRANG_OPTIONS, displayLookupCg, displayLookupCv, displayLookupTinhTrang, displaySubmissionKind, downloadTraCuuDaXuLyExcel, downloadTraCuuDangXuLyExcel, extractHoSoId, fetchTraCuuDaXuLy, fetchTraCuuDangXuLy, isoToDisplay, type LookupThuTuc, type LookupTinhTrang, type TraCuuDangXuLyRow, type TraCuuFilterState } from "./lookupShared";
 
