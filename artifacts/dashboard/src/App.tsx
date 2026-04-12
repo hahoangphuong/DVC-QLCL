@@ -15,7 +15,7 @@ import {
   loginDashboard as loginDashboardFeature,
   logoutDashboard as logoutDashboardFeature,
 } from "./features/auth/authApiSafe";
-import { LoginScreen as AuthLoginScreen } from "./features/auth/LoginScreenSafe";
+import { DashboardAuthGate } from "./features/auth/DashboardAuthGate";
 import { AdminPanelMount } from "./features/admin/AdminPanelMount";
 import { DashboardShellHeader } from "./features/layout/DashboardShellHeader";
 import { DashboardContentSwitch } from "./features/navigation/DashboardContentSwitch";
@@ -4910,50 +4910,40 @@ function Dashboard() {
     />
   );
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <div className="text-sm font-medium text-slate-500">Đang kiểm tra đăng nhập...</div>
-      </div>
-    );
-  }
-
-  if (!authRole) {
-    return (
-      <AuthLoginScreen
-        password={loginPassword}
-        setPassword={setLoginPassword}
-        busy={loginBusy}
-        error={authError}
-        onSubmit={handleLogin}
-      />
-    );
-  }
-
   return (
-    <FiltersCtx.Provider value={filtersValue}>
-    <div className="min-h-screen bg-slate-50">
-      <DashboardShellHeader
-        authRole={authRole}
-        isAdmin={isAdmin}
-        syncStatus={syncStatus}
-        visibleTabs={visibleTabs}
-        activeTab={activeTab}
-        onOpenAdmin={() => {
-          window.location.hash = "admin";
-          setShowAdmin(true);
-        }}
-        onLogout={handleLogout}
-        onSelectTab={setActiveTab}
-      />
+    <DashboardAuthGate
+      authLoading={authLoading}
+      authRole={authRole}
+      password={loginPassword}
+      setPassword={setLoginPassword}
+      busy={loginBusy}
+      error={authError}
+      onSubmit={handleLogin}
+    >
+      <FiltersCtx.Provider value={filtersValue}>
+      <div className="min-h-screen bg-slate-50">
+        <DashboardShellHeader
+          authRole={authRole}
+          isAdmin={isAdmin}
+          syncStatus={syncStatus}
+          visibleTabs={visibleTabs}
+          activeTab={activeTab}
+          onOpenAdmin={() => {
+            window.location.hash = "admin";
+            setShowAdmin(true);
+          }}
+          onLogout={handleLogout}
+          onSelectTab={setActiveTab}
+        />
 
-      <DashboardTabPanels tabs={visibleTabs} activeTab={activeTab} renderTabContent={renderTabContent} />
+        <DashboardTabPanels tabs={visibleTabs} activeTab={activeTab} renderTabContent={renderTabContent} />
 
-      <AdminPanelMount isAdmin={isAdmin} showAdmin={showAdmin}>
-        <AdminPanel onClose={closeAdmin} />
-      </AdminPanelMount>
-    </div>
-    </FiltersCtx.Provider>
+        <AdminPanelMount isAdmin={isAdmin} showAdmin={showAdmin}>
+          <AdminPanel onClose={closeAdmin} />
+        </AdminPanelMount>
+      </div>
+      </FiltersCtx.Provider>
+    </DashboardAuthGate>
   );
 }
 

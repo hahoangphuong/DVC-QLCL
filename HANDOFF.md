@@ -97,6 +97,7 @@ Current shell and feature files:
   - runtime-safe auth slice currently uses:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\authApiSafe.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/authApiSafe.ts)
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\LoginScreenSafe.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/LoginScreenSafe.tsx)
+    - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\DashboardAuthGate.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/DashboardAuthGate.tsx)
 - lookup feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\lookupShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/lookupShared.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupHoSoDetailModal.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupHoSoDetailModal.tsx)
@@ -142,6 +143,7 @@ Important behavior:
 - dashboard header auth controls (role badge, Admin button, logout button) should live in `features/layout/DashboardHeaderActions.tsx`, not be expanded inline again in `App.tsx`
 - dashboard header brand/title rendering should live in `features/layout/DashboardHeaderBrand.tsx`, not be expanded inline again in `App.tsx`
 - dashboard header shell composition should live in `features/layout/DashboardShellHeader.tsx`; `App.tsx` should only pass shell props into it
+- dashboard auth loading/login gate should live in `features/auth/DashboardAuthGate.tsx`; `App.tsx` should only pass auth shell state into it
 - lookup shared source of truth:
   - labels, sort order, option lists, submission display, export helpers:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\lookupShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/lookupShared.ts)
