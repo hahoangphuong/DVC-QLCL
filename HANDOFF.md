@@ -112,6 +112,7 @@ Current shell and feature files:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\navigation\dashboardTabs.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/navigation/dashboardTabs.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\navigation\DashboardTabBar.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/navigation/DashboardTabBar.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\navigation\DashboardTabPanels.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/navigation/DashboardTabPanels.tsx)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\navigation\DashboardContentSwitch.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/navigation/DashboardContentSwitch.tsx)
 - layout feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\layout\SyncStatusBadge.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/layout/SyncStatusBadge.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\layout\DashboardHeaderActions.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/layout/DashboardHeaderActions.tsx)
@@ -136,6 +137,7 @@ Important behavior:
 - dashboard tab ids/labels should live in `features/navigation/dashboardTabs.ts`, not be redefined inline in `App.tsx`
 - dashboard tab navigation rendering should live in `features/navigation/DashboardTabBar.tsx`, not be expanded inline again in `App.tsx`
 - dashboard main tab-panel host rendering should live in `features/navigation/DashboardTabPanels.tsx`, not be expanded inline again in `App.tsx`
+- dashboard tab dispatcher switch should live in `features/navigation/DashboardContentSwitch.tsx`; `App.tsx` should only pass render callbacks and shell state
 - dashboard header sync-status rendering should live in `features/layout/SyncStatusBadge.tsx`, not be expanded inline again in `App.tsx`
 - dashboard header auth controls (role badge, Admin button, logout button) should live in `features/layout/DashboardHeaderActions.tsx`, not be expanded inline again in `App.tsx`
 - dashboard header brand/title rendering should live in `features/layout/DashboardHeaderBrand.tsx`, not be expanded inline again in `App.tsx`

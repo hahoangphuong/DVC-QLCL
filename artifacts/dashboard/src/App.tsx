@@ -18,8 +18,9 @@ import {
 import { LoginScreen as AuthLoginScreen } from "./features/auth/LoginScreenSafe";
 import { AdminPanelMount } from "./features/admin/AdminPanelMount";
 import { DashboardShellHeader } from "./features/layout/DashboardShellHeader";
+import { DashboardContentSwitch } from "./features/navigation/DashboardContentSwitch";
 import { DashboardTabPanels } from "./features/navigation/DashboardTabPanels";
-import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB_ID } from "./features/navigation/dashboardTabs";
+import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB_ID, type DashboardTabId } from "./features/navigation/dashboardTabs";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -4881,30 +4882,33 @@ function Dashboard() {
     setActiveTab(`tt${thuTuc}_dang_xl`);
   }, []);
 
-  const renderTabContent = (tabId: string) => {
-    switch (tabId) {
-      case "tong_quan":
-        return <TongQuanTab onOpenThongKe={openThongKeFromTongQuan} onOpenDangXuLy={openDangXuLyFromTongQuan} />;
-      case "tt48_thong_ke":
-        return <ThongKeTab thuTuc={48} />;
-      case "tt48_dang_xl":
-        return <DangXuLyTab thuTuc={48} onCvLookup={openLookupByChuyenVien} onCgLookup={openLookupByChuyenGia} onTinhTrangLookup={openLookupByTinhTrang} hideEmptyExperts={hideEmptyExperts} setHideEmptyExperts={setHideEmptyExperts} />;
-      case "tt47_thong_ke":
-        return <ThongKeTab thuTuc={47} />;
-      case "tt47_dang_xl":
-        return <DangXuLyTab thuTuc={47} onCvLookup={openLookupByChuyenVien} />;
-      case "tt46_thong_ke":
-        return <ThongKeTab thuTuc={46} />;
-      case "tt46_dang_xl":
-        return <DangXuLyTab thuTuc={46} onCvLookup={openLookupByChuyenVien} />;
-      case "tra_cuu_dang_xl":
-        return isAdmin ? <TraCuuDangXuLyTab state={lookupState} setState={setLookupState} isActive={activeTab === "tra_cuu_dang_xl"} /> : null;
-      case "tra_cuu_da_xl":
-        return isAdmin ? <TraCuuDaXuLyTab state={lookupDoneState} setState={setLookupDoneState} isActive={activeTab === "tra_cuu_da_xl"} /> : null;
-      default:
-        return null;
-    }
-  };
+  const renderTabContent = (tabId: DashboardTabId) => (
+    <DashboardContentSwitch
+      tabId={tabId}
+      renderTongQuan={() => <TongQuanTab onOpenThongKe={openThongKeFromTongQuan} onOpenDangXuLy={openDangXuLyFromTongQuan} />}
+      renderThongKe={(thuTuc) => <ThongKeTab thuTuc={thuTuc} />}
+      renderDangXuLy={(thuTuc) =>
+        thuTuc === 48 ? (
+          <DangXuLyTab
+            thuTuc={48}
+            onCvLookup={openLookupByChuyenVien}
+            onCgLookup={openLookupByChuyenGia}
+            onTinhTrangLookup={openLookupByTinhTrang}
+            hideEmptyExperts={hideEmptyExperts}
+            setHideEmptyExperts={setHideEmptyExperts}
+          />
+        ) : (
+          <DangXuLyTab thuTuc={thuTuc} onCvLookup={openLookupByChuyenVien} />
+        )
+      }
+      renderLookupDangXuLy={() =>
+        isAdmin ? <TraCuuDangXuLyTab state={lookupState} setState={setLookupState} isActive={activeTab === "tra_cuu_dang_xl"} /> : null
+      }
+      renderLookupDaXuLy={() =>
+        isAdmin ? <TraCuuDaXuLyTab state={lookupDoneState} setState={setLookupDoneState} isActive={activeTab === "tra_cuu_da_xl"} /> : null
+      }
+    />
+  );
 
   if (authLoading) {
     return (
