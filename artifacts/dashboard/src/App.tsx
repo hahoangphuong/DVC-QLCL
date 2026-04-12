@@ -10,12 +10,8 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Router as WouterRouter } from "wouter";
 import { DOSSIER_DETAIL_TEXT, LOOKUP_TEXT } from "./uiText";
-import {
-  fetchAuthMe as fetchAuthMeFeature,
-  loginDashboard as loginDashboardFeature,
-  logoutDashboard as logoutDashboardFeature,
-} from "./features/auth/authApiSafe";
 import { DashboardAuthGate } from "./features/auth/DashboardAuthGate";
+import { useDashboardAuth } from "./features/auth/useDashboardAuth";
 import { AdminPanelMount } from "./features/admin/AdminPanelMount";
 import { DashboardShellHeader } from "./features/layout/DashboardShellHeader";
 import { DashboardContentSwitch } from "./features/navigation/DashboardContentSwitch";
@@ -42,38 +38,6 @@ function authHeaders(token: string): HeadersInit {
   return { "x-admin-token": token };
 }
 
-type DashboardRole = "viewer" | "admin";
-type AuthMe = { authenticated: boolean; role: DashboardRole | null };
-
-async function fetchAuthMe(): Promise<AuthMe> {
-  const res = await fetch(`${API}/auth/me`, { credentials: "same-origin" });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-async function loginDashboard(password: string): Promise<AuthMe> {
-  const res = await fetch(`${API}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "same-origin",
-    body: JSON.stringify({ password }),
-  });
-  const data = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
-  if (!res.ok) throw new Error(data.detail ?? `HTTP ${res.status}`);
-  const me = await fetchAuthMe();
-  if (!me.authenticated || !me.role) {
-    throw new Error("Đăng nhập không tạo được session trên trình duyệt.");
-  }
-  return me;
-}
-
-async function logoutDashboard(): Promise<void> {
-  const res = await fetch(`${API}/auth/logout`, {
-    method: "POST",
-    credentials: "same-origin",
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-}
 
 // Màu cho 4 chỉ số
 const COLORS = {
@@ -4708,40 +4672,33 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
 // Main Dashboard
 // ---------------------------------------------------------------------------
 function Dashboard() {
-  const [authLoading, setAuthLoading] = useState(true);
-  const [authRole, setAuthRole] = useState<DashboardRole | null>(null);
-  const [loginPassword, setLoginPassword] = useState("");
-  const [loginBusy, setLoginBusy] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>(DEFAULT_DASHBOARD_TAB_ID);
   const [showAdmin, setShowAdmin] = useState(false);
   const [lookupState, setLookupState] = useState<TraCuuFilterState>(DEFAULT_TRA_CUU_FILTER_STATE);
   const [lookupDoneState, setLookupDoneState] = useState<TraCuuFilterState>(DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE);
   const [hideEmptyExperts, setHideEmptyExperts] = useState(true);
+  const {
+    authLoading,
+    authRole,
+    loginPassword,
+    setLoginPassword,
+    loginBusy,
+    authError,
+    handleLogin,
+    handleLogout,
+  } = useDashboardAuth({
+    onAfterLogout: () => {
+      closeAdmin();
+      setLookupState(DEFAULT_TRA_CUU_FILTER_STATE);
+      setLookupDoneState(DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE);
+      setActiveTab(DEFAULT_DASHBOARD_TAB_ID);
+    },
+  });
   const isAdmin = authRole === "admin";
   const visibleTabs = useMemo(
     () => (isAdmin ? DASHBOARD_TABS : DASHBOARD_TABS.filter((tab) => !tab.adminOnly)),
     [isAdmin]
   );
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchAuthMeFeature()
-      .then((data) => {
-        if (cancelled) return;
-        setAuthRole(data.authenticated ? data.role : null);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setAuthRole(null);
-      })
-      .finally(() => {
-        if (!cancelled) setAuthLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // Trạng thái sync gần nhất — tự động refresh mỗi 5 phút
   const { data: syncStatus } = useQuery({
@@ -4807,34 +4764,6 @@ function Dashboard() {
       history.pushState("", document.title, window.location.pathname + window.location.search);
     }
   };
-
-  const handleLogin = useCallback(async () => {
-    if (!loginPassword.trim()) return;
-    setLoginBusy(true);
-    setAuthError(null);
-    try {
-      const data = await loginDashboardFeature(loginPassword);
-      setAuthRole(data.role);
-      setLoginPassword("");
-    } catch (e) {
-      setAuthError(String(e));
-    } finally {
-      setLoginBusy(false);
-    }
-  }, [loginPassword]);
-
-  const handleLogout = useCallback(async () => {
-    try {
-      await logoutDashboardFeature();
-    } catch {
-      // ignore
-    }
-    closeAdmin();
-    setAuthRole(null);
-    setLookupState(DEFAULT_TRA_CUU_FILTER_STATE);
-    setLookupDoneState(DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE);
-    setActiveTab(DEFAULT_DASHBOARD_TAB_ID);
-  }, []);
 
   const {
     openLookupByChuyenVien,
