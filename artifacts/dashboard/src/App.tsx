@@ -21,6 +21,7 @@ import { DashboardShellHeader } from "./features/layout/DashboardShellHeader";
 import { DashboardContentSwitch } from "./features/navigation/DashboardContentSwitch";
 import { DashboardTabPanels } from "./features/navigation/DashboardTabPanels";
 import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB_ID, type DashboardTabId } from "./features/navigation/dashboardTabs";
+import { useDashboardNavigation } from "./features/navigation/useDashboardNavigation";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -4835,52 +4836,19 @@ function Dashboard() {
     setActiveTab(DEFAULT_DASHBOARD_TAB_ID);
   }, []);
 
-  const openLookupByChuyenVien = useCallback((tenCvRaw: string, thuTuc: 48 | 47 | 46) => {
-    if (!isAdmin) return;
-    setLookupState({
-      ...DEFAULT_TRA_CUU_FILTER_STATE,
-      thuTuc,
-      chuyenVien: tenCvRaw,
-    });
-    setActiveTab("tra_cuu_dang_xl");
-  }, [isAdmin]);
-
-  const openLookupByChuyenGia = useCallback((tenCg: string) => {
-    if (!isAdmin) return;
-    setLookupState({
-      ...DEFAULT_TRA_CUU_FILTER_STATE,
-      thuTuc: 48,
-      chuyenGia: tenCg.trim(),
-      tinhTrang: "cho_chuyen_gia",
-    });
-    setActiveTab("tra_cuu_dang_xl");
-  }, [isAdmin]);
-
-  const openLookupByTinhTrang = useCallback((thuTuc: 48 | 47 | 46, tinhTrang: LookupTinhTrang) => {
-    if (!isAdmin) return;
-    setLookupState({
-      ...DEFAULT_TRA_CUU_FILTER_STATE,
-      thuTuc,
-      tinhTrang,
-    });
-    setActiveTab("tra_cuu_dang_xl");
-  }, [isAdmin]);
-
-  const openThongKeFromTongQuan = useCallback((thuTuc: 48 | 47 | 46, filter: TabFilter) => {
-    updateFilter(thuTuc, {
-      fromDate: filter.fromDate,
-      toDate: filter.toDate,
-      fromInput: filter.fromInput,
-      toInput: filter.toInput,
-      activePreset: filter.activePreset,
-      loadingAll: false,
-    });
-    setActiveTab(`tt${thuTuc}_thong_ke`);
-  }, [updateFilter]);
-
-  const openDangXuLyFromTongQuan = useCallback((thuTuc: 48 | 47 | 46) => {
-    setActiveTab(`tt${thuTuc}_dang_xl`);
-  }, []);
+  const {
+    openLookupByChuyenVien,
+    openLookupByChuyenGia,
+    openLookupByTinhTrang,
+    openThongKeFromTongQuan,
+    openDangXuLyFromTongQuan,
+  } = useDashboardNavigation({
+    isAdmin,
+    defaultLookupState: DEFAULT_TRA_CUU_FILTER_STATE,
+    setLookupState,
+    setActiveTab,
+    updateFilter,
+  });
 
   const renderTabContent = (tabId: DashboardTabId) => (
     <DashboardContentSwitch
