@@ -23,6 +23,7 @@ import { LookupErrorPanel } from "./features/lookup/LookupErrorPanel";
 import { useLookupExport } from "./features/lookup/useLookupExport";
 import { useLookupFilterControls } from "./features/lookup/useLookupFilterControls";
 import { LookupProgressBar } from "./features/lookup/LookupProgressBar";
+import { useLookupQuery } from "./features/lookup/useLookupQuery";
 import { LookupSelectField } from "./features/lookup/LookupSelectField";
 import { LookupSortableHeader } from "./features/lookup/LookupSortableHeader";
 import { LookupTextFilterField } from "./features/lookup/LookupTextFilterField";
@@ -694,19 +695,17 @@ function TraCuuDaXuLyTab(props?: {
     sortDir,
   }));
 
-  const { data, isLoading, isFetching, isError } = useQuery({
-    queryKey: ["tra-cuu-da-xu-ly", thuTuc, chuyenVien, chuyenGia, tinhTrang, deferredMaHoSo],
-    queryFn: ({ signal }) => fetchTraCuuDaXuLy({
+  const { data, isLoading, isFetching, isError } = useLookupQuery({
+    queryKey: "tra-cuu-da-xu-ly",
+    params: {
       thuTuc,
       chuyenVien,
       chuyenGia,
       tinhTrang,
       maHoSo: deferredMaHoSo,
-      signal,
-    }),
+    },
+    fetcher: fetchTraCuuDaXuLy,
     enabled: isActive,
-    placeholderData: (previousData) => previousData,
-    retry: 2,
   });
 
   useLookupInactiveCancel(isActive, "tra-cuu-da-xu-ly");
@@ -3536,19 +3535,17 @@ function TraCuuDangXuLyTab(props?: {
     sortDir,
   }));
 
-  const { data, isLoading, isFetching, isError } = useQuery({
-    queryKey: ["tra-cuu-dang-xu-ly", thuTuc, chuyenVien, chuyenGia, tinhTrang, deferredMaHoSo],
-    queryFn: ({ signal }) => fetchTraCuuDangXuLy({
+  const { data, isLoading, isFetching, isError } = useLookupQuery({
+    queryKey: "tra-cuu-dang-xu-ly",
+    params: {
       thuTuc,
       chuyenVien,
       chuyenGia,
       tinhTrang,
       maHoSo: deferredMaHoSo,
-      signal,
-    }),
+    },
+    fetcher: fetchTraCuuDangXuLy,
     enabled: isActive,
-    placeholderData: (previousData) => previousData,
-    retry: 2,
   });
 
   useLookupInactiveCancel(isActive, "tra-cuu-dang-xu-ly");
