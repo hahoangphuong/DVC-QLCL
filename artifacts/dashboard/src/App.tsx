@@ -17,6 +17,7 @@ import { useAdminPanelShell } from "./features/admin/useAdminPanelShell";
 import { DashboardShellHeader } from "./features/layout/DashboardShellHeader";
 import { useDashboardSyncStatus } from "./features/layout/useDashboardSyncStatus";
 import { useDashboardLookupState } from "./features/lookup/useDashboardLookupState";
+import { useLookupDetailModal } from "./features/lookup/useLookupDetailModal";
 import { DashboardContentSwitch } from "./features/navigation/DashboardContentSwitch";
 import { DashboardTabPanels } from "./features/navigation/DashboardTabPanels";
 import { DEFAULT_DASHBOARD_TAB_ID, type DashboardTabId } from "./features/navigation/dashboardTabs";
@@ -684,7 +685,7 @@ function TraCuuDaXuLyTab(props?: {
   const setState = props?.setState ?? setLocalState;
   const isActive = props?.isActive ?? true;
   const { thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo, sortBy, sortDir } = state;
-  const [selectedDetail, setSelectedDetail] = useState<{ hoSoId: number; maHoSo: string } | null>(null);
+  const { selectedDetail, openDetail, closeDetail } = useLookupDetailModal();
   const setChuyenVien = (value: string) => setState((prev) => ({ ...prev, chuyenVien: value }));
   const setChuyenGia = (value: string) => setState((prev) => ({ ...prev, chuyenGia: value }));
   const setThuTuc = (value: LookupThuTuc | "all") => setState((prev) => ({ ...prev, thuTuc: value }));
@@ -933,10 +934,10 @@ function TraCuuDaXuLyTab(props?: {
                     <td className="px-3 py-2.5 text-center">
                       <button
                         type="button"
-                        onClick={() => {
-                          const hoSoId = row.thu_tuc === 48 ? extractHoSoId(row.ma_ho_so) : null;
-                          if (hoSoId) setSelectedDetail({ hoSoId, maHoSo: row.ma_ho_so });
-                        }}
+                          onClick={() => {
+                            const hoSoId = row.thu_tuc === 48 ? extractHoSoId(row.ma_ho_so) : null;
+                            if (hoSoId) openDetail(hoSoId, row.ma_ho_so);
+                          }}
                         disabled={row.thu_tuc !== 48 || extractHoSoId(row.ma_ho_so) === null}
                         className="rounded-md border border-blue-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-700 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
@@ -950,9 +951,9 @@ function TraCuuDaXuLyTab(props?: {
           </div>
         )}
       </div>
-      {selectedDetail && (
-        <LookupHoSoDetailModal hoSoId={selectedDetail.hoSoId} maHoSo={selectedDetail.maHoSo} onClose={() => setSelectedDetail(null)} />
-      )}
+        {selectedDetail && (
+          <LookupHoSoDetailModal hoSoId={selectedDetail.hoSoId} maHoSo={selectedDetail.maHoSo} onClose={closeDetail} />
+        )}
     </div>
   );
 }
@@ -3638,7 +3639,7 @@ function TraCuuDangXuLyTab(props?: {
   const setState = props?.setState ?? setLocalState;
   const isActive = props?.isActive ?? true;
   const { thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo, sortBy, sortDir } = state;
-  const [selectedDetail, setSelectedDetail] = useState<{ hoSoId: number; maHoSo: string } | null>(null);
+  const { selectedDetail, openDetail, closeDetail } = useLookupDetailModal();
   const setChuyenVien = (value: string) => setState((prev) => ({ ...prev, chuyenVien: value }));
   const setChuyenGia = (value: string) => setState((prev) => ({ ...prev, chuyenGia: value }));
   const setThuTuc = (value: LookupThuTuc | "all") => setState((prev) => ({ ...prev, thuTuc: value }));
@@ -3926,10 +3927,10 @@ function TraCuuDangXuLyTab(props?: {
                     <td className="px-3 py-2.5 text-center">
                       <button
                         type="button"
-                        onClick={() => {
-                          const hoSoId = row.thu_tuc === 48 ? extractHoSoId(row.ma_ho_so) : null;
-                          if (hoSoId) setSelectedDetail({ hoSoId, maHoSo: row.ma_ho_so });
-                        }}
+                          onClick={() => {
+                            const hoSoId = row.thu_tuc === 48 ? extractHoSoId(row.ma_ho_so) : null;
+                            if (hoSoId) openDetail(hoSoId, row.ma_ho_so);
+                          }}
                         disabled={row.thu_tuc !== 48 || extractHoSoId(row.ma_ho_so) === null}
                         className="rounded-md border border-blue-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-700 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
@@ -3943,13 +3944,13 @@ function TraCuuDangXuLyTab(props?: {
           </div>
         )}
       </div>
-      {selectedDetail && (
-        <LookupHoSoDetailModal
-          hoSoId={selectedDetail.hoSoId}
-          maHoSo={selectedDetail.maHoSo}
-          onClose={() => setSelectedDetail(null)}
-        />
-      )}
+        {selectedDetail && (
+          <LookupHoSoDetailModal
+            hoSoId={selectedDetail.hoSoId}
+            maHoSo={selectedDetail.maHoSo}
+            onClose={closeDetail}
+          />
+        )}
     </div>
   );
 }
