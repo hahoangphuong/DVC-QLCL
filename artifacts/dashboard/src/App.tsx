@@ -17,6 +17,7 @@ import { useAdminPanelShell } from "./features/admin/useAdminPanelShell";
 import { DashboardShellHeader } from "./features/layout/DashboardShellHeader";
 import { useDashboardSyncStatus } from "./features/layout/useDashboardSyncStatus";
 import { useDashboardLookupState } from "./features/lookup/useDashboardLookupState";
+import { LookupActionBar } from "./features/lookup/LookupActionBar";
 import { useLookupDetailModal } from "./features/lookup/useLookupDetailModal";
 import { useLookupExport } from "./features/lookup/useLookupExport";
 import { useLookupFilterControls } from "./features/lookup/useLookupFilterControls";
@@ -807,15 +808,14 @@ function TraCuuDaXuLyTab(props?: {
             ))}
           </LookupSelectField>
           <LookupTextFilterField value={maHoSo} onChange={setMaHoSo} />
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={handleResetFilters} className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-800" title="Đặt lại bộ lọc" aria-label="Đặt lại bộ lọc">↺</button>
-            <button type="button" onClick={handleExportExcel} disabled={exporting || isFetching || !data} className="inline-flex h-10 items-center justify-center rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">
-              {exporting ? LOOKUP_TEXT.exporting : LOOKUP_TEXT.exportExcel}
-            </button>
-          </div>
-          <div className="ml-auto text-xs text-slate-500 font-medium">
-            {isFetching ? "Đang tải dữ liệu..." : `Tìm thấy ${data?.rows.length.toLocaleString("vi-VN") ?? 0} hồ sơ`}
-          </div>
+          <LookupActionBar
+            onReset={handleResetFilters}
+            onExport={handleExportExcel}
+            exporting={exporting}
+            isFetching={isFetching}
+            hasData={Boolean(data)}
+            rowCount={data?.rows.length ?? 0}
+          />
         </div>
       </div>
 
@@ -3720,29 +3720,14 @@ function TraCuuDangXuLyTab(props?: {
 
           <LookupTextFilterField value={maHoSo} onChange={setMaHoSo} />
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-800"
-              title="Đặt lại bộ lọc"
-              aria-label="Đặt lại bộ lọc"
-            >
-              ↺
-            </button>
-            <button
-              type="button"
-              onClick={handleExportExcel}
-              disabled={exporting || isFetching || !data}
-              className="inline-flex h-10 items-center justify-center rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {exporting ? LOOKUP_TEXT.exporting : LOOKUP_TEXT.exportExcel}
-            </button>
-          </div>
-
-          <div className="ml-auto text-xs text-slate-500 font-medium">
-            {isFetching ? "Đang tải dữ liệu..." : `Tìm thấy ${data?.rows.length.toLocaleString("vi-VN") ?? 0} hồ sơ`}
-          </div>
+          <LookupActionBar
+            onReset={handleResetFilters}
+            onExport={handleExportExcel}
+            exporting={exporting}
+            isFetching={isFetching}
+            hasData={Boolean(data)}
+            rowCount={data?.rows.length ?? 0}
+          />
         </div>
       </div>
 
