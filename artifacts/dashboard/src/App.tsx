@@ -18,7 +18,8 @@ import { DashboardShellHeader } from "./features/layout/DashboardShellHeader";
 import { useDashboardSyncStatus } from "./features/layout/useDashboardSyncStatus";
 import { DashboardContentSwitch } from "./features/navigation/DashboardContentSwitch";
 import { DashboardTabPanels } from "./features/navigation/DashboardTabPanels";
-import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB_ID, type DashboardTabId } from "./features/navigation/dashboardTabs";
+import { DEFAULT_DASHBOARD_TAB_ID, type DashboardTabId } from "./features/navigation/dashboardTabs";
+import { useDashboardTabAccess } from "./features/navigation/useDashboardTabAccess";
 import { useDashboardNavigation } from "./features/navigation/useDashboardNavigation";
 import { useTabFilter } from "./features/stats/statsFilterContext";
 import { type TabFilter } from "./features/stats/statsShared";
@@ -4644,7 +4645,7 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
 // Main Dashboard
 // ---------------------------------------------------------------------------
 function Dashboard() {
-  const [activeTab, setActiveTab] = useState<string>(DEFAULT_DASHBOARD_TAB_ID);
+  const [activeTab, setActiveTab] = useState<DashboardTabId>(DEFAULT_DASHBOARD_TAB_ID);
   const [showAdmin, setShowAdmin] = useState(false);
   const [lookupState, setLookupState] = useState<TraCuuFilterState>(DEFAULT_TRA_CUU_FILTER_STATE);
   const [lookupDoneState, setLookupDoneState] = useState<TraCuuFilterState>(DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE);
@@ -4670,10 +4671,11 @@ function Dashboard() {
     },
   });
   const isAdmin = authRole === "admin";
-  const visibleTabs = useMemo(
-    () => (isAdmin ? DASHBOARD_TABS : DASHBOARD_TABS.filter((tab) => !tab.adminOnly)),
-    [isAdmin]
-  );
+  const { visibleTabs } = useDashboardTabAccess({
+    isAdmin,
+    activeTab,
+    setActiveTab,
+  });
   const { openAdmin, closeAdmin } = useAdminPanelShell({
     isAdmin,
     showAdmin,
