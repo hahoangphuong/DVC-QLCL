@@ -21,6 +21,7 @@ import { useLookupDetailModal } from "./features/lookup/useLookupDetailModal";
 import { useLookupExport } from "./features/lookup/useLookupExport";
 import { useLookupFilterControls } from "./features/lookup/useLookupFilterControls";
 import { LookupSelectField } from "./features/lookup/LookupSelectField";
+import { LookupTextFilterField } from "./features/lookup/LookupTextFilterField";
 import { useLookupResetFilters } from "./features/lookup/useLookupResetFilters";
 import { useLookupSort } from "./features/lookup/useLookupSort";
 import { useLookupTabState } from "./features/lookup/useLookupTabState";
@@ -805,16 +806,7 @@ function TraCuuDaXuLyTab(props?: {
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </LookupSelectField>
-          <label className="flex min-w-[260px] flex-col gap-1.5">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Lọc mã hồ sơ</span>
-            <input
-              type="text"
-              value={maHoSo}
-              onChange={(e) => setMaHoSo(e.target.value)}
-              placeholder="Nhập mã hồ sơ"
-              className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-            />
-          </label>
+          <LookupTextFilterField value={maHoSo} onChange={setMaHoSo} />
           <div className="flex items-center gap-2">
             <button type="button" onClick={handleResetFilters} className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-800" title="Đặt lại bộ lọc" aria-label="Đặt lại bộ lọc">↺</button>
             <button type="button" onClick={handleExportExcel} disabled={exporting || isFetching || !data} className="inline-flex h-10 items-center justify-center rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">
@@ -3726,16 +3718,7 @@ function TraCuuDangXuLyTab(props?: {
             ))}
           </LookupSelectField>
 
-          <label className="flex min-w-[260px] flex-col gap-1.5">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Lọc mã hồ sơ</span>
-            <input
-              type="text"
-              value={maHoSo}
-              onChange={(e) => setMaHoSo(e.target.value)}
-              placeholder="Nhập mã hồ sơ"
-              className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-            />
-          </label>
+          <LookupTextFilterField value={maHoSo} onChange={setMaHoSo} />
 
           <div className="flex items-center gap-2">
             <button
@@ -4689,5 +4672,3 @@ export default function App() {
     </QueryClientProvider>
   );
 }
-
-
