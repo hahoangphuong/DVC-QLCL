@@ -13,6 +13,7 @@ import { DOSSIER_DETAIL_TEXT, LOOKUP_TEXT } from "./uiText";
 import { DashboardAuthGate } from "./features/auth/DashboardAuthGate";
 import { useDashboardAuth } from "./features/auth/useDashboardAuth";
 import { AdminPanelMount } from "./features/admin/AdminPanelMount";
+import { useAdminPanelShell } from "./features/admin/useAdminPanelShell";
 import { DashboardShellHeader } from "./features/layout/DashboardShellHeader";
 import { DashboardContentSwitch } from "./features/navigation/DashboardContentSwitch";
 import { DashboardTabPanels } from "./features/navigation/DashboardTabPanels";
@@ -4688,7 +4689,10 @@ function Dashboard() {
     handleLogout,
   } = useDashboardAuth({
     onAfterLogout: () => {
-      closeAdmin();
+      setShowAdmin(false);
+      if (window.location.hash === "#admin") {
+        history.pushState("", document.title, window.location.pathname + window.location.search);
+      }
       setLookupState(DEFAULT_TRA_CUU_FILTER_STATE);
       setLookupDoneState(DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE);
       setActiveTab(DEFAULT_DASHBOARD_TAB_ID);
@@ -4699,6 +4703,11 @@ function Dashboard() {
     () => (isAdmin ? DASHBOARD_TABS : DASHBOARD_TABS.filter((tab) => !tab.adminOnly)),
     [isAdmin]
   );
+  const { openAdmin, closeAdmin } = useAdminPanelShell({
+    isAdmin,
+    showAdmin,
+    setShowAdmin,
+  });
 
   // Trạng thái sync gần nhất — tự động refresh mỗi 5 phút
   const { data: syncStatus } = useQuery({
@@ -4725,45 +4734,6 @@ function Dashboard() {
     () => ({ filters, updateFilter }),
     [filters, updateFilter]
   );
-
-  useEffect(() => {
-    if (!isAdmin && ["tra_cuu_dang_xl", "tra_cuu_da_xl"].includes(activeTab)) {
-      setActiveTab(DEFAULT_DASHBOARD_TAB_ID);
-    }
-  }, [activeTab, isAdmin]);
-
-  // Mở panel khi hash = #admin, đóng khi hash thay đổi
-  useEffect(() => {
-    const onHash = () => {
-      if (window.location.hash === "#admin" && isAdmin) setShowAdmin(true);
-      else {
-        setShowAdmin(false);
-        if (window.location.hash === "#admin" && !isAdmin) {
-          history.pushState("", document.title, window.location.pathname + window.location.search);
-        }
-      }
-    };
-    onHash();
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
-  }, [isAdmin]);
-
-  // Đóng panel bằng Esc
-  useEffect(() => {
-    if (!showAdmin) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeAdmin();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [showAdmin]);
-
-  const closeAdmin = () => {
-    setShowAdmin(false);
-    if (window.location.hash === "#admin") {
-      history.pushState("", document.title, window.location.pathname + window.location.search);
-    }
-  };
 
   const {
     openLookupByChuyenVien,
@@ -4825,10 +4795,7 @@ function Dashboard() {
           syncStatus={syncStatus}
           visibleTabs={visibleTabs}
           activeTab={activeTab}
-          onOpenAdmin={() => {
-            window.location.hash = "admin";
-            setShowAdmin(true);
-          }}
+        onOpenAdmin={openAdmin}
           onLogout={handleLogout}
           onSelectTab={setActiveTab}
         />

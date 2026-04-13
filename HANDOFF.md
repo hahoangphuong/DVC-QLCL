@@ -124,6 +124,7 @@ Current shell and feature files:
 - admin feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\AdminPanel.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/AdminPanel.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\AdminPanelMount.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/AdminPanelMount.tsx)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\useAdminPanelShell.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/useAdminPanelShell.ts)
 
 Important behavior:
 
@@ -160,6 +161,7 @@ Important behavior:
   - admin export table metadata:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\adminShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/adminShared.ts)
 - admin panel shell mounting should live in `features/admin/AdminPanelMount.tsx`; `App.tsx` should only pass gate flags and panel content
+- admin panel hash/Esc/open/close shell wiring should live in `features/admin/useAdminPanelShell.ts`; `App.tsx` should only pass gate state and use returned handlers
 - do not duplicate lookup/admin constants inside `App.tsx` or feature components; if a constant is used in more than one place, move it to a shared module first
 - do not reintroduce `DangXuLyTab`, `ChuyenGiaTable`, or pending fetch/types into `App.tsx`; the shell should only wire them
 - preferred edit order for dashboard changes:
