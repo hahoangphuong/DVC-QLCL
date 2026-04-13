@@ -19,6 +19,7 @@ import { useDashboardSyncStatus } from "./features/layout/useDashboardSyncStatus
 import { useDashboardLookupState } from "./features/lookup/useDashboardLookupState";
 import { LookupActionBar } from "./features/lookup/LookupActionBar";
 import { useLookupDetailModal } from "./features/lookup/useLookupDetailModal";
+import { LookupErrorPanel } from "./features/lookup/LookupErrorPanel";
 import { useLookupExport } from "./features/lookup/useLookupExport";
 import { useLookupFilterControls } from "./features/lookup/useLookupFilterControls";
 import { LookupSelectField } from "./features/lookup/LookupSelectField";
@@ -823,9 +824,7 @@ function TraCuuDaXuLyTab(props?: {
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {isError ? (
-          <div className="flex items-center justify-center h-48 text-red-400 text-sm">
-            Không thể tải danh mục hồ sơ đã xử lý
-          </div>
+          <LookupErrorPanel message={LOOKUP_TEXT.doneLookupLoadError} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse" style={{ minWidth: 1220, tableLayout: "fixed" }}>
@@ -3735,9 +3734,7 @@ function TraCuuDangXuLyTab(props?: {
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {isError ? (
-          <div className="flex items-center justify-center h-48 text-red-400 text-sm">
-            Không thể tải danh mục hồ sơ đang xử lý
-          </div>
+          <LookupErrorPanel message={LOOKUP_TEXT.pendingLookupLoadError} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse" style={{ minWidth: 1220, tableLayout: "fixed" }}>
