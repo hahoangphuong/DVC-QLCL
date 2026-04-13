@@ -19,6 +19,7 @@ import { useDashboardSyncStatus } from "./features/layout/useDashboardSyncStatus
 import { useDashboardLookupState } from "./features/lookup/useDashboardLookupState";
 import { useLookupDetailModal } from "./features/lookup/useLookupDetailModal";
 import { useLookupFilterControls } from "./features/lookup/useLookupFilterControls";
+import { useLookupResetFilters } from "./features/lookup/useLookupResetFilters";
 import { useLookupSort } from "./features/lookup/useLookupSort";
 import { DashboardContentSwitch } from "./features/navigation/DashboardContentSwitch";
 import { DashboardTabPanels } from "./features/navigation/DashboardTabPanels";
@@ -789,11 +790,7 @@ function TraCuuDaXuLyTab(props?: {
     </label>
   );
 
-  const handleResetFilters = () => setState((prev) => ({
-    ...DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE,
-    sortBy: prev.sortBy,
-    sortDir: prev.sortDir,
-  }));
+  const handleResetFilters = useLookupResetFilters(setState, DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE);
 
   const handleExportExcel = async () => {
     setExporting(true);
@@ -3746,11 +3743,7 @@ function TraCuuDangXuLyTab(props?: {
     </label>
   );
 
-  const handleResetFilters = () => setState((prev) => ({
-    ...DEFAULT_TRA_CUU_FILTER_STATE,
-    sortBy: prev.sortBy,
-    sortDir: prev.sortDir,
-  }));
+  const handleResetFilters = useLookupResetFilters(setState, DEFAULT_TRA_CUU_FILTER_STATE);
 
   const handleExportExcel = async () => {
     setExporting(true);
