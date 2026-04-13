@@ -101,6 +101,7 @@ Current shell and feature files:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\useDashboardAuth.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/useDashboardAuth.ts)
 - lookup feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\lookupShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/lookupShared.ts)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useDashboardLookupState.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useDashboardLookupState.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupHoSoDetailModal.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupHoSoDetailModal.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupTabs.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupTabs.tsx)
 - pending feature:
@@ -158,6 +159,8 @@ Important behavior:
 - lookup shared source of truth:
   - labels, sort order, option lists, submission display, export helpers:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\lookupShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/lookupShared.ts)
+  - lookup shell state/reset wiring:
+    - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useDashboardLookupState.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useDashboardLookupState.ts)
   - name formatting shared helpers:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\shared\nameFormatters.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/shared/nameFormatters.ts)
   - shared chart timing:
@@ -168,6 +171,8 @@ Important behavior:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\adminShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/adminShared.ts)
 - admin panel shell mounting should live in `features/admin/AdminPanelMount.tsx`; `App.tsx` should only pass gate flags and panel content
 - admin panel hash/Esc/open/close shell wiring should live in `features/admin/useAdminPanelShell.ts`; `App.tsx` should only pass gate state and use returned handlers
+- lookup shell state/reset should live in `features/lookup/useDashboardLookupState.ts`; `App.tsx` should not recreate local lookup filter state or reset logic
+- lookup types, fetchers, export helpers, and display helpers should stay in `features/lookup/lookupShared.ts`; `App.tsx` should import them instead of redefining local copies
 - do not duplicate lookup/admin constants inside `App.tsx` or feature components; if a constant is used in more than one place, move it to a shared module first
 - do not reintroduce `DangXuLyTab`, `ChuyenGiaTable`, or pending fetch/types into `App.tsx`; the shell should only wire them
 - preferred edit order for dashboard changes:

@@ -16,6 +16,7 @@ import { AdminPanelMount } from "./features/admin/AdminPanelMount";
 import { useAdminPanelShell } from "./features/admin/useAdminPanelShell";
 import { DashboardShellHeader } from "./features/layout/DashboardShellHeader";
 import { useDashboardSyncStatus } from "./features/layout/useDashboardSyncStatus";
+import { useDashboardLookupState } from "./features/lookup/useDashboardLookupState";
 import { DashboardContentSwitch } from "./features/navigation/DashboardContentSwitch";
 import { DashboardTabPanels } from "./features/navigation/DashboardTabPanels";
 import { DEFAULT_DASHBOARD_TAB_ID, type DashboardTabId } from "./features/navigation/dashboardTabs";
@@ -4647,9 +4648,14 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
 function Dashboard() {
   const [activeTab, setActiveTab] = useState<DashboardTabId>(DEFAULT_DASHBOARD_TAB_ID);
   const [showAdmin, setShowAdmin] = useState(false);
-  const [lookupState, setLookupState] = useState<TraCuuFilterState>(DEFAULT_TRA_CUU_FILTER_STATE);
-  const [lookupDoneState, setLookupDoneState] = useState<TraCuuFilterState>(DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE);
   const [hideEmptyExperts, setHideEmptyExperts] = useState(true);
+  const {
+    lookupState,
+    setLookupState,
+    lookupDoneState,
+    setLookupDoneState,
+    resetLookupStates,
+  } = useDashboardLookupState();
   const {
     authLoading,
     authRole,
@@ -4665,8 +4671,7 @@ function Dashboard() {
       if (window.location.hash === "#admin") {
         history.pushState("", document.title, window.location.pathname + window.location.search);
       }
-      setLookupState(DEFAULT_TRA_CUU_FILTER_STATE);
-      setLookupDoneState(DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE);
+      resetLookupStates();
       setActiveTab(DEFAULT_DASHBOARD_TAB_ID);
     },
   });
