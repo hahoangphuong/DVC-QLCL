@@ -19,6 +19,7 @@ import { useDashboardSyncStatus } from "./features/layout/useDashboardSyncStatus
 import { useDashboardLookupState } from "./features/lookup/useDashboardLookupState";
 import { useLookupDetailModal } from "./features/lookup/useLookupDetailModal";
 import { useLookupFilterControls } from "./features/lookup/useLookupFilterControls";
+import { useLookupSort } from "./features/lookup/useLookupSort";
 import { DashboardContentSwitch } from "./features/navigation/DashboardContentSwitch";
 import { DashboardTabPanels } from "./features/navigation/DashboardTabPanels";
 import { DEFAULT_DASHBOARD_TAB_ID, type DashboardTabId } from "./features/navigation/dashboardTabs";
@@ -746,14 +747,7 @@ function TraCuuDaXuLyTab(props?: {
     return rows;
   }, [data?.rows, sortBy, sortDir]);
 
-  const toggleSort = (key: typeof sortBy) => {
-    if (key === "stt") return;
-    if (sortBy === key) {
-      setState((prev) => ({ ...prev, sortDir: prev.sortDir === "asc" ? "desc" : "asc" }));
-      return;
-    }
-    setState((prev) => ({ ...prev, sortBy: key, sortDir: "desc" }));
-  };
+  const toggleSort = useLookupSort(setState, sortBy);
 
   const SortableHeader = ({ label, sortKey, center = false }: { label: string; sortKey: typeof sortBy; center?: boolean }) => {
     const active = sortBy === sortKey;
@@ -3710,14 +3704,7 @@ function TraCuuDangXuLyTab(props?: {
     return rows;
   }, [data?.rows, sortBy, sortDir]);
 
-  const toggleSort = (key: typeof sortBy) => {
-    if (key === "stt") return;
-    if (sortBy === key) {
-      setState((prev) => ({ ...prev, sortDir: prev.sortDir === "asc" ? "desc" : "asc" }));
-      return;
-    }
-    setState((prev) => ({ ...prev, sortBy: key, sortDir: "desc" }));
-  };
+  const toggleSort = useLookupSort(setState, sortBy);
 
   const SortableHeader = ({ label, sortKey, center = false }: { label: string; sortKey: typeof sortBy; center?: boolean }) => {
     const active = sortBy === sortKey;
