@@ -20,6 +20,7 @@ import { useDashboardLookupState } from "./features/lookup/useDashboardLookupSta
 import { useLookupDetailModal } from "./features/lookup/useLookupDetailModal";
 import { useLookupExport } from "./features/lookup/useLookupExport";
 import { useLookupFilterControls } from "./features/lookup/useLookupFilterControls";
+import { LookupSelectField } from "./features/lookup/LookupSelectField";
 import { useLookupResetFilters } from "./features/lookup/useLookupResetFilters";
 import { useLookupSort } from "./features/lookup/useLookupSort";
 import { useLookupTabState } from "./features/lookup/useLookupTabState";
@@ -774,29 +775,6 @@ function TraCuuDaXuLyTab(props?: {
     );
   };
 
-  const SelectField = ({
-    label,
-    value,
-    onChange,
-    children,
-  }: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-    children: ReactNode;
-  }) => (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="min-w-[180px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-      >
-        {children}
-      </select>
-    </label>
-  );
-
   const handleResetFilters = useLookupResetFilters(setState, DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE);
 
 
@@ -804,29 +782,29 @@ function TraCuuDaXuLyTab(props?: {
     <div className="space-y-6">
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
         <div className="flex flex-wrap gap-4 items-end">
-          <SelectField label="Chuyên viên" value={chuyenVien} onChange={setChuyenVien}>
+          <LookupSelectField label="Chuyên viên" value={chuyenVien} onChange={setChuyenVien}>
             <option value="">Tất cả</option>
             {chuyenVienOptions.map((option) => (
               <option key={option} value={option}>{displayLookupCv(option)}</option>
             ))}
-          </SelectField>
-          <SelectField label="Chuyên gia" value={chuyenGia} onChange={setChuyenGia}>
+          </LookupSelectField>
+          <LookupSelectField label="Chuyên gia" value={chuyenGia} onChange={setChuyenGia}>
             <option value="">Tất cả</option>
             {chuyenGiaOptions.map((option) => (
               <option key={option} value={option}>{option}</option>
             ))}
-          </SelectField>
-          <SelectField label="Thủ tục" value={String(thuTuc)} onChange={(value) => setThuTuc(value === "all" ? "all" : Number(value) as LookupThuTuc)}>
+          </LookupSelectField>
+          <LookupSelectField label="Thủ tục" value={String(thuTuc)} onChange={(value) => setThuTuc(value === "all" ? "all" : Number(value) as LookupThuTuc)}>
             <option value="all">Tất cả</option>
             <option value="48">TT48</option>
             <option value="47">TT47</option>
             <option value="46">TT46</option>
-          </SelectField>
-          <SelectField label="Tình trạng" value={tinhTrang} onChange={(value) => setTinhTrang(value as LookupTinhTrang | "all")}>
+          </LookupSelectField>
+          <LookupSelectField label="Tình trạng" value={tinhTrang} onChange={(value) => setTinhTrang(value as LookupTinhTrang | "all")}>
             {TRA_CUU_DA_XU_LY_TINH_TRANG_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
-          </SelectField>
+          </LookupSelectField>
           <label className="flex min-w-[260px] flex-col gap-1.5">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Lọc mã hồ sơ</span>
             <input
@@ -3714,29 +3692,6 @@ function TraCuuDangXuLyTab(props?: {
     );
   };
 
-  const SelectField = ({
-    label,
-    value,
-    onChange,
-    children,
-  }: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-    children: ReactNode;
-  }) => (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="min-w-[180px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-      >
-        {children}
-      </select>
-    </label>
-  );
-
   const handleResetFilters = useLookupResetFilters(setState, DEFAULT_TRA_CUU_FILTER_STATE);
 
 
@@ -3744,32 +3699,32 @@ function TraCuuDangXuLyTab(props?: {
     <div className="space-y-6">
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
         <div className="flex flex-wrap gap-4 items-end">
-          <SelectField label="Chuyên viên" value={chuyenVien} onChange={setChuyenVien}>
+          <LookupSelectField label="Chuyên viên" value={chuyenVien} onChange={setChuyenVien}>
             <option value="">Tất cả</option>
             {chuyenVienOptions.map((option) => (
               <option key={option} value={option}>{displayLookupCv(option)}</option>
             ))}
-          </SelectField>
+          </LookupSelectField>
 
-          <SelectField label="Chuyên gia" value={chuyenGia} onChange={setChuyenGia}>
+          <LookupSelectField label="Chuyên gia" value={chuyenGia} onChange={setChuyenGia}>
             <option value="">Tất cả</option>
             {chuyenGiaOptions.map((option) => (
               <option key={option} value={option}>{option}</option>
             ))}
-          </SelectField>
+          </LookupSelectField>
 
-          <SelectField label="Thủ tục" value={String(thuTuc)} onChange={(value) => setThuTuc(value === "all" ? "all" : Number(value) as LookupThuTuc)}>
+          <LookupSelectField label="Thủ tục" value={String(thuTuc)} onChange={(value) => setThuTuc(value === "all" ? "all" : Number(value) as LookupThuTuc)}>
             <option value="all">Tất cả</option>
             <option value="48">TT48</option>
             <option value="47">TT47</option>
             <option value="46">TT46</option>
-          </SelectField>
+          </LookupSelectField>
 
-          <SelectField label="Tình trạng" value={tinhTrang} onChange={(value) => setTinhTrang(value as LookupTinhTrang | "all")}>
+          <LookupSelectField label="Tình trạng" value={tinhTrang} onChange={(value) => setTinhTrang(value as LookupTinhTrang | "all")}>
             {TRA_CUU_TINH_TRANG_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
-          </SelectField>
+          </LookupSelectField>
 
           <label className="flex min-w-[260px] flex-col gap-1.5">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Lọc mã hồ sơ</span>
@@ -4734,8 +4689,5 @@ export default function App() {
     </QueryClientProvider>
   );
 }
-
-
-
 
 

@@ -104,6 +104,7 @@ Current shell and feature files:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useDashboardLookupState.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useDashboardLookupState.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupTabState.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupTabState.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupExport.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupExport.ts)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupSelectField.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupSelectField.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupFilterControls.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupFilterControls.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupDetailModal.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupDetailModal.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupResetFilters.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupResetFilters.ts)
@@ -171,6 +172,8 @@ Important behavior:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupTabState.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupTabState.ts)
   - lookup export state/handler wiring:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupExport.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupExport.ts)
+  - lookup shared select field UI:
+    - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupSelectField.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupSelectField.tsx)
   - lookup filter setter wiring:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupFilterControls.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupFilterControls.ts)
   - lookup detail modal state wiring:
@@ -192,6 +195,7 @@ Important behavior:
 - lookup shell state/reset should live in `features/lookup/useDashboardLookupState.ts`; `App.tsx` should not recreate local lookup filter state or reset logic
 - repeated lookup tab local-state wiring (`localState / state / setState / isActive`) should live in `features/lookup/useLookupTabState.ts`; `App.tsx` should not duplicate it across lookup tabs
 - repeated lookup export state/handler wiring (`exporting / handleExportExcel`) should live in `features/lookup/useLookupExport.ts`; `App.tsx` should not duplicate export try/catch/finally blocks across lookup tabs
+- repeated lookup select-field UI should live in `features/lookup/LookupSelectField.tsx`; `App.tsx` should not duplicate local `SelectField`/`LookupSelectField` component blocks across lookup tabs
 - repeated lookup field setter callbacks should live in `features/lookup/useLookupFilterControls.ts`; `App.tsx` should not duplicate `setChuyenVien/setChuyenGia/setThuTuc/setTinhTrang/setMaHoSo` across lookup tabs
 - lookup detail modal open/close state should live in `features/lookup/useLookupDetailModal.ts`; duplicated `selectedDetail` state should not be recreated inline across lookup tabs
 - repeated lookup reset-filter logic should live in `features/lookup/useLookupResetFilters.ts`; `App.tsx` should not duplicate `handleResetFilters` blocks across lookup tabs
