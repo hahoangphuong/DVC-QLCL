@@ -21,6 +21,7 @@ import { useLookupDetailModal } from "./features/lookup/useLookupDetailModal";
 import { useLookupFilterControls } from "./features/lookup/useLookupFilterControls";
 import { useLookupResetFilters } from "./features/lookup/useLookupResetFilters";
 import { useLookupSort } from "./features/lookup/useLookupSort";
+import { useLookupTabState } from "./features/lookup/useLookupTabState";
 import { DashboardContentSwitch } from "./features/navigation/DashboardContentSwitch";
 import { DashboardTabPanels } from "./features/navigation/DashboardTabPanels";
 import { DEFAULT_DASHBOARD_TAB_ID, type DashboardTabId } from "./features/navigation/dashboardTabs";
@@ -683,10 +684,7 @@ function TraCuuDaXuLyTab(props?: {
   setState: React.Dispatch<React.SetStateAction<TraCuuFilterState>>;
   isActive?: boolean;
 }) {
-  const [localState, setLocalState] = useState<TraCuuFilterState>(DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE);
-  const state = props?.state ?? localState;
-  const setState = props?.setState ?? setLocalState;
-  const isActive = props?.isActive ?? true;
+  const { state, setState, isActive } = useLookupTabState(props, DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE);
   const { thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo, sortBy, sortDir } = state;
   const { selectedDetail, openDetail, closeDetail } = useLookupDetailModal();
   const { setChuyenVien, setChuyenGia, setThuTuc, setTinhTrang, setMaHoSo } = useLookupFilterControls(setState);
@@ -3622,10 +3620,7 @@ function TraCuuDangXuLyTab(props?: {
   setState: React.Dispatch<React.SetStateAction<TraCuuFilterState>>;
   isActive?: boolean;
 }) {
-  const [localState, setLocalState] = useState<TraCuuFilterState>(DEFAULT_TRA_CUU_FILTER_STATE);
-  const state = props?.state ?? localState;
-  const setState = props?.setState ?? setLocalState;
-  const isActive = props?.isActive ?? true;
+  const { state, setState, isActive } = useLookupTabState(props, DEFAULT_TRA_CUU_FILTER_STATE);
   const { thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo, sortBy, sortDir } = state;
   const { selectedDetail, openDetail, closeDetail } = useLookupDetailModal();
   const { setChuyenVien, setChuyenGia, setThuTuc, setTinhTrang, setMaHoSo } = useLookupFilterControls(setState);
