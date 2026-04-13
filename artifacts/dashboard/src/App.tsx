@@ -18,6 +18,7 @@ import { DashboardShellHeader } from "./features/layout/DashboardShellHeader";
 import { useDashboardSyncStatus } from "./features/layout/useDashboardSyncStatus";
 import { useDashboardLookupState } from "./features/lookup/useDashboardLookupState";
 import { useLookupDetailModal } from "./features/lookup/useLookupDetailModal";
+import { useLookupExport } from "./features/lookup/useLookupExport";
 import { useLookupFilterControls } from "./features/lookup/useLookupFilterControls";
 import { useLookupResetFilters } from "./features/lookup/useLookupResetFilters";
 import { useLookupSort } from "./features/lookup/useLookupSort";
@@ -689,7 +690,15 @@ function TraCuuDaXuLyTab(props?: {
   const { selectedDetail, openDetail, closeDetail } = useLookupDetailModal();
   const { setChuyenVien, setChuyenGia, setThuTuc, setTinhTrang, setMaHoSo } = useLookupFilterControls(setState);
   const deferredMaHoSo = useDeferredValue(maHoSo);
-  const [exporting, setExporting] = useState(false);
+  const { exporting, handleExportExcel } = useLookupExport(() => downloadTraCuuDaXuLyExcel({
+    thuTuc,
+    chuyenVien,
+    chuyenGia,
+    tinhTrang,
+    maHoSo,
+    sortBy,
+    sortDir,
+  }));
 
   const { data, isLoading, isFetching, isError } = useQuery({
     queryKey: ["tra-cuu-da-xu-ly", thuTuc, chuyenVien, chuyenGia, tinhTrang, deferredMaHoSo],
@@ -790,24 +799,6 @@ function TraCuuDaXuLyTab(props?: {
 
   const handleResetFilters = useLookupResetFilters(setState, DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE);
 
-  const handleExportExcel = async () => {
-    setExporting(true);
-    try {
-      await downloadTraCuuDaXuLyExcel({
-        thuTuc,
-        chuyenVien,
-        chuyenGia,
-        tinhTrang,
-        maHoSo,
-        sortBy,
-        sortDir,
-      });
-    } catch (e) {
-      alert(`Lỗi xuất Excel: ${String(e)}`);
-    } finally {
-      setExporting(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -849,7 +840,7 @@ function TraCuuDaXuLyTab(props?: {
           <div className="flex items-center gap-2">
             <button type="button" onClick={handleResetFilters} className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-800" title="Đặt lại bộ lọc" aria-label="Đặt lại bộ lọc">↺</button>
             <button type="button" onClick={handleExportExcel} disabled={exporting || isFetching || !data} className="inline-flex h-10 items-center justify-center rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">
-              {exporting ? "Đang xuất..." : "Xuất Excel"}
+              {exporting ? LOOKUP_TEXT.exporting : LOOKUP_TEXT.exportExcel}
             </button>
           </div>
           <div className="ml-auto text-xs text-slate-500 font-medium">
@@ -3625,7 +3616,15 @@ function TraCuuDangXuLyTab(props?: {
   const { selectedDetail, openDetail, closeDetail } = useLookupDetailModal();
   const { setChuyenVien, setChuyenGia, setThuTuc, setTinhTrang, setMaHoSo } = useLookupFilterControls(setState);
   const deferredMaHoSo = useDeferredValue(maHoSo);
-  const [exporting, setExporting] = useState(false);
+  const { exporting, handleExportExcel } = useLookupExport(() => downloadTraCuuDangXuLyExcel({
+    thuTuc,
+    chuyenVien,
+    chuyenGia,
+    tinhTrang,
+    maHoSo,
+    sortBy,
+    sortDir,
+  }));
 
   const { data, isLoading, isFetching, isError } = useQuery({
     queryKey: ["tra-cuu-dang-xu-ly", thuTuc, chuyenVien, chuyenGia, tinhTrang, deferredMaHoSo],
@@ -3740,24 +3739,6 @@ function TraCuuDangXuLyTab(props?: {
 
   const handleResetFilters = useLookupResetFilters(setState, DEFAULT_TRA_CUU_FILTER_STATE);
 
-  const handleExportExcel = async () => {
-    setExporting(true);
-    try {
-      await downloadTraCuuDangXuLyExcel({
-        thuTuc,
-        chuyenVien,
-        chuyenGia,
-        tinhTrang,
-        maHoSo,
-        sortBy,
-        sortDir,
-      });
-    } catch (e) {
-      alert(`Lỗi xuất Excel: ${String(e)}`);
-    } finally {
-      setExporting(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -3817,7 +3798,7 @@ function TraCuuDangXuLyTab(props?: {
               disabled={exporting || isFetching || !data}
               className="inline-flex h-10 items-center justify-center rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {exporting ? "Đang xuất..." : "Xuất Excel"}
+              {exporting ? LOOKUP_TEXT.exporting : LOOKUP_TEXT.exportExcel}
             </button>
           </div>
 
@@ -4753,8 +4734,6 @@ export default function App() {
     </QueryClientProvider>
   );
 }
-
-
 
 
 
