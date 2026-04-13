@@ -1,4 +1,4 @@
-import { Fragment, useState, useCallback, useEffect, useRef, createContext, useContext, useMemo, useDeferredValue, type ReactNode } from "react";
+import { Fragment, useState, useCallback, useEffect, useRef, useMemo, useDeferredValue, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -20,6 +20,9 @@ import { DashboardContentSwitch } from "./features/navigation/DashboardContentSw
 import { DashboardTabPanels } from "./features/navigation/DashboardTabPanels";
 import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB_ID, type DashboardTabId } from "./features/navigation/dashboardTabs";
 import { useDashboardNavigation } from "./features/navigation/useDashboardNavigation";
+import { useTabFilter } from "./features/stats/statsFilterContext";
+import { type TabFilter } from "./features/stats/statsShared";
+import { useDashboardStatsFilters } from "./features/stats/useDashboardStatsFilters";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -125,32 +128,6 @@ const QUICK_FILTERS = [
   { key: "thang_nay", label: "Tháng này" },
 ];
 
-// ---------------------------------------------------------------------------
-// Shared Filter Context (giữ nguyên bộ lọc khi chuyển tab)
-// ---------------------------------------------------------------------------
-// Mỗi tab Thống kê có bộ lọc riêng, được lưu theo thuTuc
-interface TabFilter {
-  fromDate:     string;
-  toDate:       string;
-  fromInput:    string;
-  toInput:      string;
-  activePreset: string;
-  loadingAll:   boolean;
-}
-interface FiltersCtxType {
-  filters:      Record<number, TabFilter>;
-  updateFilter: (thuTuc: number, patch: Partial<TabFilter>) => void;
-}
-const FiltersCtx = createContext<FiltersCtxType | null>(null);
-function useTabFilter(thuTuc: number): TabFilter & { update: (p: Partial<TabFilter>) => void } {
-  const ctx = useContext(FiltersCtx);
-  if (!ctx) throw new Error("useTabFilter must be inside FiltersCtx.Provider");
-  return { ...ctx.filters[thuTuc], update: (p) => ctx.updateFilter(thuTuc, p) };
-}
-function makeTabFilter(preset = "nam_nay"): TabFilter {
-  const p = getPreset(preset);
-  return { fromDate: p.from, toDate: p.to, fromInput: toDMY(p.from), toInput: toDMY(p.to), activePreset: preset, loadingAll: false };
-}
 
 // ---------------------------------------------------------------------------
 // API fetch
@@ -4706,21 +4683,11 @@ function Dashboard() {
   const { data: syncStatus } = useDashboardSyncStatus(authRole);
 
   // Filter state riêng cho từng tab Thống kê (48 / 47 / 46) — không bị reset khi chuyển tab
-  const [filters, setFilters] = useState<Record<number, TabFilter>>({
-    0: makeTabFilter("nam_nay"),
-    48: makeTabFilter("nam_nay"),
-    47: makeTabFilter("nam_nay"),
-    46: makeTabFilter("nam_nay"),
-  });
-
-  const updateFilter = useCallback((thuTuc: number, patch: Partial<TabFilter>) => {
-    setFilters(prev => ({ ...prev, [thuTuc]: { ...prev[thuTuc], ...patch } }));
-  }, []);
-
-  const filtersValue = useMemo<FiltersCtxType>(
-    () => ({ filters, updateFilter }),
-    [filters, updateFilter]
-  );
+  const {
+    Provider: StatsFiltersProvider,
+    filtersValue,
+    updateFilter,
+  } = useDashboardStatsFilters();
 
   const {
     openLookupByChuyenVien,
@@ -4774,7 +4741,7 @@ function Dashboard() {
       error={authError}
       onSubmit={handleLogin}
     >
-      <FiltersCtx.Provider value={filtersValue}>
+      <StatsFiltersProvider value={filtersValue}>
       <div className="min-h-screen bg-slate-50">
         <DashboardShellHeader
           authRole={authRole}
@@ -4793,7 +4760,7 @@ function Dashboard() {
           <AdminPanel onClose={closeAdmin} />
         </AdminPanelMount>
       </div>
-      </FiltersCtx.Provider>
+      </StatsFiltersProvider>
     </DashboardAuthGate>
   );
 }
