@@ -102,6 +102,7 @@ Current shell and feature files:
 - lookup feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\lookupShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/lookupShared.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useDashboardLookupState.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useDashboardLookupState.ts)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupFilterControls.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupFilterControls.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupDetailModal.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupDetailModal.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupHoSoDetailModal.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupHoSoDetailModal.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupTabs.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupTabs.tsx)
@@ -162,6 +163,8 @@ Important behavior:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\lookupShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/lookupShared.ts)
   - lookup shell state/reset wiring:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useDashboardLookupState.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useDashboardLookupState.ts)
+  - lookup filter setter wiring:
+    - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupFilterControls.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupFilterControls.ts)
   - lookup detail modal state wiring:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupDetailModal.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupDetailModal.ts)
   - name formatting shared helpers:
@@ -175,6 +178,7 @@ Important behavior:
 - admin panel shell mounting should live in `features/admin/AdminPanelMount.tsx`; `App.tsx` should only pass gate flags and panel content
 - admin panel hash/Esc/open/close shell wiring should live in `features/admin/useAdminPanelShell.ts`; `App.tsx` should only pass gate state and use returned handlers
 - lookup shell state/reset should live in `features/lookup/useDashboardLookupState.ts`; `App.tsx` should not recreate local lookup filter state or reset logic
+- repeated lookup field setter callbacks should live in `features/lookup/useLookupFilterControls.ts`; `App.tsx` should not duplicate `setChuyenVien/setChuyenGia/setThuTuc/setTinhTrang/setMaHoSo` across lookup tabs
 - lookup detail modal open/close state should live in `features/lookup/useLookupDetailModal.ts`; duplicated `selectedDetail` state should not be recreated inline across lookup tabs
 - lookup types, fetchers, export helpers, and display helpers should stay in `features/lookup/lookupShared.ts`; `App.tsx` should import them instead of redefining local copies
 - do not duplicate lookup/admin constants inside `App.tsx` or feature components; if a constant is used in more than one place, move it to a shared module first

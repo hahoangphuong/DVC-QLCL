@@ -18,6 +18,7 @@ import { DashboardShellHeader } from "./features/layout/DashboardShellHeader";
 import { useDashboardSyncStatus } from "./features/layout/useDashboardSyncStatus";
 import { useDashboardLookupState } from "./features/lookup/useDashboardLookupState";
 import { useLookupDetailModal } from "./features/lookup/useLookupDetailModal";
+import { useLookupFilterControls } from "./features/lookup/useLookupFilterControls";
 import { DashboardContentSwitch } from "./features/navigation/DashboardContentSwitch";
 import { DashboardTabPanels } from "./features/navigation/DashboardTabPanels";
 import { DEFAULT_DASHBOARD_TAB_ID, type DashboardTabId } from "./features/navigation/dashboardTabs";
@@ -686,11 +687,7 @@ function TraCuuDaXuLyTab(props?: {
   const isActive = props?.isActive ?? true;
   const { thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo, sortBy, sortDir } = state;
   const { selectedDetail, openDetail, closeDetail } = useLookupDetailModal();
-  const setChuyenVien = (value: string) => setState((prev) => ({ ...prev, chuyenVien: value }));
-  const setChuyenGia = (value: string) => setState((prev) => ({ ...prev, chuyenGia: value }));
-  const setThuTuc = (value: LookupThuTuc | "all") => setState((prev) => ({ ...prev, thuTuc: value }));
-  const setTinhTrang = (value: LookupTinhTrang | "all") => setState((prev) => ({ ...prev, tinhTrang: value }));
-  const setMaHoSo = (value: string) => setState((prev) => ({ ...prev, maHoSo: value }));
+  const { setChuyenVien, setChuyenGia, setThuTuc, setTinhTrang, setMaHoSo } = useLookupFilterControls(setState);
   const deferredMaHoSo = useDeferredValue(maHoSo);
   const [exporting, setExporting] = useState(false);
 
@@ -3640,11 +3637,7 @@ function TraCuuDangXuLyTab(props?: {
   const isActive = props?.isActive ?? true;
   const { thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo, sortBy, sortDir } = state;
   const { selectedDetail, openDetail, closeDetail } = useLookupDetailModal();
-  const setChuyenVien = (value: string) => setState((prev) => ({ ...prev, chuyenVien: value }));
-  const setChuyenGia = (value: string) => setState((prev) => ({ ...prev, chuyenGia: value }));
-  const setThuTuc = (value: LookupThuTuc | "all") => setState((prev) => ({ ...prev, thuTuc: value }));
-  const setTinhTrang = (value: LookupTinhTrang | "all") => setState((prev) => ({ ...prev, tinhTrang: value }));
-  const setMaHoSo = (value: string) => setState((prev) => ({ ...prev, maHoSo: value }));
+  const { setChuyenVien, setChuyenGia, setThuTuc, setTinhTrang, setMaHoSo } = useLookupFilterControls(setState);
   const deferredMaHoSo = useDeferredValue(maHoSo);
   const [exporting, setExporting] = useState(false);
 
