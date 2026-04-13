@@ -15,6 +15,7 @@ import { useDashboardAuth } from "./features/auth/useDashboardAuth";
 import { AdminPanelMount } from "./features/admin/AdminPanelMount";
 import { useAdminPanelShell } from "./features/admin/useAdminPanelShell";
 import { DashboardShellHeader } from "./features/layout/DashboardShellHeader";
+import { useDashboardSyncStatus } from "./features/layout/useDashboardSyncStatus";
 import { DashboardContentSwitch } from "./features/navigation/DashboardContentSwitch";
 import { DashboardTabPanels } from "./features/navigation/DashboardTabPanels";
 import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB_ID, type DashboardTabId } from "./features/navigation/dashboardTabs";
@@ -161,13 +162,6 @@ interface SummaryData {
   ton_sau:       number;
   from_date:     string;
   to_date:       string;
-}
-
-interface SyncStatus { lastSyncedAt: string | null; totalSizeMB: number; }
-async function fetchSyncStatus(): Promise<SyncStatus> {
-  const res = await fetch(`${API}/sync-status`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
 }
 
 async function fetchSummary(thuTuc: number, fromDate: string, toDate: string): Promise<SummaryData> {
@@ -4709,14 +4703,7 @@ function Dashboard() {
     setShowAdmin,
   });
 
-  // Trạng thái sync gần nhất — tự động refresh mỗi 5 phút
-  const { data: syncStatus } = useQuery({
-    queryKey: ["sync-status", authRole],
-    queryFn: fetchSyncStatus,
-    enabled: Boolean(authRole),
-    refetchInterval: 5 * 60 * 1000,
-    staleTime: 60 * 1000,
-  });
+  const { data: syncStatus } = useDashboardSyncStatus(authRole);
 
   // Filter state riêng cho từng tab Thống kê (48 / 47 / 46) — không bị reset khi chuyển tab
   const [filters, setFilters] = useState<Record<number, TabFilter>>({

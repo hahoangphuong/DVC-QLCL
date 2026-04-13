@@ -121,6 +121,7 @@ Current shell and feature files:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\layout\DashboardHeaderActions.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/layout/DashboardHeaderActions.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\layout\DashboardHeaderBrand.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/layout/DashboardHeaderBrand.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\layout\DashboardShellHeader.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/layout/DashboardShellHeader.tsx)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\layout\useDashboardSyncStatus.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/layout/useDashboardSyncStatus.ts)
 - admin feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\AdminPanel.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/AdminPanel.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\AdminPanelMount.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/AdminPanelMount.tsx)
@@ -147,6 +148,7 @@ Important behavior:
 - dashboard header auth controls (role badge, Admin button, logout button) should live in `features/layout/DashboardHeaderActions.tsx`, not be expanded inline again in `App.tsx`
 - dashboard header brand/title rendering should live in `features/layout/DashboardHeaderBrand.tsx`, not be expanded inline again in `App.tsx`
 - dashboard header shell composition should live in `features/layout/DashboardShellHeader.tsx`; `App.tsx` should only pass shell props into it
+- dashboard sync-status fetch/query should live in `features/layout/useDashboardSyncStatus.ts`; `App.tsx` should only consume the hook result
 - dashboard auth loading/login gate should live in `features/auth/DashboardAuthGate.tsx`; `App.tsx` should only pass auth shell state into it
 - dashboard auth bootstrap/login/logout wiring should live in `features/auth/useDashboardAuth.ts`; `App.tsx` should only pass reset callbacks into that hook
 - lookup shared source of truth:
