@@ -22,6 +22,7 @@ import { useLookupDetailModal } from "./features/lookup/useLookupDetailModal";
 import { LookupErrorPanel } from "./features/lookup/LookupErrorPanel";
 import { useLookupExport } from "./features/lookup/useLookupExport";
 import { useLookupFilterControls } from "./features/lookup/useLookupFilterControls";
+import { LookupProgressBar } from "./features/lookup/LookupProgressBar";
 import { LookupSelectField } from "./features/lookup/LookupSelectField";
 import { LookupTextFilterField } from "./features/lookup/LookupTextFilterField";
 import { useLookupResetFilters } from "./features/lookup/useLookupResetFilters";
@@ -665,20 +666,6 @@ function KpiCard({ label, value, color, bgColor }: {
       </div>
       <div className="text-3xl font-bold" style={{ color }}>
         {value.toLocaleString("vi-VN")}
-      </div>
-    </div>
-  );
-}
-
-function LookupProgressBar({ visible }: { visible: boolean }) {
-  if (!visible) return null;
-  return (
-    <div className="overflow-hidden rounded-lg border border-blue-100 bg-blue-50">
-      <div className="relative h-2 w-full overflow-hidden bg-blue-100">
-        <div className="h-full w-full animate-pulse bg-blue-500" />
-      </div>
-      <div className="px-3 py-2 text-xs font-medium text-blue-700">
-        Đang tải dữ liệu...
       </div>
     </div>
   );
