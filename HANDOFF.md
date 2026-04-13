@@ -109,6 +109,7 @@ Current shell and feature files:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupActionBar.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupActionBar.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupErrorPanel.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupErrorPanel.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupProgressBar.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupProgressBar.tsx)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupInactiveCancel.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupInactiveCancel.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupFilterControls.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupFilterControls.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupDetailModal.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupDetailModal.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupResetFilters.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupResetFilters.ts)
@@ -186,6 +187,8 @@ Important behavior:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupErrorPanel.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupErrorPanel.tsx)
   - lookup shared progress bar UI:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupProgressBar.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupProgressBar.tsx)
+  - lookup inactive-tab query cancel wiring:
+    - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupInactiveCancel.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupInactiveCancel.ts)
   - lookup filter setter wiring:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupFilterControls.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupFilterControls.ts)
   - lookup detail modal state wiring:
@@ -212,6 +215,7 @@ Important behavior:
 - repeated lookup action-bar UI (`reset`, `xuất Excel`, `đang tải/tìm thấy`) should live in `features/lookup/LookupActionBar.tsx`; `App.tsx` should not duplicate that block across lookup tabs
 - repeated lookup error-panel UI should live in `features/lookup/LookupErrorPanel.tsx`; `App.tsx` should not duplicate the red error-state block across lookup tabs
 - repeated lookup progress-bar UI should live in `features/lookup/LookupProgressBar.tsx`; `App.tsx` should not duplicate the loading progress block across lookup tabs
+- repeated lookup inactive-tab query cancel wiring should live in `features/lookup/useLookupInactiveCancel.ts`; `App.tsx` should not duplicate `useEffect(... cancelQueries ...)` across lookup tabs
 - repeated lookup field setter callbacks should live in `features/lookup/useLookupFilterControls.ts`; `App.tsx` should not duplicate `setChuyenVien/setChuyenGia/setThuTuc/setTinhTrang/setMaHoSo` across lookup tabs
 - lookup detail modal open/close state should live in `features/lookup/useLookupDetailModal.ts`; duplicated `selectedDetail` state should not be recreated inline across lookup tabs
 - repeated lookup reset-filter logic should live in `features/lookup/useLookupResetFilters.ts`; `App.tsx` should not duplicate `handleResetFilters` blocks across lookup tabs

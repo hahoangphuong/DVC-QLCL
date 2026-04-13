@@ -25,6 +25,7 @@ import { useLookupFilterControls } from "./features/lookup/useLookupFilterContro
 import { LookupProgressBar } from "./features/lookup/LookupProgressBar";
 import { LookupSelectField } from "./features/lookup/LookupSelectField";
 import { LookupTextFilterField } from "./features/lookup/LookupTextFilterField";
+import { useLookupInactiveCancel } from "./features/lookup/useLookupInactiveCancel";
 import { useLookupResetFilters } from "./features/lookup/useLookupResetFilters";
 import { useLookupSort } from "./features/lookup/useLookupSort";
 import { useLookupTabState } from "./features/lookup/useLookupTabState";
@@ -706,11 +707,7 @@ function TraCuuDaXuLyTab(props?: {
     retry: 2,
   });
 
-  useEffect(() => {
-    if (!isActive) {
-      void queryClient.cancelQueries({ queryKey: ["tra-cuu-da-xu-ly"] });
-    }
-  }, [isActive]);
+  useLookupInactiveCancel(isActive, "tra-cuu-da-xu-ly");
 
   const chuyenVienOptions = data?.options.chuyen_vien ?? [];
   const chuyenGiaOptions = data?.options.chuyen_gia ?? [];
@@ -3597,11 +3594,7 @@ function TraCuuDangXuLyTab(props?: {
     retry: 2,
   });
 
-  useEffect(() => {
-    if (!isActive) {
-      void queryClient.cancelQueries({ queryKey: ["tra-cuu-dang-xu-ly"] });
-    }
-  }, [isActive]);
+  useLookupInactiveCancel(isActive, "tra-cuu-dang-xu-ly");
 
   const chuyenVienOptions = data?.options.chuyen_vien ?? [];
   const chuyenGiaOptions = data?.options.chuyen_gia ?? [];
