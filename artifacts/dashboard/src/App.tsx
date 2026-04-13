@@ -24,6 +24,7 @@ import { useLookupExport } from "./features/lookup/useLookupExport";
 import { useLookupFilterControls } from "./features/lookup/useLookupFilterControls";
 import { LookupProgressBar } from "./features/lookup/LookupProgressBar";
 import { LookupSelectField } from "./features/lookup/LookupSelectField";
+import { LookupSortableHeader } from "./features/lookup/LookupSortableHeader";
 import { LookupTextFilterField } from "./features/lookup/LookupTextFilterField";
 import { useLookupInactiveCancel } from "./features/lookup/useLookupInactiveCancel";
 import { useLookupResetFilters } from "./features/lookup/useLookupResetFilters";
@@ -717,22 +718,6 @@ function TraCuuDaXuLyTab(props?: {
 
   const toggleSort = useLookupSort(setState, sortBy);
 
-  const SortableHeader = ({ label, sortKey, center = false }: { label: string; sortKey: typeof sortBy; center?: boolean }) => {
-    const active = sortBy === sortKey;
-    const arrow = !active ? "↕" : sortDir === "asc" ? "↑" : "↓";
-    return (
-      <th className={`px-3 py-3 ${center ? "text-center" : "text-left"} font-semibold uppercase tracking-wide whitespace-nowrap`}>
-        <button
-          type="button"
-          onClick={() => toggleSort(sortKey)}
-          className={`inline-flex items-center gap-1 transition-colors ${active ? "text-blue-700" : "text-slate-600 hover:text-slate-800"}`}
-        >
-          <span>{label}</span>
-          <span className={`text-[10px] ${active ? "text-blue-600" : "text-slate-400"}`}>{arrow}</span>
-        </button>
-      </th>
-    );
-  };
 
   const handleResetFilters = useLookupResetFilters(setState, DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE);
 
@@ -800,15 +785,15 @@ function TraCuuDaXuLyTab(props?: {
               <thead>
                 <tr className="bg-slate-100 text-slate-600">
                   <th className="px-3 py-3 text-center font-semibold uppercase tracking-wide whitespace-nowrap">STT</th>
-                  <SortableHeader label="Mã hồ sơ" sortKey="ma_ho_so" />
-                  <SortableHeader label={LOOKUP_TEXT.dateReceived} sortKey="ngay_tiep_nhan" center />
-                  <SortableHeader label={LOOKUP_TEXT.resultDateShort} sortKey="ngay_hen_tra" center />
-                  <SortableHeader label="Lần nộp" sortKey="submission_kind" />
-                  <SortableHeader label="Loại hồ sơ" sortKey="loai_ho_so" center />
-                  <SortableHeader label="Chuyên viên" sortKey="chuyen_vien" />
-                  <SortableHeader label="Chuyên gia" sortKey="chuyen_gia" />
-                  <SortableHeader label="Thời gian xử lý" sortKey="thoi_gian_cho_ngay" center />
-                  <SortableHeader label="Tình trạng" sortKey="tinh_trang" />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label="Mã hồ sơ" sortKey="ma_ho_so" />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label={LOOKUP_TEXT.dateReceived} sortKey="ngay_tiep_nhan" center />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label={LOOKUP_TEXT.resultDateShort} sortKey="ngay_hen_tra" center />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label="Lần nộp" sortKey="submission_kind" />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label="Loại hồ sơ" sortKey="loai_ho_so" center />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label="Chuyên viên" sortKey="chuyen_vien" />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label="Chuyên gia" sortKey="chuyen_gia" />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label="Thời gian xử lý" sortKey="thoi_gian_cho_ngay" center />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label="Tình trạng" sortKey="tinh_trang" />
                   <th className="px-3 py-3 text-center font-semibold tracking-wide whitespace-nowrap">Thông tin hồ sơ</th>
                 </tr>
               </thead>
@@ -3575,22 +3560,6 @@ function TraCuuDangXuLyTab(props?: {
 
   const toggleSort = useLookupSort(setState, sortBy);
 
-  const SortableHeader = ({ label, sortKey, center = false }: { label: string; sortKey: typeof sortBy; center?: boolean }) => {
-    const active = sortBy === sortKey;
-    const arrow = !active ? "↕" : sortDir === "asc" ? "↑" : "↓";
-    return (
-      <th className={`px-3 py-3 ${center ? "text-center" : "text-left"} font-semibold uppercase tracking-wide whitespace-nowrap`}>
-        <button
-          type="button"
-          onClick={() => toggleSort(sortKey)}
-          className={`inline-flex items-center gap-1 transition-colors ${active ? "text-blue-700" : "text-slate-600 hover:text-slate-800"}`}
-        >
-          <span>{label}</span>
-          <span className={`text-[10px] ${active ? "text-blue-600" : "text-slate-400"}`}>{arrow}</span>
-        </button>
-      </th>
-    );
-  };
 
   const handleResetFilters = useLookupResetFilters(setState, DEFAULT_TRA_CUU_FILTER_STATE);
 
@@ -3663,15 +3632,15 @@ function TraCuuDangXuLyTab(props?: {
               <thead>
                 <tr className="bg-slate-100 text-slate-600">
                   <th className="px-3 py-3 text-center font-semibold uppercase tracking-wide whitespace-nowrap">STT</th>
-                  <SortableHeader label="Mã hồ sơ" sortKey="ma_ho_so" />
-                  <SortableHeader label={LOOKUP_TEXT.dateReceived} sortKey="ngay_tiep_nhan" center />
-                  <SortableHeader label={LOOKUP_TEXT.dueDate} sortKey="ngay_hen_tra" center />
-                  <SortableHeader label="Lần nộp" sortKey="submission_kind" />
-                  <SortableHeader label="Loại hồ sơ" sortKey="loai_ho_so" center />
-                  <SortableHeader label="Chuyên viên" sortKey="chuyen_vien" />
-                  <SortableHeader label="Chuyên gia" sortKey="chuyen_gia" />
-                  <SortableHeader label="Thời gian chờ" sortKey="thoi_gian_cho_ngay" center />
-                  <SortableHeader label="Tình trạng" sortKey="tinh_trang" />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label="Mã hồ sơ" sortKey="ma_ho_so" />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label={LOOKUP_TEXT.dateReceived} sortKey="ngay_tiep_nhan" center />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label={LOOKUP_TEXT.dueDate} sortKey="ngay_hen_tra" center />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label="Lần nộp" sortKey="submission_kind" />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label="Loại hồ sơ" sortKey="loai_ho_so" center />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label="Chuyên viên" sortKey="chuyen_vien" />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label="Chuyên gia" sortKey="chuyen_gia" />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label="Thời gian chờ" sortKey="thoi_gian_cho_ngay" center />
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} label="Tình trạng" sortKey="tinh_trang" />
                   <th className="px-3 py-3 text-center font-semibold tracking-wide whitespace-nowrap">Thông tin hồ sơ</th>
                 </tr>
               </thead>
