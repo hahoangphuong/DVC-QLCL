@@ -158,6 +158,7 @@ Important behavior:
 - new UI work should prefer editing the feature file directly instead of adding more logic back into `App.tsx`
 - pending workflow UI and charts should now be edited in `features/pending/*`, not in `App.tsx`
 - pending tab runtime shell should live in `features/pending/PendingTabs.tsx`; dead local `DangXuLyTab` and `ChuyenGiaTable` implementations have been removed from `App.tsx`
+- pending types, fetchers, and color maps should live in `features/pending/pendingShared.ts`; the duplicated local definitions have been removed from `App.tsx`
 - stats overview/filter panel should now be edited in `features/stats/*`, not re-added inline to `App.tsx`
 - overview tab runtime shell should live in `features/stats/OverviewTab.tsx`; `App.tsx` should only pass cross-tab handlers and the monthly-trend render callback
 - statistics tab runtime shell should live in `features/stats/ThongKeTab.tsx`; `App.tsx` should only pass render callbacks for heavier chart/table blocks

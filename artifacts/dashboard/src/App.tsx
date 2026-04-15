@@ -338,50 +338,6 @@ async function fetchTt48ReceivedMonthlyLoai(): Promise<Tt48ReceivedMonthlyLoaiDa
   return res.json();
 }
 
-interface DangXuLyRow {
-  cv_name:       string;
-  tong:          number;
-  cho_cv:        number;  // TT47/46: "Chờ CV"; TT48: alias cho chua_xu_ly
-  cho_cg:        number;
-  cho_to_truong: number;
-  cho_trp:       number;
-  cho_pct:       number;
-  cho_van_thu:   number;
-  con_han:       number;
-  qua_han:       number;
-  cham_so_ngay:  number;
-  cham_ma:       string | null;
-  cham_ngay:     string | null;
-  // TT48 only: 4 sub-bước Chuyên viên
-  chua_xu_ly?:   number;
-  bi_tra_lai?:   number;
-  cho_tong_hop?: number;
-  cho_cong_bo?:  number;
-  // TT48 only: per-step con_han / qua_han (để tính hàng CÒN HẠN / QUÁ HẠN)
-  chua_xu_ly_con?: number; chua_xu_ly_qua?: number;
-  bi_tra_lai_con?: number; bi_tra_lai_qua?: number;
-  cho_cg_con?: number;     cho_cg_qua?: number;
-  cho_tong_hop_con?: number; cho_tong_hop_qua?: number;
-  cho_to_truong_con?: number; cho_to_truong_qua?: number;
-  cho_trp_con?: number;    cho_trp_qua?: number;
-  cho_cong_bo_con?: number; cho_cong_bo_qua?: number;
-  cho_pct_con?: number;    cho_pct_qua?: number;
-  cho_van_thu_con?: number; cho_van_thu_qua?: number;
-}
-interface DangXuLyData {
-  thu_tuc: number;
-  cho_phan_cong: DangXuLyRow | null;
-  rows: DangXuLyRow[];
-  months: { label: string; year: number; month: number; cnt: number }[];
-}
-
-async function fetchDangXuLy(thuTuc: number): Promise<DangXuLyData> {
-  const url = `${API}/stats/dang-xu-ly?thu_tuc=${thuTuc}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
 type LookupThuTuc = 46 | 47 | 48;
 type LookupTinhTrang =
   | "cho_phan_cong"
@@ -576,33 +532,6 @@ function extractHoSoId(maHoSo: string): number | null {
 function buildDavViewFileUrl(pathOrUrl: string | null | undefined): string | null {
   if (!pathOrUrl) return null;
   return `${API}/dav/file?path=${encodeURIComponent(pathOrUrl)}`;
-}
-
-// ---------------------------------------------------------------------------
-// Chuyên gia data model
-// ---------------------------------------------------------------------------
-interface ChuyenGiaRow {
-  ten:          string;
-  da_giai_quyet:number;
-  tong:         number;
-  con_han:      number;
-  qua_han:      number;
-  cham_so_ngay: number;
-  cham_ma:      string | null;
-  cham_ngay:    string | null;
-  cham_cv:      string | null;
-}
-interface ChuyenGiaData {
-  thu_tuc:        number;
-  chuyen_gia:     ChuyenGiaRow[];
-  chuyen_vien_cg: ChuyenGiaRow[];
-}
-const CHART_ANIMATION_MS = 500;
-async function fetchChuyenGia(thuTuc: number): Promise<ChuyenGiaData> {
-  const url = `${API}/stats/chuyen-gia?thu_tuc=${thuTuc}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
 }
 
 // ---------------------------------------------------------------------------
@@ -2063,32 +1992,6 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Tab: ĐANG XỬ LÝ (tab 2, 4, 6)
-// ---------------------------------------------------------------------------
-
-const CHO_COLORS = {
-  cho_cv:        { fill: "#3b82f6", label: "Chờ CV",          text: "#1d4ed8" },
-  cho_cg:        { fill: "#22c55e", label: "Chờ CG",          text: "#15803d" },
-  cho_to_truong: { fill: "#fb923c", label: "Chờ Tổ trưởng",  text: "#c2410c" },
-  cho_trp:       { fill: "#f97316", label: "Chờ TrP",         text: "#c2410c" },
-  cho_pct:       { fill: "#a855f7", label: "Chờ PCT",         text: "#7e22ce" },
-  cho_van_thu:   { fill: "#64748b", label: "Chờ Văn thư",    text: "#334155" },
-} as const;
-
-// Màu biểu đồ tròn riêng cho TT48 (7 bước)
-const CHO_COLORS_48 = [
-  { key: "chua_xu_ly",   fill: "#3b82f6", label: "Chưa xử lý"   },
-  { key: "bi_tra_lai",   fill: "#ef4444", label: "Bị trả lại"   },
-  { key: "cho_cg",       fill: "#22c55e", label: "Chờ chuyên gia" },
-  { key: "cho_tong_hop", fill: "#06b6d4", label: "Chờ tổng hợp" },
-  { key: "cho_to_truong",fill: "#fb923c", label: "Chờ Tổ trưởng"},
-  { key: "cho_trp",      fill: "#f97316", label: "Chờ Trưởng phòng" },
-  { key: "cho_cong_bo",  fill: "#10b981", label: "Chờ công bố"  },
-  { key: "cho_pct",      fill: "#a855f7", label: "Chờ PCT"      },
-  { key: "cho_van_thu",  fill: "#64748b", label: "Chờ Văn thư"  },
-] as const;
 
 const LOOKUP_TINH_TRANG_LABELS: Record<LookupTinhTrang, string> = {
   cho_phan_cong: LOOKUP_TEXT.pendingAssignment,
