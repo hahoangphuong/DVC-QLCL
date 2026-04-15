@@ -231,6 +231,7 @@ Important behavior:
 - repeated lookup results-table UI should live in `features/lookup/LookupResultsTable.tsx`; `App.tsx` should not duplicate large table render blocks across the two lookup tabs
 - runtime shell for `Tra cứu HS đã xử lý` should live in `features/lookup/LookupDoneTab.tsx`; `App.tsx` should only host a thin wrapper while the legacy inline block awaits safe deletion
 - runtime shell for `Tra cứu HS đang xử lý` should live in `features/lookup/LookupPendingTab.tsx`; `App.tsx` should only host a thin wrapper while the legacy inline block awaits safe deletion
+- repeated lookup filter-panel UI should live in `features/lookup/LookupFilterPanel.tsx`; feature tab shells should not duplicate the combobox/input/action-bar form block
 - repeated lookup field setter callbacks should live in `features/lookup/useLookupFilterControls.ts`; `App.tsx` should not duplicate `setChuyenVien/setChuyenGia/setThuTuc/setTinhTrang/setMaHoSo` across lookup tabs
 - lookup detail modal open/close state should live in `features/lookup/useLookupDetailModal.ts`; duplicated `selectedDetail` state should not be recreated inline across lookup tabs
 - repeated lookup reset-filter logic should live in `features/lookup/useLookupResetFilters.ts`; `App.tsx` should not duplicate `handleResetFilters` blocks across lookup tabs

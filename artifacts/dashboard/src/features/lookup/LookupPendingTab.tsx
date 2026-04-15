@@ -1,6 +1,6 @@
 import { useDeferredValue, type Dispatch, type SetStateAction } from "react";
 import { LOOKUP_TEXT } from "../../uiText";
-import { LookupActionBar } from "./LookupActionBar";
+import { LookupFilterPanel } from "./LookupFilterPanel";
 import { LookupHoSoDetailModal } from "./LookupHoSoDetailModal";
 import { useLookupDetailModal } from "./useLookupDetailModal";
 import { useLookupExport } from "./useLookupExport";
@@ -8,8 +8,6 @@ import { useLookupFilterControls } from "./useLookupFilterControls";
 import { LookupProgressBar } from "./LookupProgressBar";
 import { useLookupQuery } from "./useLookupQuery";
 import { LookupResultsTable } from "./LookupResultsTable";
-import { LookupSelectField } from "./LookupSelectField";
-import { LookupTextFilterField } from "./LookupTextFilterField";
 import { useLookupInactiveCancel } from "./useLookupInactiveCancel";
 import { useLookupResetFilters } from "./useLookupResetFilters";
 import { useLookupSortedRows } from "./useLookupSortedRows";
@@ -72,55 +70,27 @@ export function LookupPendingTab(props?: {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-        <div className="flex flex-wrap gap-4 items-end">
-          <LookupSelectField label={"Chuy\u00ean vi\u00ean"} value={chuyenVien} onChange={setChuyenVien}>
-            <option value="">{LOOKUP_TEXT.all}</option>
-            {chuyenVienOptions.map((option) => (
-              <option key={option} value={option}>{displayLookupCv(option)}</option>
-            ))}
-          </LookupSelectField>
-
-          <LookupSelectField label={"Chuy\u00ean gia"} value={chuyenGia} onChange={setChuyenGia}>
-            <option value="">{LOOKUP_TEXT.all}</option>
-            {chuyenGiaOptions.map((option) => (
-              <option key={option} value={option}>{displayLookupCg(option)}</option>
-            ))}
-          </LookupSelectField>
-
-          <LookupSelectField
-            label={"Th\u1ee7 t\u1ee5c"}
-            value={String(thuTuc)}
-            onChange={(value) => setThuTuc(value === "all" ? "all" : Number(value) as LookupThuTuc)}
-          >
-            <option value="all">{LOOKUP_TEXT.all}</option>
-            <option value="48">TT48</option>
-            <option value="47">TT47</option>
-            <option value="46">TT46</option>
-          </LookupSelectField>
-
-          <LookupSelectField
-            label={"T\u00ecnh tr\u1ea1ng"}
-            value={tinhTrang}
-            onChange={(value) => setTinhTrang(value as LookupTinhTrang | "all")}
-          >
-            {TRA_CUU_TINH_TRANG_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </LookupSelectField>
-
-          <LookupTextFilterField value={maHoSo} onChange={setMaHoSo} />
-
-          <LookupActionBar
-            onReset={handleResetFilters}
-            onExport={handleExportExcel}
-            exporting={exporting}
-            isFetching={isFetching}
-            hasData={Boolean(data)}
-            rowCount={data?.rows.length ?? 0}
-          />
-        </div>
-      </div>
+      <LookupFilterPanel
+        thuTuc={thuTuc}
+        chuyenVien={chuyenVien}
+        chuyenGia={chuyenGia}
+        tinhTrang={tinhTrang}
+        maHoSo={maHoSo}
+        chuyenVienOptions={chuyenVienOptions}
+        chuyenGiaOptions={chuyenGiaOptions}
+        tinhTrangOptions={TRA_CUU_TINH_TRANG_OPTIONS}
+        onThuTucChange={setThuTuc}
+        onChuyenVienChange={setChuyenVien}
+        onChuyenGiaChange={setChuyenGia}
+        onTinhTrangChange={setTinhTrang}
+        onMaHoSoChange={setMaHoSo}
+        onReset={handleResetFilters}
+        onExport={handleExportExcel}
+        exporting={exporting}
+        isFetching={isFetching}
+        hasData={Boolean(data)}
+        rowCount={data?.rows.length ?? 0}
+      />
 
       <LookupProgressBar visible={isActive && (isLoading || isFetching)} />
 
