@@ -30,7 +30,32 @@ import { useDashboardNavigation } from "./features/navigation/useDashboardNaviga
 import { DangXuLyTab as PendingDangXuLyTab } from "./features/pending/PendingTabs";
 import { OverviewTab } from "./features/stats/OverviewTab";
 import { ThongKeTab } from "./features/stats/ThongKeTab";
-import { type TabFilter } from "./features/stats/statsShared";
+import {
+  COLORS,
+  QUICK_FILTERS,
+  TT48_LOAI_LABELS,
+  fetchChuyenVien,
+  fetchEarliestDate,
+  fetchGiaiQuyet,
+  fetchMonthly,
+  fetchSummary,
+  fetchTonSau,
+  fetchTt48LoaiHoSo,
+  fetchTt48ReceivedMonthlyLoai,
+  getPreset,
+  type ChuyenVienData,
+  type ChuyenVienRow,
+  type GiaiQuyetData,
+  type MonthData,
+  type MonthlyData,
+  type SummaryData,
+  type TabFilter,
+  type TonSauData,
+  type Tt48LoaiHoSoData,
+  type Tt48LoaiHoSoRow,
+  type Tt48ReceivedMonthlyLoaiData,
+  type Tt48ReceivedMonthlyLoaiRow,
+} from "./features/stats/statsShared";
 import { useDashboardStatsFilters } from "./features/stats/useDashboardStatsFilters";
 
 const queryClient = new QueryClient({
@@ -47,248 +72,6 @@ const queryClient = new QueryClient({
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, ""); // e.g. "/dashboard"
 const API  = "/api"; // API base — tách biệt khỏi BASE để production routing hoạt động
-
-
-
-// Màu cho 4 chỉ số
-const COLORS = {
-  ton_truoc:     { bar: "#f472b6", label: "TỒN TRƯỚC",     text: "#be185d" },
-  da_nhan:       { bar: "#3b82f6", label: "ĐÃ NHẬN",        text: "#1d4ed8" },
-  da_giai_quyet: { bar: "#22c55e", label: "ĐÃ GIẢI QUYẾT", text: "#15803d" },
-  ton_sau:       { bar: "#f59e0b", label: "TỒN SAU",        text: "#b45309" },
-} as const;
-
-// ---------------------------------------------------------------------------
-// Quick filter presets
-// ---------------------------------------------------------------------------
-function getPreset(key: string): { from: string; to: string } {
-  const now = new Date();
-  const today = toYMD(now);
-  const y = now.getFullYear();
-  const m = now.getMonth(); // 0-indexed
-
-  if (key === "thang_nay") {
-    return { from: toYMD(new Date(y, m, 1)), to: minYmd(toYMD(new Date(y, m + 1, 0)), today) };
-  }
-  if (key === "nam_nay") {
-    return { from: toYMD(new Date(y, 0, 1)), to: minYmd(toYMD(new Date(y, 11, 31)), today) };
-  }
-  if (key === "12_thang") {
-    const d = new Date(now);
-    d.setMonth(d.getMonth() - 11);
-    return { from: toYMD(new Date(d.getFullYear(), d.getMonth(), 1)), to: minYmd(toYMD(new Date(y, m + 1, 0)), today) };
-  }
-  if (key === "6_thang") {
-    const d = new Date(now);
-    d.setMonth(d.getMonth() - 5);
-    return { from: toYMD(new Date(d.getFullYear(), d.getMonth(), 1)), to: minYmd(toYMD(new Date(y, m + 1, 0)), today) };
-  }
-  if (key === "3_thang") {
-    const d = new Date(now);
-    d.setMonth(d.getMonth() - 2);
-    return { from: toYMD(new Date(d.getFullYear(), d.getMonth(), 1)), to: minYmd(toYMD(new Date(y, m + 1, 0)), today) };
-  }
-  return { from: toYMD(new Date(y, 0, 1)), to: today };
-}
-
-// Thứ tự nút lọc khớp với thiết kế Excel (Cộng dồn xử lý riêng vì cần API)
-const QUICK_FILTERS = [
-  { key: "nam_nay",   label: "Năm nay" },
-  { key: "12_thang",  label: "12 tháng gần nhất" },
-  { key: "6_thang",   label: "6 tháng gần nhất" },
-  { key: "3_thang",   label: "3 tháng gần nhất" },
-  { key: "thang_nay", label: "Tháng này" },
-];
-
-
-// ---------------------------------------------------------------------------
-// API fetch
-// ---------------------------------------------------------------------------
-interface SummaryData {
-  ton_truoc:     number;
-  da_nhan:       number;
-  da_giai_quyet: number;
-  ton_sau:       number;
-  from_date:     string;
-  to_date:       string;
-}
-
-async function fetchSummary(thuTuc: number, fromDate: string, toDate: string): Promise<SummaryData> {
-  const url = `${API}/stats/summary?thu_tuc=${thuTuc}&from_date=${fromDate}&to_date=${toDate}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-async function fetchEarliestDate(thuTuc: number): Promise<string> {
-  const url = `${API}/stats/earliest-date?thu_tuc=${thuTuc}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
-  return data.earliest_date as string;
-}
-
-interface GiaiQuyetData {
-  dung_han: number;
-  qua_han:  number;
-  total:    number;
-  pct_dung_han: number;
-  pct_qua_han:  number;
-}
-
-async function fetchGiaiQuyet(thuTuc: number, fromDate: string, toDate: string): Promise<GiaiQuyetData> {
-  const url = `${API}/stats/giai-quyet?thu_tuc=${thuTuc}&from_date=${fromDate}&to_date=${toDate}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-interface TonSauData {
-  con_han:     number;
-  qua_han:     number;
-  total:       number;
-  pct_con_han: number;
-  pct_qua_han: number;
-}
-
-async function fetchTonSau(thuTuc: number, toDate: string): Promise<TonSauData> {
-  const url = `${API}/stats/ton-sau?thu_tuc=${thuTuc}&to_date=${toDate}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-interface ChuyenVienRow {
-  ten_cv:          string;
-  ton_truoc:       number;
-  da_nhan:         number;
-  gq_tong:         number;
-  can_bo_sung:     number;
-  khong_dat:       number;
-  hoan_thanh:      number;
-  dung_han:        number;
-  qua_han:         number;
-  tg_tb:           number | null;
-  pct_gq_dung_han: number;
-  pct_da_gq:       number;
-  ton_sau_tong:    number;
-  ton_sau_con_han: number;
-  ton_sau_qua_han: number;
-  treo:            number;
-}
-
-interface ChuyenVienData {
-  thu_tuc:         number;
-  from_date:       string;
-  to_date:         string;
-  cho_phan_cong:   ChuyenVienRow | null;
-  rows:            ChuyenVienRow[];
-}
-
-async function fetchChuyenVien(thuTuc: number, fromDate: string, toDate: string): Promise<ChuyenVienData> {
-  const url = `${API}/stats/chuyen-vien?thu_tuc=${thuTuc}&from_date=${fromDate}&to_date=${toDate}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-interface Tt48LoaiHoSoRow {
-  loai_ho_so: string;
-  ton_truoc_total: number;
-  ton_truoc_first: number;
-  ton_truoc_supplement: number;
-  ton_truoc_first_hinh_thuc_1: number;
-  ton_truoc_first_hinh_thuc_2: number;
-  ton_truoc_supplement_hinh_thuc_1: number;
-  ton_truoc_supplement_hinh_thuc_2: number;
-  ton_truoc_hinh_thuc_1: number;
-  ton_truoc_hinh_thuc_2: number;
-  da_nhan_total: number;
-  da_nhan_first: number;
-  da_nhan_supplement: number;
-  da_nhan_first_hinh_thuc_1: number;
-  da_nhan_first_hinh_thuc_2: number;
-  da_nhan_supplement_hinh_thuc_1: number;
-  da_nhan_supplement_hinh_thuc_2: number;
-  da_nhan_hinh_thuc_1: number;
-  da_nhan_hinh_thuc_2: number;
-  giai_quyet_total: number;
-  giai_quyet_first: number;
-  giai_quyet_supplement: number;
-  giai_quyet_first_hinh_thuc_1: number;
-  giai_quyet_first_hinh_thuc_2: number;
-  giai_quyet_supplement_hinh_thuc_1: number;
-  giai_quyet_supplement_hinh_thuc_2: number;
-  giai_quyet_hinh_thuc_1: number;
-  giai_quyet_hinh_thuc_2: number;
-  ton_total: number;
-  ton_first: number;
-  ton_supplement: number;
-  ton_first_hinh_thuc_1: number;
-  ton_first_hinh_thuc_2: number;
-  ton_supplement_hinh_thuc_1: number;
-  ton_supplement_hinh_thuc_2: number;
-  ton_hinh_thuc_1: number;
-  ton_hinh_thuc_2: number;
-  treo: number;
-}
-
-interface Tt48LoaiHoSoData {
-  thu_tuc: 48;
-  from_date: string;
-  to_date: string;
-  rows: Tt48LoaiHoSoRow[];
-}
-
-async function fetchTt48LoaiHoSo(fromDate: string, toDate: string): Promise<Tt48LoaiHoSoData> {
-  const url = `${API}/stats/tt48-phan-loai?from_date=${fromDate}&to_date=${toDate}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-interface MonthData {
-  label:          string;
-  year:           number;
-  month:          number;
-  da_nhan:        number;
-  da_giai_quyet:  number;
-  ton_sau:        number;
-}
-
-interface MonthlyData {
-  thu_tuc: number;
-  months:  MonthData[];
-}
-
-async function fetchMonthly(thuTuc: number): Promise<MonthlyData> {
-  const url = `${API}/stats/monthly?thu_tuc=${thuTuc}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-interface Tt48ReceivedMonthlyLoaiRow {
-  label: string;
-  year: number;
-  month: number;
-  total: number;
-  A: number;
-  B: number;
-  C: number;
-  D: number;
-}
-
-interface Tt48ReceivedMonthlyLoaiData {
-  thu_tuc: 48;
-  months: Tt48ReceivedMonthlyLoaiRow[];
-}
-
-async function fetchTt48ReceivedMonthlyLoai(): Promise<Tt48ReceivedMonthlyLoaiData> {
-  const res = await fetch(`${API}/stats/tt48-monthly-received`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
 
 type LookupThuTuc = 46 | 47 | 48;
 type LookupTinhTrang =
@@ -1519,13 +1302,6 @@ function ThongKeOverviewCharts({ thuTuc, fromDate, toDate }: {
 // ---------------------------------------------------------------------------
 // TT48 — Bảng phân loại hồ sơ theo A/B/C/D và lần nộp
 // ---------------------------------------------------------------------------
-
-const TT48_LOAI_LABELS: Record<string, string> = {
-  A: "A - Hồ sơ mới",
-  B: "B - Hồ sơ cập nhật/duy trì",
-  C: "C - Hồ sơ điều chỉnh",
-  D: "D - Hồ sơ đính chính",
-};
 
 function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: string }) {
   const { data, isLoading, isError } = useQuery({
