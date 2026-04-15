@@ -18,6 +18,7 @@ import { DashboardShellHeader } from "./features/layout/DashboardShellHeader";
 import { useDashboardSyncStatus } from "./features/layout/useDashboardSyncStatus";
 import { useDashboardLookupState } from "./features/lookup/useDashboardLookupState";
 import { LookupActionBar } from "./features/lookup/LookupActionBar";
+import { LookupDoneTab } from "./features/lookup/LookupDoneTab";
 import { useLookupDetailModal } from "./features/lookup/useLookupDetailModal";
 import { useLookupExport } from "./features/lookup/useLookupExport";
 import { useLookupFilterControls } from "./features/lookup/useLookupFilterControls";
@@ -675,6 +676,14 @@ function KpiCard({ label, value, color, bgColor }: {
 }
 
 function TraCuuDaXuLyTab(props?: {
+  state: TraCuuFilterState;
+  setState: React.Dispatch<React.SetStateAction<TraCuuFilterState>>;
+  isActive?: boolean;
+}) {
+  return <LookupDoneTab {...props} />;
+}
+
+function TraCuuDaXuLyTabLegacy(props?: {
   state: TraCuuFilterState;
   setState: React.Dispatch<React.SetStateAction<TraCuuFilterState>>;
   isActive?: boolean;
