@@ -221,6 +221,8 @@ Important behavior:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\shared\displayFormatters.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/shared/displayFormatters.ts)
   - stats shared constants, types, and fetchers:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\statsShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/statsShared.ts)
+  - stats presentational charts:
+    - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\StatsCharts.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/StatsCharts.tsx)
   - admin export table metadata:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\adminShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/adminShared.ts)
 - admin panel runtime UI should live in `features/admin/AdminPanel.tsx`; do not reintroduce a local `AdminPanel` block in `App.tsx`
@@ -234,6 +236,7 @@ Important behavior:
 - repeated lookup action-bar UI (`reset`, `xuất Excel`, `đang tải/tìm thấy`) should live in `features/lookup/LookupActionBar.tsx`; `App.tsx` should not duplicate that block across lookup tabs
 - repeated lookup error-panel UI should live in `features/lookup/LookupErrorPanel.tsx`; `App.tsx` should not duplicate the red error-state block across lookup tabs
 - stats shared constants/types/fetchers (`COLORS`, `QUICK_FILTERS`, `getPreset`, summary/monthly/ton-sau/chuyen-vien/tt48 classification fetchers, and related types) should live in `features/stats/statsShared.ts`; `App.tsx` should not reintroduce local duplicates
+- stats presentational chart components (`SummaryBarChart`, `DonutChart`, `KpiCard`) should live in `features/stats/StatsCharts.tsx`; `App.tsx` should not reintroduce local chart blocks
 - repeated lookup progress-bar UI should live in `features/lookup/LookupProgressBar.tsx`; `App.tsx` should not duplicate the loading progress block across lookup tabs
 - repeated lookup inactive-tab query cancel wiring should live in `features/lookup/useLookupInactiveCancel.ts`; `App.tsx` should not duplicate `useEffect(... cancelQueries ...)` across lookup tabs
 - repeated lookup query wiring should live in `features/lookup/useLookupQuery.ts`; `App.tsx` should not duplicate the `useQuery({ queryKey, queryFn, placeholderData, retry })` block across lookup tabs

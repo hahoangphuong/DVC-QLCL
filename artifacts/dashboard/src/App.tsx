@@ -29,6 +29,7 @@ import { useDashboardTabAccess } from "./features/navigation/useDashboardTabAcce
 import { useDashboardNavigation } from "./features/navigation/useDashboardNavigation";
 import { DangXuLyTab as PendingDangXuLyTab } from "./features/pending/PendingTabs";
 import { OverviewTab } from "./features/stats/OverviewTab";
+import { DonutChart, SummaryBarChart } from "./features/stats/StatsCharts";
 import { ThongKeTab } from "./features/stats/ThongKeTab";
 import {
   COLORS,
@@ -262,223 +263,6 @@ function buildDavViewFileUrl(pathOrUrl: string | null | undefined): string | nul
   return `${API}/dav/file?path=${encodeURIComponent(pathOrUrl)}`;
 }
 
-// ---------------------------------------------------------------------------
-// Bar chart component
-// ---------------------------------------------------------------------------
-interface BarData { name: string; value: number; color: string; }
-
-function SummaryBarChart({ data }: { data: BarData[] }) {
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload?.length) {
-      return (
-        <div className="bg-white border border-slate-200 rounded-lg shadow-md px-4 py-2 text-sm">
-          <p className="font-semibold text-slate-700">{payload[0].payload.name}</p>
-          <p className="text-slate-900 font-bold text-lg">{payload[0].value.toLocaleString("vi-VN")}</p>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  return (
-    <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={data} margin={{ top: 32, right: 20, left: -10, bottom: 8 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-        <XAxis
-          dataKey="name"
-          tick={{ fontSize: 11, fontWeight: 600, fill: "#475569" }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          tick={{ fontSize: 11, fill: "#94a3b8" }}
-          axisLine={false}
-          tickLine={false}
-          width={44}
-          tickFormatter={(v) => v.toLocaleString("vi-VN")}
-        />
-        <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-        <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={80} animationDuration={CHART_ANIMATION_MS}>
-          {data.map((entry, index) => (
-            <Cell key={index} fill={entry.color} />
-          ))}
-          <LabelList
-            dataKey="value"
-            position="top"
-            formatter={(v: number) => v.toLocaleString("vi-VN")}
-            style={{ fontSize: 13, fontWeight: 700, fill: "#1e293b" }}
-          />
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// KPI card
-// ---------------------------------------------------------------------------
-function KpiCard({ label, value, color, bgColor }: {
-  label: string; value: number; color: string; bgColor: string;
-}) {
-  return (
-    <div
-      className="flex flex-col items-center justify-center rounded-xl p-4 text-center min-w-0 shadow-sm border border-slate-100"
-      style={{ backgroundColor: bgColor }}
-    >
-      <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color }}>
-        {label}
-      </div>
-      <div className="text-3xl font-bold" style={{ color }}>
-        {value.toLocaleString("vi-VN")}
-      </div>
-    </div>
-  );
-}
-
-function TraCuuDaXuLyTab(props?: {
-  state: TraCuuFilterState;
-  setState: React.Dispatch<React.SetStateAction<TraCuuFilterState>>;
-  isActive?: boolean;
-}) {
-  return <LookupDoneTab {...props} />;
-}
-
-// ---------------------------------------------------------------------------
-// Generic DonutChart — tái sử dụng cho mọi biểu đồ tròn
-// ---------------------------------------------------------------------------
-interface DonutSegment { name: string; value: number; color: string; }
-interface DonutChartProps {
-  title:        string;
-  segments:     DonutSegment[];
-  total:        number;
-  isLoading:    boolean;
-  isError:      boolean;
-  emptyMessage?: string;
-  spinnerColor?: string;
-  startAngle?:  number;
-  endAngle?:    number;
-}
-
-function DonutChart({
-  title,
-  segments,
-  total,
-  isLoading,
-  isError,
-  emptyMessage,
-  spinnerColor = "#22c55e",
-  startAngle = 270,
-  endAngle = -90,
-}: DonutChartProps) {
-  // Renders center count (index=0 only) + % inside each slice
-  const CombinedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }: any) => {
-    const RADIAN = Math.PI / 180;
-    const r = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const sx = cx + r * Math.cos(-midAngle * RADIAN);
-    const sy = cy + r * Math.sin(-midAngle * RADIAN);
-    const pct = Math.round((percent ?? 0) * 100);
-    return (
-      <g>
-        {index === 0 && (
-          <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
-            <tspan x={cx} dy="-0.4em" fontSize={26} fontWeight={700} fill="#1e293b">
-              {total.toLocaleString("vi-VN")}
-            </tspan>
-            <tspan x={cx} dy="1.5em" fontSize={11} fill="#64748b" fontWeight={500}>
-              hồ sơ
-            </tspan>
-          </text>
-        )}
-        {pct >= 5 && (
-          <text x={sx} y={sy} fill="#fff" textAnchor="middle" dominantBaseline="central"
-            fontSize={13} fontWeight={700}>{pct}%</text>
-        )}
-      </g>
-    );
-  };
-
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload?.length) {
-      const item = payload[0];
-      const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0.0";
-      return (
-        <div className="bg-white border border-slate-200 rounded-lg shadow-md px-3 py-2 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ background: item.payload.color }} />
-            <span className="font-semibold text-slate-700">{item.name}</span>
-          </div>
-          <div className="mt-1 font-bold text-slate-900">{item.value.toLocaleString("vi-VN")} hồ sơ</div>
-          <div className="text-slate-500">{pct}%</div>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-      <div className="relative flex items-center justify-center mb-4">
-        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide text-center">{title}</h3>
-        {isLoading && <span className="text-xs text-blue-500 animate-pulse font-medium absolute right-0">Đang tải...</span>}
-        {isError   && <span className="text-xs text-red-500 font-medium absolute right-0">Lỗi tải dữ liệu</span>}
-      </div>
-
-      {isLoading ? (
-        <div className="h-52 flex items-center justify-center">
-          <div className="w-8 h-8 rounded-full border-4 border-t-transparent animate-spin"
-               style={{ borderColor: `${spinnerColor} transparent transparent transparent` }} />
-        </div>
-      ) : total === 0 ? (
-        <div className="h-52 flex flex-col items-center justify-center text-slate-400 text-sm">
-          <div className="text-3xl mb-2">—</div>
-          <div>{emptyMessage ?? "Không có dữ liệu"}</div>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center gap-3">
-          <ResponsiveContainer width="100%" height={190}>
-            <PieChart>
-              <Pie
-                data={segments}
-                cx="50%"
-                cy="50%"
-                innerRadius={58}
-                outerRadius={88}
-                dataKey="value"
-                startAngle={startAngle}
-                endAngle={endAngle}
-                labelLine={false}
-                label={CombinedLabel}
-                animationDuration={CHART_ANIMATION_MS}
-              >
-                {segments.map((s, i) => (
-                  <Cell key={i} fill={s.color} stroke="none" />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-
-          {/* Legend — nằm bên dưới, căn giữa, cân xứng */}
-          <div className="flex gap-8 justify-center flex-wrap pb-1">
-            {segments.map((s) => (
-              <div key={s.name} className="flex flex-col items-center gap-0.5">
-                <div className="w-3 h-3 rounded-full" style={{ background: s.color }} />
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mt-0.5">{s.name}</div>
-                <div className="text-xl font-bold leading-tight" style={{ color: s.color }}>
-                  {s.value.toLocaleString("vi-VN")}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Bảng chi tiết theo chuyên viên (đầy đủ cột theo thiết kế Excel)
-// ---------------------------------------------------------------------------
 const CV_PREFIX = "CV thụ lý : ";
 function cleanCvName(raw: string): string {
   return raw.startsWith(CV_PREFIX) ? raw.slice(CV_PREFIX.length).trim() : raw.trim();
@@ -1712,6 +1496,14 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
       </div>
     </div>
   );
+}
+
+function TraCuuDaXuLyTab(props?: {
+  state: TraCuuFilterState;
+  setState: React.Dispatch<React.SetStateAction<TraCuuFilterState>>;
+  isActive?: boolean;
+}) {
+  return <LookupDoneTab {...props} />;
 }
 
 function TraCuuDangXuLyTab(props?: {
