@@ -1,7 +1,7 @@
 import { useDeferredValue, type Dispatch, type SetStateAction } from "react";
 import { LOOKUP_TEXT } from "../../uiText";
+import { LookupDetailModalMount } from "./LookupDetailModalMount";
 import { LookupFilterPanel } from "./LookupFilterPanel";
-import { LookupHoSoDetailModal } from "./LookupHoSoDetailModal";
 import { useLookupDetailModal } from "./useLookupDetailModal";
 import { useLookupExport } from "./useLookupExport";
 import { useLookupFilterControls } from "./useLookupFilterControls";
@@ -110,9 +110,7 @@ export function LookupPendingTab(props?: {
         onOpenDetail={openDetail}
       />
 
-      {selectedDetail && (
-        <LookupHoSoDetailModal hoSoId={selectedDetail.hoSoId} maHoSo={selectedDetail.maHoSo} onClose={closeDetail} />
-      )}
+      <LookupDetailModalMount selectedDetail={selectedDetail} onClose={closeDetail} />
     </div>
   );
 }
