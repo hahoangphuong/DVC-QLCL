@@ -39,7 +39,7 @@ import { DEFAULT_DASHBOARD_TAB_ID, type DashboardTabId } from "./features/naviga
 import { useDashboardTabAccess } from "./features/navigation/useDashboardTabAccess";
 import { useDashboardNavigation } from "./features/navigation/useDashboardNavigation";
 import { OverviewTab } from "./features/stats/OverviewTab";
-import { useTabFilter } from "./features/stats/statsFilterContext";
+import { ThongKeTab } from "./features/stats/ThongKeTab";
 import { type TabFilter } from "./features/stats/statsShared";
 import { useDashboardStatsFilters } from "./features/stats/useDashboardStatsFilters";
 
@@ -1637,39 +1637,6 @@ function ThongKeOverviewCharts({ thuTuc, fromDate, toDate }: {
         emptyMessage="Không có hồ sơ tồn sau trong kỳ"
         spinnerColor="#60a5fa"
       />
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tab: THỐNG KÊ (tab 1, 3, 5 — TT48 / TT47 / TT46)
-// ---------------------------------------------------------------------------
-function ThongKeTab({ thuTuc }: { thuTuc: 48 | 47 | 46 }) {
-  const { fromDate, toDate, fromInput, toInput, activePreset, loadingAll, update } = useTabFilter(thuTuc);
-
-  return (
-    <div className="space-y-6">
-      <ThongKeDateFilterPanel
-        thuTuc={thuTuc}
-        fromDate={fromDate}
-        toDate={toDate}
-        fromInput={fromInput}
-        toInput={toInput}
-        activePreset={activePreset}
-        loadingAll={loadingAll}
-        update={update}
-      />
-
-      <ThongKeOverviewCharts thuTuc={thuTuc} fromDate={fromDate} toDate={toDate} />
-
-      {/* Bảng chi tiết theo chuyên viên */}
-      <ChuyenVienTable thuTuc={thuTuc} fromDate={fromDate} toDate={toDate} />
-
-      {/* Biểu đồ xu hướng theo tháng */}
-      <MonthlyTrendChart thuTuc={thuTuc} fromDate={fromDate} toDate={toDate} />
-
-      {thuTuc === 48 && <Tt48LoaiHoSoTable fromDate={fromDate} toDate={toDate} />}
-      {thuTuc === 48 && <Tt48LoaiHoSoMonthlyChart fromDate={fromDate} toDate={toDate} />}
     </div>
   );
 }
@@ -3712,7 +3679,23 @@ function Dashboard() {
           )}
         />
       )}
-      renderThongKe={(thuTuc) => <ThongKeTab thuTuc={thuTuc} />}
+      renderThongKe={(thuTuc) => (
+        <ThongKeTab
+          thuTuc={thuTuc}
+          renderChuyenVienTable={(tt, fromDate, toDate) => (
+            <ChuyenVienTable thuTuc={tt} fromDate={fromDate} toDate={toDate} />
+          )}
+          renderMonthlyTrend={(tt, fromDate, toDate) => (
+            <MonthlyTrendChart thuTuc={tt} fromDate={fromDate} toDate={toDate} />
+          )}
+          renderTt48LoaiHoSoTable={(fromDate, toDate) => (
+            <Tt48LoaiHoSoTable fromDate={fromDate} toDate={toDate} />
+          )}
+          renderTt48LoaiHoSoMonthlyChart={(fromDate, toDate) => (
+            <Tt48LoaiHoSoMonthlyChart fromDate={fromDate} toDate={toDate} />
+          )}
+        />
+      )}
       renderDangXuLy={(thuTuc) =>
         thuTuc === 48 ? (
           <DangXuLyTab
