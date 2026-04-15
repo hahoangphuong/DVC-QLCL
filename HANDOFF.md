@@ -246,6 +246,7 @@ Important behavior:
 - repeated lookup reset-filter logic should live in `features/lookup/useLookupResetFilters.ts`; `App.tsx` should not duplicate `handleResetFilters` blocks across lookup tabs
 - repeated lookup sort toggle logic should live in `features/lookup/useLookupSort.ts`; `App.tsx` should not duplicate `toggleSort` blocks across lookup tabs
 - lookup types, fetchers, export helpers, and display helpers should stay in `features/lookup/lookupShared.ts`; `App.tsx` should import them instead of redefining local copies
+- lookup status labels/options/sort-order, display helpers, and export download helpers have been removed from `App.tsx`; the single source of truth is `features/lookup/lookupShared.ts`
 - do not duplicate lookup/admin constants inside `App.tsx` or feature components; if a constant is used in more than one place, move it to a shared module first
 - do not reintroduce `DangXuLyTab`, `ChuyenGiaTable`, or pending fetch/types into `App.tsx`; the shell should only wire them
 - preferred edit order for dashboard changes:
