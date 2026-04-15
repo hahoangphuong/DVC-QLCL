@@ -38,6 +38,7 @@ import { DashboardTabPanels } from "./features/navigation/DashboardTabPanels";
 import { DEFAULT_DASHBOARD_TAB_ID, type DashboardTabId } from "./features/navigation/dashboardTabs";
 import { useDashboardTabAccess } from "./features/navigation/useDashboardTabAccess";
 import { useDashboardNavigation } from "./features/navigation/useDashboardNavigation";
+import { OverviewTab } from "./features/stats/OverviewTab";
 import { useTabFilter } from "./features/stats/statsFilterContext";
 import { type TabFilter } from "./features/stats/statsShared";
 import { useDashboardStatsFilters } from "./features/stats/useDashboardStatsFilters";
@@ -1636,86 +1637,6 @@ function ThongKeOverviewCharts({ thuTuc, fromDate, toDate }: {
         emptyMessage="Không có hồ sơ tồn sau trong kỳ"
         spinnerColor="#60a5fa"
       />
-    </div>
-  );
-}
-
-function TongQuanTab({
-  onOpenThongKe,
-  onOpenDangXuLy,
-}: {
-  onOpenThongKe: (thuTuc: 48 | 47 | 46, filter: TabFilter) => void;
-  onOpenDangXuLy: (thuTuc: 48 | 47 | 46) => void;
-}) {
-  const { fromDate, toDate, fromInput, toInput, activePreset, loadingAll, update } = useTabFilter(0);
-  const [expandedMonthly, setExpandedMonthly] = useState<Record<48 | 47 | 46, boolean>>({
-    48: false,
-    47: false,
-    46: false,
-  });
-  const currentFilter: TabFilter = { fromDate, toDate, fromInput, toInput, activePreset, loadingAll };
-
-  return (
-    <div className="space-y-6">
-      <ThongKeDateFilterPanel
-        thuTuc={0}
-        fromDate={fromDate}
-        toDate={toDate}
-        fromInput={fromInput}
-        toInput={toInput}
-        activePreset={activePreset}
-        loadingAll={loadingAll}
-        update={update}
-      />
-
-      {[48, 47, 46].map((thuTuc) => (
-        <section key={thuTuc} className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700">Tổng quan TT{thuTuc}</h2>
-            <div className="flex items-center gap-2">
-              <div className="text-xs font-medium text-slate-500 mr-2">
-                Kỳ thống kê: <span className="text-slate-700">{toDMY(fromDate)}</span>
-                {" → "}
-                <span className="text-slate-700">{toDMY(toDate)}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => onOpenThongKe(thuTuc as 48 | 47 | 46, currentFilter)}
-                className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-blue-700 hover:bg-blue-50"
-              >
-                Chi tiết thống kê
-              </button>
-              <button
-                type="button"
-                onClick={() => onOpenDangXuLy(thuTuc as 48 | 47 | 46)}
-                className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-amber-700 hover:bg-amber-50"
-              >
-                Chi tiết đang xử lý
-              </button>
-            </div>
-          </div>
-          <ThongKeOverviewCharts thuTuc={thuTuc as 48 | 47 | 46} fromDate={fromDate} toDate={toDate} />
-          <div className="rounded-xl border border-slate-200 bg-white">
-            <button
-              type="button"
-              onClick={() => setExpandedMonthly((prev) => ({ ...prev, [thuTuc]: !prev[thuTuc as 48 | 47 | 46] }))}
-              className="flex w-full items-center gap-2 px-5 py-3 text-left"
-            >
-              <span className="flex h-5 w-5 items-center justify-center rounded border border-slate-300 bg-white text-xs font-bold text-slate-600">
-                {expandedMonthly[thuTuc as 48 | 47 | 46] ? "−" : "+"}
-              </span>
-              <span className="text-sm font-bold uppercase tracking-wide text-slate-700">
-                Xu hướng theo tháng — TT{thuTuc}
-              </span>
-            </button>
-            {expandedMonthly[thuTuc as 48 | 47 | 46] && (
-              <div className="px-4 pb-4">
-                <MonthlyTrendChart thuTuc={thuTuc as 48 | 47 | 46} fromDate={fromDate} toDate={toDate} hideTitle />
-              </div>
-            )}
-          </div>
-        </section>
-      ))}
     </div>
   );
 }
@@ -3782,7 +3703,15 @@ function Dashboard() {
   const renderTabContent = (tabId: DashboardTabId) => (
     <DashboardContentSwitch
       tabId={tabId}
-      renderTongQuan={() => <TongQuanTab onOpenThongKe={openThongKeFromTongQuan} onOpenDangXuLy={openDangXuLyFromTongQuan} />}
+      renderTongQuan={() => (
+        <OverviewTab
+          onOpenThongKe={openThongKeFromTongQuan}
+          onOpenDangXuLy={openDangXuLyFromTongQuan}
+          renderMonthlyTrend={(thuTuc, fromDate, toDate) => (
+            <MonthlyTrendChart thuTuc={thuTuc} fromDate={fromDate} toDate={toDate} hideTitle />
+          )}
+        />
+      )}
       renderThongKe={(thuTuc) => <ThongKeTab thuTuc={thuTuc} />}
       renderDangXuLy={(thuTuc) =>
         thuTuc === 48 ? (

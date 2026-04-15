@@ -126,6 +126,7 @@ Current shell and feature files:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\statsShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/statsShared.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\statsFilterContext.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/statsFilterContext.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\StatsOverview.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/StatsOverview.tsx)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\OverviewTab.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/OverviewTab.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\useDashboardStatsFilters.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/useDashboardStatsFilters.ts)
 - navigation feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\navigation\dashboardTabs.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/navigation/dashboardTabs.ts)
@@ -156,6 +157,7 @@ Important behavior:
 - new UI work should prefer editing the feature file directly instead of adding more logic back into `App.tsx`
 - pending workflow UI and charts should now be edited in `features/pending/*`, not in `App.tsx`
 - stats overview/filter panel should now be edited in `features/stats/*`, not re-added inline to `App.tsx`
+- overview tab runtime shell should live in `features/stats/OverviewTab.tsx`; `App.tsx` should only pass cross-tab handlers and the monthly-trend render callback
 - stats filter context should live in `features/stats/statsFilterContext.tsx`, not be recreated inside `App.tsx`
 - stats filter state/provider wiring should live in `features/stats/useDashboardStatsFilters.ts`; `App.tsx` should consume `StatsFiltersCtx.Provider` via that hook, not recreate local filter context/types
 - dashboard tab ids/labels should live in `features/navigation/dashboardTabs.ts`, not be redefined inline in `App.tsx`
