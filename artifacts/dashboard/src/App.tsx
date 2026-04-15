@@ -11,6 +11,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Router as WouterRouter } from "wouter";
 import { DOSSIER_DETAIL_TEXT, LOOKUP_TEXT } from "./uiText";
 import { CHART_ANIMATION_MS } from "./shared/chartConfig";
+import { clampToToday, parseDMY, toDMY, toYMD } from "./shared/dateUtils";
+import { isoToDisplay } from "./shared/displayFormatters";
 import { DashboardAuthGate } from "./features/auth/DashboardAuthGate";
 import { useDashboardAuth } from "./features/auth/useDashboardAuth";
 import { AdminPanelMount } from "./features/admin/AdminPanelMount";
@@ -72,40 +74,6 @@ const COLORS = {
   da_giai_quyet: { bar: "#22c55e", label: "ĐÃ GIẢI QUYẾT", text: "#15803d" },
   ton_sau:       { bar: "#f59e0b", label: "TỒN SAU",        text: "#b45309" },
 } as const;
-
-// ---------------------------------------------------------------------------
-// Helpers ngày tháng
-// ---------------------------------------------------------------------------
-function toYMD(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
-}
-
-function toDMY(ymd: string): string {
-  if (!ymd) return "";
-  const [y, m, d] = ymd.split("-");
-  return `${d}/${m}/${y}`;
-}
-
-function parseDMY(dmyStr: string): string {
-  // Chuyển DD/MM/YYYY → YYYY-MM-DD
-  const parts = dmyStr.replace(/\s/g, "").split("/");
-  if (parts.length === 3 && parts[2].length === 4) {
-    return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
-  }
-  return "";
-}
-
-function minYmd(a: string, b: string): string {
-  return a <= b ? a : b;
-}
-
-function clampToToday(ymd: string): string {
-  if (!ymd) return ymd;
-  return minYmd(ymd, toYMD(new Date()));
-}
 
 // ---------------------------------------------------------------------------
 // Quick filter presets
@@ -514,13 +482,6 @@ async function fetchDavTt48HoSoDetail(hoSoId: number): Promise<DavTt48DetailData
   const res = await fetch(`${API}/dav/tt48/ho-so/${hoSoId}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
-}
-
-function isoToDisplay(iso: string | null): string {
-  if (!iso) return "";
-  const d = iso.split("T")[0];
-  const [y, m, day] = d.split("-");
-  return `${day}-${m}-${y}`;
 }
 
 function extractHoSoId(maHoSo: string): number | null {

@@ -164,6 +164,7 @@ Important behavior:
 - statistics tab runtime shell should live in `features/stats/ThongKeTab.tsx`; `App.tsx` should only pass render callbacks for heavier chart/table blocks
 - stats filter context should live in `features/stats/statsFilterContext.tsx`, not be recreated inside `App.tsx`
 - stats filter state/provider wiring should live in `features/stats/useDashboardStatsFilters.ts`; `App.tsx` should consume `StatsFiltersCtx.Provider` via that hook, not recreate local filter context/types
+- shared date parsing/clamping should live in `shared/dateUtils.ts`, and shared ISO display formatting should live in `shared/displayFormatters.ts`; duplicated local helpers have been removed from `App.tsx`
 - dashboard tab ids/labels should live in `features/navigation/dashboardTabs.ts`, not be redefined inline in `App.tsx`
 - dashboard tab navigation rendering should live in `features/navigation/DashboardTabBar.tsx`, not be expanded inline again in `App.tsx`
 - dashboard main tab-panel host rendering should live in `features/navigation/DashboardTabPanels.tsx`, not be expanded inline again in `App.tsx`
