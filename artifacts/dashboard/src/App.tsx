@@ -20,6 +20,7 @@ import { useDashboardLookupState } from "./features/lookup/useDashboardLookupSta
 import { LookupActionBar } from "./features/lookup/LookupActionBar";
 import { LookupDoneTab } from "./features/lookup/LookupDoneTab";
 import { useLookupDetailModal } from "./features/lookup/useLookupDetailModal";
+import { LookupPendingTab } from "./features/lookup/LookupPendingTab";
 import { useLookupExport } from "./features/lookup/useLookupExport";
 import { useLookupFilterControls } from "./features/lookup/useLookupFilterControls";
 import { LookupProgressBar } from "./features/lookup/LookupProgressBar";
@@ -3464,6 +3465,14 @@ async function downloadTraCuuDaXuLyExcel(params: {
 }
 
 function TraCuuDangXuLyTab(props?: {
+  state: TraCuuFilterState;
+  setState: React.Dispatch<React.SetStateAction<TraCuuFilterState>>;
+  isActive?: boolean;
+}) {
+  return <LookupPendingTab {...props} />;
+}
+
+function TraCuuDangXuLyTabLegacy(props?: {
   state: TraCuuFilterState;
   setState: React.Dispatch<React.SetStateAction<TraCuuFilterState>>;
   isActive?: boolean;
