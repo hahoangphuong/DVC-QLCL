@@ -219,8 +219,9 @@ Important behavior:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\shared\chartConfig.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/shared/chartConfig.ts)
   - shared ISO date display formatting:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\shared\displayFormatters.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/shared/displayFormatters.ts)
-  - admin export table metadata:
+- admin export table metadata:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\adminShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/adminShared.ts)
+- admin panel runtime UI should live in `features/admin/AdminPanel.tsx`; do not reintroduce a local `AdminPanel` block in `App.tsx`
 - admin panel shell mounting should live in `features/admin/AdminPanelMount.tsx`; `App.tsx` should only pass gate flags and panel content
 - admin panel hash/Esc/open/close shell wiring should live in `features/admin/useAdminPanelShell.ts`; `App.tsx` should only pass gate state and use returned handlers
 - lookup shell state/reset should live in `features/lookup/useDashboardLookupState.ts`; `App.tsx` should not recreate local lookup filter state or reset logic
