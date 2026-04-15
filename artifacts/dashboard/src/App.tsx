@@ -10,6 +10,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Router as WouterRouter } from "wouter";
 import { DOSSIER_DETAIL_TEXT, LOOKUP_TEXT } from "./uiText";
+import { CHART_ANIMATION_MS } from "./shared/chartConfig";
 import { DashboardAuthGate } from "./features/auth/DashboardAuthGate";
 import { useDashboardAuth } from "./features/auth/useDashboardAuth";
 import { AdminPanelMount } from "./features/admin/AdminPanelMount";
