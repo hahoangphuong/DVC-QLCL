@@ -1,9 +1,10 @@
 import { DashboardContentSwitch } from "../navigation/DashboardContentSwitch";
 import { DashboardTabPanels } from "../navigation/DashboardTabPanels";
 import type { DashboardTabId, DashboardTabItem } from "../navigation/dashboardTabs";
+import type { DashboardRuntimeNavigation } from "../navigation/useDashboardNavigation";
 import { LookupDoneTab } from "../lookup/LookupDoneTab";
 import { LookupPendingTab } from "../lookup/LookupPendingTab";
-import type { TraCuuFilterState } from "../lookup/lookupShared";
+import type { DashboardLookupPanelsState } from "../lookup/useDashboardLookupState";
 import { DangXuLyTab as PendingDangXuLyTab } from "../pending/PendingTabs";
 import { ChuyenVienTable } from "../stats/ChuyenVienTable";
 import { MonthlyTrendChart } from "../stats/MonthlyTrendChart";
@@ -11,36 +12,17 @@ import { OverviewTab } from "../stats/OverviewTab";
 import { ThongKeTab } from "../stats/ThongKeTab";
 import { Tt48LoaiHoSoMonthlyChart } from "../stats/Tt48LoaiHoSoMonthlyChart";
 import { Tt48LoaiHoSoTable } from "../stats/Tt48LoaiHoSoTable";
-import type { LookupTinhTrang } from "../lookup/lookupShared";
-import type { SupportedThuTuc, TabFilter } from "../stats/statsShared";
-
-type LookupPanelsState = {
-  lookupState: TraCuuFilterState;
-  setLookupState: (state: TraCuuFilterState) => void;
-  lookupDoneState: TraCuuFilterState;
-  setLookupDoneState: (state: TraCuuFilterState) => void;
-};
 
 type PendingExpertsState = {
   hideEmptyExperts: boolean;
   setHideEmptyExperts: (value: boolean) => void;
 };
 
-type DashboardRuntimeNavigation = {
-  openLookupByChuyenVien: (tenCvRaw: string, thuTuc: SupportedThuTuc) => void;
-  openLookupByChuyenGia: (tenCg: string) => void;
-  openLookupByTinhTrang: (thuTuc: SupportedThuTuc, tinhTrang: LookupTinhTrang) => void;
-  openLookupDoneByChuyenVien: (tenCvRaw: string, thuTuc: SupportedThuTuc) => void;
-  openLookupDoneByTinhTrang: (thuTuc: SupportedThuTuc, tinhTrang: string) => void;
-  openThongKeFromTongQuan: (thuTuc: SupportedThuTuc, filter: TabFilter) => void;
-  openDangXuLyFromTongQuan: (thuTuc: SupportedThuTuc) => void;
-};
-
 type Props = {
   tabs: readonly DashboardTabItem[];
   activeTab: DashboardTabId;
   isAdmin: boolean;
-  lookupPanels: LookupPanelsState;
+  lookupPanels: DashboardLookupPanelsState;
   pendingExperts: PendingExpertsState;
   navigation: DashboardRuntimeNavigation;
 };

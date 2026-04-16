@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import type { SupportedThuTuc, TabFilter } from "../stats/statsShared";
+import type { LookupTinhTrang } from "../lookup/lookupShared";
 import type { DashboardTabId } from "./dashboardTabs";
 
 type Params<TLookupState extends object> = {
@@ -12,6 +13,16 @@ type Params<TLookupState extends object> = {
   updateFilter: (thuTuc: SupportedThuTuc, patch: Partial<TabFilter>) => void;
 };
 
+export type DashboardRuntimeNavigation = {
+  openLookupByChuyenVien: (tenCvRaw: string, thuTuc: SupportedThuTuc) => void;
+  openLookupByChuyenGia: (tenCg: string) => void;
+  openLookupByTinhTrang: (thuTuc: SupportedThuTuc, tinhTrang: LookupTinhTrang) => void;
+  openLookupDoneByChuyenVien: (tenCvRaw: string, thuTuc: SupportedThuTuc) => void;
+  openLookupDoneByTinhTrang: (thuTuc: SupportedThuTuc, tinhTrang: string) => void;
+  openThongKeFromTongQuan: (thuTuc: SupportedThuTuc, filter: TabFilter) => void;
+  openDangXuLyFromTongQuan: (thuTuc: SupportedThuTuc) => void;
+};
+
 export function useDashboardNavigation<TLookupState extends object>({
   isAdmin,
   defaultLookupState,
@@ -20,7 +31,7 @@ export function useDashboardNavigation<TLookupState extends object>({
   setLookupDoneState,
   setActiveTab,
   updateFilter,
-}: Params<TLookupState>) {
+}: Params<TLookupState>): DashboardRuntimeNavigation {
   const openLookupByChuyenVien = useCallback((tenCvRaw: string, thuTuc: SupportedThuTuc) => {
     if (!isAdmin) return;
     setLookupState({
