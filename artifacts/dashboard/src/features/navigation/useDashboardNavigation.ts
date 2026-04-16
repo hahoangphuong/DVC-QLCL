@@ -1,14 +1,18 @@
 import { useCallback } from "react";
 import type { SupportedThuTuc, TabFilter } from "../stats/statsShared";
-import type { LookupTinhTrang } from "../lookup/lookupShared";
+import type {
+  LookupTinhTrang,
+  TraCuuFilterState,
+  TraCuuFilterStateSetter,
+} from "../lookup/lookupShared";
 import type { DashboardTabId } from "./dashboardTabs";
 
-type Params<TLookupState extends object> = {
+type Params = {
   isAdmin: boolean;
-  defaultLookupState: TLookupState;
-  defaultLookupDoneState: TLookupState;
-  setLookupState: (state: TLookupState) => void;
-  setLookupDoneState: (state: TLookupState) => void;
+  defaultLookupState: TraCuuFilterState;
+  defaultLookupDoneState: TraCuuFilterState;
+  setLookupState: TraCuuFilterStateSetter;
+  setLookupDoneState: TraCuuFilterStateSetter;
   setActiveTab: (tabId: DashboardTabId) => void;
   updateFilter: (thuTuc: SupportedThuTuc, patch: Partial<TabFilter>) => void;
 };
@@ -23,7 +27,7 @@ export type DashboardRuntimeNavigation = {
   openDangXuLyFromTongQuan: (thuTuc: SupportedThuTuc) => void;
 };
 
-export function useDashboardNavigation<TLookupState extends object>({
+export function useDashboardNavigation({
   isAdmin,
   defaultLookupState,
   defaultLookupDoneState,
@@ -31,14 +35,14 @@ export function useDashboardNavigation<TLookupState extends object>({
   setLookupDoneState,
   setActiveTab,
   updateFilter,
-}: Params<TLookupState>): DashboardRuntimeNavigation {
+}: Params): DashboardRuntimeNavigation {
   const openLookupByChuyenVien = useCallback((tenCvRaw: string, thuTuc: SupportedThuTuc) => {
     if (!isAdmin) return;
     setLookupState({
       ...defaultLookupState,
       thuTuc,
       chuyenVien: tenCvRaw,
-    } as TLookupState);
+    });
     setActiveTab("tra_cuu_dang_xl");
   }, [defaultLookupState, isAdmin, setActiveTab, setLookupState]);
 
@@ -49,7 +53,7 @@ export function useDashboardNavigation<TLookupState extends object>({
       thuTuc: 48,
       chuyenGia: tenCg.trim(),
       tinhTrang: "cho_chuyen_gia",
-    } as TLookupState);
+    });
     setActiveTab("tra_cuu_dang_xl");
   }, [defaultLookupState, isAdmin, setActiveTab, setLookupState]);
 
@@ -59,7 +63,7 @@ export function useDashboardNavigation<TLookupState extends object>({
       ...defaultLookupState,
       thuTuc,
       tinhTrang,
-    } as TLookupState);
+    });
     setActiveTab("tra_cuu_dang_xl");
   }, [defaultLookupState, isAdmin, setActiveTab, setLookupState]);
 
@@ -69,7 +73,7 @@ export function useDashboardNavigation<TLookupState extends object>({
       ...defaultLookupDoneState,
       thuTuc,
       chuyenVien: tenCvRaw,
-    } as TLookupState);
+    });
     setActiveTab("tra_cuu_da_xl");
   }, [defaultLookupDoneState, isAdmin, setActiveTab, setLookupDoneState]);
 
@@ -79,7 +83,7 @@ export function useDashboardNavigation<TLookupState extends object>({
       ...defaultLookupDoneState,
       thuTuc,
       tinhTrang,
-    } as TLookupState);
+    });
     setActiveTab("tra_cuu_da_xl");
   }, [defaultLookupDoneState, isAdmin, setActiveTab, setLookupDoneState]);
 
