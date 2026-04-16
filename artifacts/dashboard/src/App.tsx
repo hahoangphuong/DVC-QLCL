@@ -4,6 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, LabelList,
   PieChart, Pie, Legend,
+  ComposedChart, Line,
   AreaChart, Area,
 } from "recharts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
