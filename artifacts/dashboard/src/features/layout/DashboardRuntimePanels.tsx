@@ -76,6 +76,20 @@ export function DashboardRuntimePanels({
       />
     );
 
+  const renderPendingTab = (thuTuc: SupportedThuTuc) =>
+    thuTuc !== 48 ? (
+      <PendingDangXuLyTab thuTuc={thuTuc} onCvLookup={openLookupByChuyenVien} />
+    ) : (
+      <PendingDangXuLyTab
+        thuTuc={48}
+        onCvLookup={openLookupByChuyenVien}
+        onCgLookup={openLookupByChuyenGia}
+        onTinhTrangLookup={openLookupByTinhTrang}
+        hideEmptyExperts={hideEmptyExperts}
+        setHideEmptyExperts={setHideEmptyExperts}
+      />
+    );
+
   const renderTabContent = (tabId: DashboardTabId) => (
     <DashboardContentSwitch
       tabId={tabId}
@@ -109,20 +123,7 @@ export function DashboardRuntimePanels({
           )}
         />
       )}
-      renderDangXuLy={(thuTuc) =>
-        thuTuc === 48 ? (
-          <PendingDangXuLyTab
-            thuTuc={48}
-            onCvLookup={openLookupByChuyenVien}
-            onCgLookup={openLookupByChuyenGia}
-            onTinhTrangLookup={openLookupByTinhTrang}
-            hideEmptyExperts={hideEmptyExperts}
-            setHideEmptyExperts={setHideEmptyExperts}
-          />
-        ) : (
-          <PendingDangXuLyTab thuTuc={thuTuc} onCvLookup={openLookupByChuyenVien} />
-        )
-      }
+      renderDangXuLy={renderPendingTab}
       renderLookupDangXuLy={renderLookupPendingTab}
       renderLookupDaXuLy={renderLookupDoneTab}
     />

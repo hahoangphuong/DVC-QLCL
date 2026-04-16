@@ -179,6 +179,7 @@ Important behavior:
 - `DashboardRuntime.tsx` should pass grouped hook results through directly when the prop contract already matches (`lookupPanels`, `navigation`), instead of reconstructing inline mirror objects
 - `DashboardRuntimePanels.tsx` should keep tiny local render helpers for repeated chart wiring (for example monthly-trend callbacks) instead of duplicating inline JSX lambdas
 - the same applies to tiny lookup mount helpers in `DashboardRuntimePanels.tsx`; avoid repeating identical `isAdmin ? <Lookup... /> : null` gates inline
+- the same applies to pending-tab mount helpers in `DashboardRuntimePanels.tsx`; prefer a small local helper over repeating the TT48/non-TT48 ternary inline
 - dashboard cross-tab navigation callbacks should live in `features/navigation/useDashboardNavigation.ts`; `App.tsx` should only wire state setters/defaults into that hook
 - `features/navigation/useDashboardNavigation.ts` should use the concrete lookup state contract from `features/lookup/lookupShared.ts`, not keep a generic lookup-state type plus local casts
 - dashboard role-based visible tabs and active-tab access guard should live in `features/navigation/useDashboardTabAccess.ts`
