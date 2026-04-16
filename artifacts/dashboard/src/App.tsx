@@ -28,6 +28,7 @@ import { DEFAULT_DASHBOARD_TAB_ID, type DashboardTabId } from "./features/naviga
 import { useDashboardTabAccess } from "./features/navigation/useDashboardTabAccess";
 import { useDashboardNavigation } from "./features/navigation/useDashboardNavigation";
 import { DangXuLyTab as PendingDangXuLyTab } from "./features/pending/PendingTabs";
+import { Num, Pct, sumNumericField } from "./features/pending/pendingDisplay";
 import { OverviewTab } from "./features/stats/OverviewTab";
 import { DonutChart, SummaryBarChart } from "./features/stats/StatsCharts";
 import { ThongKeTab } from "./features/stats/ThongKeTab";
@@ -58,6 +59,7 @@ import {
   type Tt48ReceivedMonthlyLoaiRow,
 } from "./features/stats/statsShared";
 import { useDashboardStatsFilters } from "./features/stats/useDashboardStatsFilters";
+import { cleanCvName } from "./shared/nameFormatters";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -263,30 +265,6 @@ function buildDavViewFileUrl(pathOrUrl: string | null | undefined): string | nul
   return `${API}/dav/file?path=${encodeURIComponent(pathOrUrl)}`;
 }
 
-const CV_PREFIX = "CV thụ lý : ";
-function cleanCvName(raw: string): string {
-  return raw.startsWith(CV_PREFIX) ? raw.slice(CV_PREFIX.length).trim() : raw.trim();
-}
-
-function Num({ v, color, bold }: { v: number | null | undefined; color?: string; bold?: boolean }) {
-  if (v === null || v === undefined) return <span className="text-slate-300">—</span>;
-  if (v === 0) return <span />;
-  return (
-    <span className={bold ? "font-bold" : "font-medium"} style={{ color: color ?? "#374151" }}>
-      {v.toLocaleString("vi-VN")}
-    </span>
-  );
-}
-
-function Pct({ v, warnBelow }: { v: number; warnBelow?: number }) {
-  const color = warnBelow !== undefined && v < warnBelow ? "#ef4444" : "#15803d";
-  return <span className="font-bold text-xs" style={{ color }}>{v}%</span>;
-}
-
-function cvSum(rows: ChuyenVienRow[], key: keyof ChuyenVienRow): number {
-  return rows.reduce((s, r) => s + (typeof r[key] === "number" ? (r[key] as number) : 0), 0);
-}
-
 interface ChuyenVienTableProps {
   thuTuc:   48 | 47 | 46;
   fromDate: string;
@@ -320,18 +298,18 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTabl
                       boxShadow: "2px 0 4px -1px rgba(0,0,0,0.12)" };
 
   const totals: Record<string, number> = {
-    ton_truoc:       cvSum(rows, "ton_truoc"),
-    da_nhan:         cvSum(rows, "da_nhan") + (cpc?.da_nhan ?? 0),
-    gq_tong:         cvSum(rows, "gq_tong"),
-    can_bo_sung:     cvSum(rows, "can_bo_sung"),
-    khong_dat:       cvSum(rows, "khong_dat"),
-    hoan_thanh:      cvSum(rows, "hoan_thanh"),
-    dung_han:        cvSum(rows, "dung_han"),
-    qua_han:         cvSum(rows, "qua_han"),
-    ton_sau_tong:    cvSum(rows, "ton_sau_tong")    + (cpc?.ton_sau_tong    ?? 0),
-    ton_sau_con_han: cvSum(rows, "ton_sau_con_han") + (cpc?.ton_sau_con_han ?? 0),
-    ton_sau_qua_han: cvSum(rows, "ton_sau_qua_han") + (cpc?.ton_sau_qua_han ?? 0),
-    treo:            cvSum(rows, "treo"),
+    ton_truoc:       sumNumericField(rows, "ton_truoc"),
+    da_nhan:         sumNumericField(rows, "da_nhan") + (cpc?.da_nhan ?? 0),
+    gq_tong:         sumNumericField(rows, "gq_tong"),
+    can_bo_sung:     sumNumericField(rows, "can_bo_sung"),
+    khong_dat:       sumNumericField(rows, "khong_dat"),
+    hoan_thanh:      sumNumericField(rows, "hoan_thanh"),
+    dung_han:        sumNumericField(rows, "dung_han"),
+    qua_han:         sumNumericField(rows, "qua_han"),
+    ton_sau_tong:    sumNumericField(rows, "ton_sau_tong") + (cpc?.ton_sau_tong ?? 0),
+    ton_sau_con_han: sumNumericField(rows, "ton_sau_con_han") + (cpc?.ton_sau_con_han ?? 0),
+    ton_sau_qua_han: sumNumericField(rows, "ton_sau_qua_han") + (cpc?.ton_sau_qua_han ?? 0),
+    treo:            sumNumericField(rows, "treo"),
   };
   const tot_pct_dh = totals.gq_tong > 0 ? Math.round(totals.dung_han / totals.gq_tong * 100) : 0;
   const tot_pct_gq = (totals.ton_truoc + totals.da_nhan) > 0
