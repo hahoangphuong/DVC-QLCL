@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Num, Pct, sumNumericField } from "../pending/pendingDisplay";
-import { fetchChuyenVien, type ChuyenVienRow } from "./statsShared";
+import { fetchChuyenVien, type ChuyenVienRow, type SupportedThuTuc } from "./statsShared";
 import { cleanCvName } from "../../shared/nameFormatters";
 
 export interface ChuyenVienTableProps {
-  thuTuc: 48 | 47 | 46;
+  thuTuc: SupportedThuTuc;
   fromDate: string;
   toDate: string;
   onCvClick?: (tenCvRaw: string) => void;

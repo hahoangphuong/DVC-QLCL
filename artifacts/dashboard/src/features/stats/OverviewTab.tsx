@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { toDMY } from "../../shared/dateUtils";
 import { useTabFilter } from "./statsFilterContext";
-import type { TabFilter } from "./statsShared";
+import type { SupportedThuTuc, TabFilter } from "./statsShared";
 import { ThongKeDateFilterPanel, ThongKeOverviewCharts } from "./StatsOverview";
 
 export function OverviewTab({
@@ -9,12 +9,12 @@ export function OverviewTab({
   onOpenDangXuLy,
   renderMonthlyTrend,
 }: {
-  onOpenThongKe: (thuTuc: 48 | 47 | 46, filter: TabFilter) => void;
-  onOpenDangXuLy: (thuTuc: 48 | 47 | 46) => void;
-  renderMonthlyTrend: (thuTuc: 48 | 47 | 46, fromDate: string, toDate: string) => ReactNode;
+  onOpenThongKe: (thuTuc: SupportedThuTuc, filter: TabFilter) => void;
+  onOpenDangXuLy: (thuTuc: SupportedThuTuc) => void;
+  renderMonthlyTrend: (thuTuc: SupportedThuTuc, fromDate: string, toDate: string) => ReactNode;
 }) {
   const { fromDate, toDate, fromInput, toInput, activePreset, loadingAll, update } = useTabFilter(0);
-  const [expandedMonthly, setExpandedMonthly] = useState<Record<48 | 47 | 46, boolean>>({
+  const [expandedMonthly, setExpandedMonthly] = useState<Record<SupportedThuTuc, boolean>>({
     48: false,
     47: false,
     46: false,

@@ -226,6 +226,7 @@ Important behavior:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\shared\displayFormatters.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/shared/displayFormatters.ts)
   - stats shared constants, types, and fetchers:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\statsShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/statsShared.ts)
+  - supported dashboard procedure type (`48 | 47 | 46`) should come from `features/stats/statsShared.ts`, not be redefined in navigation/stats feature files
   - stats presentational charts:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\StatsCharts.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/StatsCharts.tsx)
   - pending table display helpers:

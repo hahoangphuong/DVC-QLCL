@@ -17,6 +17,8 @@ export const QUICK_FILTERS = [
   { key: "thang_nay", label: "Th\u00e1ng n\u00e0y" },
 ] as const;
 
+export type SupportedThuTuc = 48 | 47 | 46;
+
 export interface TabFilter {
   fromDate: string;
   toDate: string;

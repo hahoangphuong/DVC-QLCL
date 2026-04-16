@@ -8,6 +8,7 @@ import {
   fetchGiaiQuyet,
   fetchSummary,
   fetchTonSau,
+  type SupportedThuTuc,
   type TabFilter,
 } from "./statsShared";
 import { DonutChart, SummaryBarChart, type BarData, type DonutSegment } from "./StatsCharts";
@@ -110,7 +111,7 @@ export function ThongKeDateFilterPanel({
 }
 
 export function ThongKeOverviewCharts({ thuTuc, fromDate, toDate }: {
-  thuTuc: 48 | 47 | 46;
+  thuTuc: SupportedThuTuc;
   fromDate: string;
   toDate: string;
 }) {

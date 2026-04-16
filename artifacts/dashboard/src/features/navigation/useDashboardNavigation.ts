@@ -1,16 +1,6 @@
 import { useCallback } from "react";
+import type { SupportedThuTuc, TabFilter } from "../stats/statsShared";
 import type { DashboardTabId } from "./dashboardTabs";
-
-type ThuTuc = 48 | 47 | 46;
-
-type TabFilterLike = {
-  fromDate: string;
-  toDate: string;
-  fromInput: string;
-  toInput: string;
-  activePreset: string;
-  loadingAll: boolean;
-};
 
 type Params<TLookupState extends object> = {
   isAdmin: boolean;
@@ -19,7 +9,7 @@ type Params<TLookupState extends object> = {
   setLookupState: (state: TLookupState) => void;
   setLookupDoneState: (state: TLookupState) => void;
   setActiveTab: (tabId: DashboardTabId) => void;
-  updateFilter: (thuTuc: ThuTuc, patch: Partial<TabFilterLike>) => void;
+  updateFilter: (thuTuc: SupportedThuTuc, patch: Partial<TabFilter>) => void;
 };
 
 export function useDashboardNavigation<TLookupState extends object>({
@@ -31,7 +21,7 @@ export function useDashboardNavigation<TLookupState extends object>({
   setActiveTab,
   updateFilter,
 }: Params<TLookupState>) {
-  const openLookupByChuyenVien = useCallback((tenCvRaw: string, thuTuc: ThuTuc) => {
+  const openLookupByChuyenVien = useCallback((tenCvRaw: string, thuTuc: SupportedThuTuc) => {
     if (!isAdmin) return;
     setLookupState({
       ...defaultLookupState,
@@ -52,7 +42,7 @@ export function useDashboardNavigation<TLookupState extends object>({
     setActiveTab("tra_cuu_dang_xl");
   }, [defaultLookupState, isAdmin, setActiveTab, setLookupState]);
 
-  const openLookupByTinhTrang = useCallback((thuTuc: ThuTuc, tinhTrang: string) => {
+  const openLookupByTinhTrang = useCallback((thuTuc: SupportedThuTuc, tinhTrang: string) => {
     if (!isAdmin) return;
     setLookupState({
       ...defaultLookupState,
@@ -62,7 +52,7 @@ export function useDashboardNavigation<TLookupState extends object>({
     setActiveTab("tra_cuu_dang_xl");
   }, [defaultLookupState, isAdmin, setActiveTab, setLookupState]);
 
-  const openLookupDoneByChuyenVien = useCallback((tenCvRaw: string, thuTuc: ThuTuc) => {
+  const openLookupDoneByChuyenVien = useCallback((tenCvRaw: string, thuTuc: SupportedThuTuc) => {
     if (!isAdmin) return;
     setLookupDoneState({
       ...defaultLookupDoneState,
@@ -72,7 +62,7 @@ export function useDashboardNavigation<TLookupState extends object>({
     setActiveTab("tra_cuu_da_xl");
   }, [defaultLookupDoneState, isAdmin, setActiveTab, setLookupDoneState]);
 
-  const openLookupDoneByTinhTrang = useCallback((thuTuc: ThuTuc, tinhTrang: string) => {
+  const openLookupDoneByTinhTrang = useCallback((thuTuc: SupportedThuTuc, tinhTrang: string) => {
     if (!isAdmin) return;
     setLookupDoneState({
       ...defaultLookupDoneState,
@@ -82,7 +72,7 @@ export function useDashboardNavigation<TLookupState extends object>({
     setActiveTab("tra_cuu_da_xl");
   }, [defaultLookupDoneState, isAdmin, setActiveTab, setLookupDoneState]);
 
-  const openThongKeFromTongQuan = useCallback((thuTuc: ThuTuc, filter: TabFilterLike) => {
+  const openThongKeFromTongQuan = useCallback((thuTuc: SupportedThuTuc, filter: TabFilter) => {
     updateFilter(thuTuc, {
       fromDate: filter.fromDate,
       toDate: filter.toDate,
@@ -94,7 +84,7 @@ export function useDashboardNavigation<TLookupState extends object>({
     setActiveTab(`tt${thuTuc}_thong_ke`);
   }, [setActiveTab, updateFilter]);
 
-  const openDangXuLyFromTongQuan = useCallback((thuTuc: ThuTuc) => {
+  const openDangXuLyFromTongQuan = useCallback((thuTuc: SupportedThuTuc) => {
     setActiveTab(`tt${thuTuc}_dang_xl`);
   }, [setActiveTab]);
 

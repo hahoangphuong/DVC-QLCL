@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
+import type { SupportedThuTuc } from "../stats/statsShared";
 import type { DashboardTabId } from "./dashboardTabs";
 
 type Props = {
   tabId: DashboardTabId;
   renderTongQuan: () => ReactNode;
-  renderThongKe: (thuTuc: 48 | 47 | 46) => ReactNode;
-  renderDangXuLy: (thuTuc: 48 | 47 | 46) => ReactNode;
+  renderThongKe: (thuTuc: SupportedThuTuc) => ReactNode;
+  renderDangXuLy: (thuTuc: SupportedThuTuc) => ReactNode;
   renderLookupDangXuLy: () => ReactNode;
   renderLookupDaXuLy: () => ReactNode;
 };

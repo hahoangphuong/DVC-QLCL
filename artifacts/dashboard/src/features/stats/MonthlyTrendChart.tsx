@@ -12,7 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import { CHART_ANIMATION_MS } from "../../shared/chartConfig";
-import { fetchMonthly } from "./statsShared";
+import { fetchMonthly, type SupportedThuTuc } from "./statsShared";
 
 export function MonthlyTrendChart({
   thuTuc,
@@ -20,7 +20,7 @@ export function MonthlyTrendChart({
   toDate,
   hideTitle = false,
 }: {
-  thuTuc: 48 | 47 | 46;
+  thuTuc: SupportedThuTuc;
   fromDate: string;
   toDate: string;
   hideTitle?: boolean;

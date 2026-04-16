@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ThongKeDateFilterPanel, ThongKeOverviewCharts } from "./StatsOverview";
 import { useTabFilter } from "./statsFilterContext";
+import type { SupportedThuTuc } from "./statsShared";
 
 export function ThongKeTab({
   thuTuc,
@@ -9,9 +10,9 @@ export function ThongKeTab({
   renderTt48LoaiHoSoTable,
   renderTt48LoaiHoSoMonthlyChart,
 }: {
-  thuTuc: 48 | 47 | 46;
-  renderChuyenVienTable: (thuTuc: 48 | 47 | 46, fromDate: string, toDate: string) => ReactNode;
-  renderMonthlyTrend: (thuTuc: 48 | 47 | 46, fromDate: string, toDate: string) => ReactNode;
+  thuTuc: SupportedThuTuc;
+  renderChuyenVienTable: (thuTuc: SupportedThuTuc, fromDate: string, toDate: string) => ReactNode;
+  renderMonthlyTrend: (thuTuc: SupportedThuTuc, fromDate: string, toDate: string) => ReactNode;
   renderTt48LoaiHoSoTable?: (fromDate: string, toDate: string) => ReactNode;
   renderTt48LoaiHoSoMonthlyChart?: (fromDate: string, toDate: string) => ReactNode;
 }) {
