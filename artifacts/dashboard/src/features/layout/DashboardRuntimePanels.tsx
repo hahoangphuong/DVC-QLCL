@@ -6,17 +6,13 @@ import { LookupDoneTab } from "../lookup/LookupDoneTab";
 import { LookupPendingTab } from "../lookup/LookupPendingTab";
 import type { DashboardLookupPanelsState } from "../lookup/useDashboardLookupState";
 import { DangXuLyTab as PendingDangXuLyTab } from "../pending/PendingTabs";
+import type { PendingExpertsState } from "../pending/PendingTabs";
 import { ChuyenVienTable } from "../stats/ChuyenVienTable";
 import { MonthlyTrendChart } from "../stats/MonthlyTrendChart";
 import { OverviewTab } from "../stats/OverviewTab";
 import { ThongKeTab } from "../stats/ThongKeTab";
 import { Tt48LoaiHoSoMonthlyChart } from "../stats/Tt48LoaiHoSoMonthlyChart";
 import { Tt48LoaiHoSoTable } from "../stats/Tt48LoaiHoSoTable";
-
-type PendingExpertsState = {
-  hideEmptyExperts: boolean;
-  setHideEmptyExperts: (value: boolean) => void;
-};
 
 type Props = {
   tabs: readonly DashboardTabItem[];

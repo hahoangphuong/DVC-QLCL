@@ -241,6 +241,7 @@ Important behavior:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\pending\pendingDisplay.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/pending/pendingDisplay.tsx)
   - pending shared labels, fetchers, and common empty/loading/error messages:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\pending\pendingShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/pending/pendingShared.ts)
+  - pending expert-visibility shell types (`PendingExpertsControls`, `PendingExpertsState`) should come from `features/pending/PendingTabs.tsx`, not be mirrored inside runtime layout files
   - admin export table metadata:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\adminShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/adminShared.ts)
   - admin shared helpers/types (`authHeaders`, `DbStats`, `SchedulerInfo`, `SyncLog`, `fmtSyncAt`) should live in `features/admin/adminShared.ts`, not be recreated inside `AdminPanel.tsx`

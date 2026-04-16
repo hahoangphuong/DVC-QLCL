@@ -18,6 +18,13 @@ import {
 
 // Extracted from App.tsx to keep pending-workflow UI isolated from the dashboard shell.
 
+export type PendingExpertsControls = {
+  hideEmptyExperts?: boolean;
+  setHideEmptyExperts?: (value: boolean) => void;
+};
+
+export type PendingExpertsState = Required<PendingExpertsControls>;
+
 export function DangXuLyTab({
   thuTuc,
   onCvLookup,
@@ -30,9 +37,7 @@ export function DangXuLyTab({
   onCvLookup?: (tenCvRaw: string, thuTuc: PendingThuTuc) => void;
   onCgLookup?: (tenCg: string) => void;
   onTinhTrangLookup?: (thuTuc: PendingThuTuc, tinhTrang: LookupTinhTrang) => void;
-  hideEmptyExperts?: boolean;
-  setHideEmptyExperts?: (value: boolean) => void;
-}) {
+} & PendingExpertsControls) {
   const [showTt48TotalBreakdown, setShowTt48TotalBreakdown] = useState(false);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["dang-xu-ly", thuTuc],
