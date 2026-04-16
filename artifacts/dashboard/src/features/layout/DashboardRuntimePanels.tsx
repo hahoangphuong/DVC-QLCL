@@ -10,6 +10,7 @@ import type { PendingExpertsState } from "../pending/PendingTabs";
 import { ChuyenVienTable } from "../stats/ChuyenVienTable";
 import { MonthlyTrendChart } from "../stats/MonthlyTrendChart";
 import { OverviewTab } from "../stats/OverviewTab";
+import type { SupportedThuTuc } from "../stats/statsShared";
 import { ThongKeTab } from "../stats/ThongKeTab";
 import { Tt48LoaiHoSoMonthlyChart } from "../stats/Tt48LoaiHoSoMonthlyChart";
 import { Tt48LoaiHoSoTable } from "../stats/Tt48LoaiHoSoTable";
@@ -43,6 +44,20 @@ export function DashboardRuntimePanels({
     openDangXuLyFromTongQuan,
   } = navigation;
 
+  const renderMonthlyTrend = (
+    thuTuc: SupportedThuTuc,
+    fromDate: string,
+    toDate: string,
+    hideTitle = false,
+  ) => (
+    <MonthlyTrendChart
+      thuTuc={thuTuc}
+      fromDate={fromDate}
+      toDate={toDate}
+      hideTitle={hideTitle}
+    />
+  );
+
   const renderTabContent = (tabId: DashboardTabId) => (
     <DashboardContentSwitch
       tabId={tabId}
@@ -50,9 +65,9 @@ export function DashboardRuntimePanels({
         <OverviewTab
           onOpenThongKe={openThongKeFromTongQuan}
           onOpenDangXuLy={openDangXuLyFromTongQuan}
-          renderMonthlyTrend={(thuTuc, fromDate, toDate) => (
-            <MonthlyTrendChart thuTuc={thuTuc} fromDate={fromDate} toDate={toDate} hideTitle />
-          )}
+          renderMonthlyTrend={(thuTuc, fromDate, toDate) =>
+            renderMonthlyTrend(thuTuc, fromDate, toDate, true)
+          }
         />
       )}
       renderThongKe={(thuTuc) => (
@@ -67,9 +82,7 @@ export function DashboardRuntimePanels({
               onTinhTrangClick={(tinhTrang) => openLookupDoneByTinhTrang(tt, tinhTrang)}
             />
           )}
-          renderMonthlyTrend={(tt, fromDate, toDate) => (
-            <MonthlyTrendChart thuTuc={tt} fromDate={fromDate} toDate={toDate} />
-          )}
+          renderMonthlyTrend={renderMonthlyTrend}
           renderTt48LoaiHoSoTable={(fromDate, toDate) => (
             <Tt48LoaiHoSoTable fromDate={fromDate} toDate={toDate} />
           )}

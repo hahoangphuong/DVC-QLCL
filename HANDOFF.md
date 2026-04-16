@@ -177,6 +177,7 @@ Important behavior:
 - `DashboardRuntimePanels.tsx` should keep grouped shell props (`lookupPanels`, `pendingExperts`, `navigation`) instead of re-expanding a long flat prop list
 - those grouped runtime-panel prop types should reuse exported types from `features/lookup/useDashboardLookupState.ts` and `features/navigation/useDashboardNavigation.ts` instead of mirroring local type definitions
 - `DashboardRuntime.tsx` should pass grouped hook results through directly when the prop contract already matches (`lookupPanels`, `navigation`), instead of reconstructing inline mirror objects
+- `DashboardRuntimePanels.tsx` should keep tiny local render helpers for repeated chart wiring (for example monthly-trend callbacks) instead of duplicating inline JSX lambdas
 - dashboard cross-tab navigation callbacks should live in `features/navigation/useDashboardNavigation.ts`; `App.tsx` should only wire state setters/defaults into that hook
 - `features/navigation/useDashboardNavigation.ts` should use the concrete lookup state contract from `features/lookup/lookupShared.ts`, not keep a generic lookup-state type plus local casts
 - dashboard role-based visible tabs and active-tab access guard should live in `features/navigation/useDashboardTabAccess.ts`
