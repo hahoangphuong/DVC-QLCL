@@ -38,6 +38,8 @@ export function makeTabFilter(preset = "nam_nay"): TabFilter {
   };
 }
 
+export { getPreset };
+
 export interface SummaryData {
   ton_truoc: number;
   da_nhan: number;
