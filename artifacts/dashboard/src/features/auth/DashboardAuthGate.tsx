@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
+import type { DashboardRole } from "./authApi";
 import { LoginScreen } from "./LoginScreen";
-
-type DashboardRole = "viewer" | "admin";
 
 type Props = {
   authLoading: boolean;

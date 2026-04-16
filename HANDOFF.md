@@ -191,6 +191,7 @@ Important behavior:
 - dashboard header files should import shared `DashboardRole` and `SyncStatus` types from `features/auth/authApi.ts` and `features/layout/useDashboardSyncStatus.ts` instead of redefining them locally
 - dashboard sync-status fetch/query should live in `features/layout/useDashboardSyncStatus.ts`; `App.tsx` should only consume the hook result
 - dashboard auth loading/login gate should live in `features/auth/DashboardAuthGate.tsx`; `App.tsx` should only pass auth shell state into it
+- `features/auth/DashboardAuthGate.tsx` should reuse `DashboardRole` from `features/auth/authApi.ts`, not mirror the `"viewer" | "admin"` union locally
 - dashboard auth bootstrap/login/logout wiring should live in `features/auth/useDashboardAuth.ts`; `App.tsx` should only pass reset callbacks into that hook
 - lookup shared source of truth:
   - labels, sort order, option lists, submission display, common lookup messages, export helpers:
