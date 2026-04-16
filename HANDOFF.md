@@ -128,6 +128,7 @@ Current shell and feature files:
 - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\StatsOverview.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/StatsOverview.tsx)
 - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\OverviewTab.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/OverviewTab.tsx)
 - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\ThongKeTab.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/ThongKeTab.tsx)
+- [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\MonthlyTrendChart.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/MonthlyTrendChart.tsx)
 - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\useDashboardStatsFilters.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/useDashboardStatsFilters.ts)
 - navigation feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\navigation\dashboardTabs.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/navigation/dashboardTabs.ts)
@@ -163,6 +164,7 @@ Important behavior:
 - overview tab runtime shell should live in `features/stats/OverviewTab.tsx`; `App.tsx` should only pass cross-tab handlers and the monthly-trend render callback
 - statistics tab runtime shell should live in `features/stats/ThongKeTab.tsx`; `App.tsx` should only pass render callbacks for heavier chart/table blocks
 - specialist statistics table runtime should live in `features/stats/ChuyenVienTable.tsx`; `App.tsx` should not reintroduce the local `ChuyenVienTable` implementation
+- monthly trend chart runtime should live in `features/stats/MonthlyTrendChart.tsx`; `App.tsx` should not reintroduce the local `MonthlyTrendChart` implementation
 - stats filter context should live in `features/stats/statsFilterContext.tsx`, not be recreated inside `App.tsx`
 - stats filter state/provider wiring should live in `features/stats/useDashboardStatsFilters.ts`; `App.tsx` should consume `StatsFiltersCtx.Provider` via that hook, not recreate local filter context/types
 - shared date parsing/clamping should live in `shared/dateUtils.ts`, and shared ISO display formatting should live in `shared/displayFormatters.ts`; duplicated local helpers have been removed from `App.tsx`

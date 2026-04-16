@@ -1,10 +1,9 @@
-import { Fragment, useState, useCallback, useEffect, useMemo, useDeferredValue } from "react";
+import { Fragment, useState, useCallback, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, LabelList,
   PieChart, Pie, Legend,
-  ComposedChart, Line,
   AreaChart, Area,
 } from "recharts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -34,6 +33,7 @@ import { useDashboardTabAccess } from "./features/navigation/useDashboardTabAcce
 import { useDashboardNavigation } from "./features/navigation/useDashboardNavigation";
 import { DangXuLyTab as PendingDangXuLyTab } from "./features/pending/PendingTabs";
 import { ChuyenVienTable } from "./features/stats/ChuyenVienTable";
+import { MonthlyTrendChart } from "./features/stats/MonthlyTrendChart";
 import { OverviewTab } from "./features/stats/OverviewTab";
 import { DonutChart, SummaryBarChart } from "./features/stats/StatsCharts";
 import { ThongKeTab } from "./features/stats/ThongKeTab";
@@ -51,7 +51,6 @@ import {
   TT48_LOAI_LABELS,
   fetchEarliestDate,
   fetchGiaiQuyet,
-  fetchMonthly,
   fetchSummary,
   fetchTonSau,
   fetchTt48LoaiHoSo,
@@ -84,172 +83,6 @@ const queryClient = new QueryClient({
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, ""); // e.g. "/dashboard"
 const API  = "/api"; // API base — tách biệt khỏi BASE để production routing hoạt động
-
-// ---------------------------------------------------------------------------
-// Biểu đồ xu hướng theo tháng (bar + line, giống thiết kế Excel)
-// ---------------------------------------------------------------------------
-function MonthlyTrendChart({ thuTuc, fromDate, toDate, hideTitle = false }: {
-  thuTuc: 48 | 47 | 46;
-  fromDate: string;
-  toDate:   string;
-  hideTitle?: boolean;
-}) {
-  const [showLabels, setShowLabels] = useState(false);
-
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["monthly", thuTuc],
-    queryFn:  () => fetchMonthly(thuTuc),
-    retry: 2,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  // Lọc các tháng nằm trong kỳ fromDate..toDate
-  const allMonths = data?.months ?? [];
-  const [fy, fm] = fromDate ? [+fromDate.slice(0,4), +fromDate.slice(5,7)] : [0, 0];
-  const [ty, tm] = toDate   ? [+toDate.slice(0,4),   +toDate.slice(5,7)]   : [9999, 12];
-  const months = allMonths.filter(m => {
-    const after  = m.year > fy  || (m.year === fy  && m.month >= fm);
-    const before = m.year < ty  || (m.year === ty  && m.month <= tm);
-    return after && before;
-  });
-
-  if (isLoading) return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-      <div className="h-64 flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
-      </div>
-    </div>
-  );
-
-  if (isError || months.length === 0) return null;
-
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-      <div className="flex items-center justify-between mb-4">
-        {!hideTitle ? (
-          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-            Xu hướng theo tháng — TT{thuTuc}
-          </h3>
-        ) : (
-          <div />
-        )}
-        <div className="flex items-center gap-4 text-xs text-slate-500 font-medium">
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded-sm bg-[#60a5fa]" /> Tiếp nhận
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded-sm bg-[#34d399]" /> Giải quyết
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded-sm" style={{ background: "#f59e0b" }} /> Hồ sơ tồn
-          </span>
-          <label className="flex items-center gap-1 cursor-pointer select-none border-l border-slate-200 pl-4 ml-1">
-            <input
-              type="checkbox"
-              checked={showLabels}
-              onChange={(e) => setShowLabels(e.target.checked)}
-              className="w-3 h-3 accent-blue-600 cursor-pointer"
-            />
-            <span>Hiện số liệu</span>
-          </label>
-        </div>
-      </div>
-      <ResponsiveContainer width="100%" height={280}>
-        <ComposedChart
-          data={months}
-          margin={{ top: showLabels ? 10 : 20, right: 30, bottom: 5, left: 10 }}
-          barGap={2}
-        >
-          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-          <XAxis
-            dataKey="label"
-            tick={{ fontSize: 10, fill: "#64748b" }}
-            interval={months.length > 24 ? Math.floor(months.length / 24) : 0}
-            angle={-35}
-            textAnchor="end"
-            height={50}
-          />
-          <YAxis yAxisId="left"  tick={{ fontSize: 10, fill: "#64748b" }} width={45} />
-          <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: "#f59e0b" }} width={55} />
-          <Tooltip
-            contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
-            formatter={(value: number, name: string) => {
-              const labels: Record<string, string> = {
-                da_nhan:       "Tiếp nhận",
-                da_giai_quyet: "Giải quyết",
-                ton_sau:       "Hồ sơ tồn",
-              };
-              return [value.toLocaleString("vi-VN"), labels[name] ?? name];
-            }}
-          />
-          <Bar yAxisId="left" dataKey="da_nhan" fill="#60a5fa" name="da_nhan" radius={[2, 2, 0, 0]} animationDuration={CHART_ANIMATION_MS}>
-            {showLabels && (
-              <LabelList
-                dataKey="da_nhan"
-                content={(props: any) => {
-                  const { x, y, width, height, value } = props;
-                  if (!value || height < 16) return null;
-                  const cx = (x ?? 0) + (width ?? 0) / 2;
-                  // Đặt center của text cách đỉnh cột một khoảng = nửa chiều dài text
-                  // Tại fontSize 9, mỗi ký tự ≈ 6px; dự phòng 13px là đủ cho 3–4 chữ số
-                  const cy = (y ?? 0) + 13;
-                  return (
-                    <text x={cx} y={cy}
-                      transform={`rotate(-90, ${cx}, ${cy})`}
-                      textAnchor="middle" dominantBaseline="central"
-                      fontSize={9} fill="#1e40af" fontWeight={600}>
-                      {value}
-                    </text>
-                  );
-                }}
-              />
-            )}
-          </Bar>
-          <Bar yAxisId="left" dataKey="da_giai_quyet" fill="#34d399" name="da_giai_quyet" radius={[2, 2, 0, 0]} animationDuration={CHART_ANIMATION_MS}>
-            {showLabels && (
-              <LabelList
-                dataKey="da_giai_quyet"
-                content={(props: any) => {
-                  const { x, y, width, height, value } = props;
-                  if (!value || height < 16) return null;
-                  const cx = (x ?? 0) + (width ?? 0) / 2;
-                  const cy = (y ?? 0) + 13;
-                  return (
-                    <text x={cx} y={cy}
-                      transform={`rotate(-90, ${cx}, ${cy})`}
-                      textAnchor="middle" dominantBaseline="central"
-                      fontSize={9} fill="#065f46" fontWeight={600}>
-                      {value}
-                    </text>
-                  );
-                }}
-              />
-            )}
-          </Bar>
-          <Line
-            yAxisId="right"
-            type="monotone"
-            dataKey="ton_sau"
-            stroke="#f59e0b"
-            strokeWidth={2}
-            dot={months.length <= 24}
-            name="ton_sau"
-            animationDuration={CHART_ANIMATION_MS}
-          >
-            {showLabels && (
-              <LabelList
-                dataKey="ton_sau"
-                position="top"
-                style={{ fontSize: 9, fill: "#b45309", fontWeight: 600 }}
-                formatter={(v: number) => v || ""}
-              />
-            )}
-          </Line>
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
 
 function Tt48LoaiHoSoMonthlyChart({ fromDate, toDate }: { fromDate: string; toDate: string }) {
   const [showLabels, setShowLabels] = useState(false);
