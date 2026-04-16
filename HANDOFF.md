@@ -174,6 +174,7 @@ Important behavior:
 - dashboard main tab-panel host rendering should live in `features/navigation/DashboardTabPanels.tsx`, not be expanded inline again in `App.tsx`
 - dashboard tab dispatcher switch should live in `features/navigation/DashboardContentSwitch.tsx`; `App.tsx` should only pass render callbacks and shell state
 - dashboard runtime tab mounting/wiring should live in `features/layout/DashboardRuntimePanels.tsx`; `DashboardRuntime.tsx` should only pass shell state and callbacks into it
+- `DashboardRuntimePanels.tsx` should keep grouped shell props (`lookupPanels`, `pendingExperts`, `navigation`) instead of re-expanding a long flat prop list
 - dashboard cross-tab navigation callbacks should live in `features/navigation/useDashboardNavigation.ts`; `App.tsx` should only wire state setters/defaults into that hook
 - dashboard role-based visible tabs and active-tab access guard should live in `features/navigation/useDashboardTabAccess.ts`
 - dashboard header sync-status rendering should live in `features/layout/SyncStatusBadge.tsx`, not be expanded inline again in `App.tsx`

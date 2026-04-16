@@ -14,16 +14,19 @@ import { Tt48LoaiHoSoTable } from "../stats/Tt48LoaiHoSoTable";
 import type { LookupTinhTrang } from "../lookup/lookupShared";
 import type { SupportedThuTuc, TabFilter } from "../stats/statsShared";
 
-type Props = {
-  tabs: readonly DashboardTabItem[];
-  activeTab: DashboardTabId;
-  isAdmin: boolean;
-  hideEmptyExperts: boolean;
-  setHideEmptyExperts: (value: boolean) => void;
+type LookupPanelsState = {
   lookupState: TraCuuFilterState;
   setLookupState: (state: TraCuuFilterState) => void;
   lookupDoneState: TraCuuFilterState;
   setLookupDoneState: (state: TraCuuFilterState) => void;
+};
+
+type PendingExpertsState = {
+  hideEmptyExperts: boolean;
+  setHideEmptyExperts: (value: boolean) => void;
+};
+
+type DashboardRuntimeNavigation = {
   openLookupByChuyenVien: (tenCvRaw: string, thuTuc: SupportedThuTuc) => void;
   openLookupByChuyenGia: (tenCg: string) => void;
   openLookupByTinhTrang: (thuTuc: SupportedThuTuc, tinhTrang: LookupTinhTrang) => void;
@@ -33,24 +36,35 @@ type Props = {
   openDangXuLyFromTongQuan: (thuTuc: SupportedThuTuc) => void;
 };
 
+type Props = {
+  tabs: readonly DashboardTabItem[];
+  activeTab: DashboardTabId;
+  isAdmin: boolean;
+  lookupPanels: LookupPanelsState;
+  pendingExperts: PendingExpertsState;
+  navigation: DashboardRuntimeNavigation;
+};
+
 export function DashboardRuntimePanels({
   tabs,
   activeTab,
   isAdmin,
-  hideEmptyExperts,
-  setHideEmptyExperts,
-  lookupState,
-  setLookupState,
-  lookupDoneState,
-  setLookupDoneState,
-  openLookupByChuyenVien,
-  openLookupByChuyenGia,
-  openLookupByTinhTrang,
-  openLookupDoneByChuyenVien,
-  openLookupDoneByTinhTrang,
-  openThongKeFromTongQuan,
-  openDangXuLyFromTongQuan,
+  lookupPanels,
+  pendingExperts,
+  navigation,
 }: Props) {
+  const { lookupState, setLookupState, lookupDoneState, setLookupDoneState } = lookupPanels;
+  const { hideEmptyExperts, setHideEmptyExperts } = pendingExperts;
+  const {
+    openLookupByChuyenVien,
+    openLookupByChuyenGia,
+    openLookupByTinhTrang,
+    openLookupDoneByChuyenVien,
+    openLookupDoneByTinhTrang,
+    openThongKeFromTongQuan,
+    openDangXuLyFromTongQuan,
+  } = navigation;
+
   const renderTabContent = (tabId: DashboardTabId) => (
     <DashboardContentSwitch
       tabId={tabId}

@@ -111,19 +111,22 @@ export function DashboardRuntime() {
             tabs={visibleTabs}
             activeTab={activeTab}
             isAdmin={isAdmin}
-            hideEmptyExperts={hideEmptyExperts}
-            setHideEmptyExperts={setHideEmptyExperts}
-            lookupState={lookupState}
-            setLookupState={setLookupState}
-            lookupDoneState={lookupDoneState}
-            setLookupDoneState={setLookupDoneState}
-            openLookupByChuyenVien={openLookupByChuyenVien}
-            openLookupByChuyenGia={openLookupByChuyenGia}
-            openLookupByTinhTrang={openLookupByTinhTrang}
-            openLookupDoneByChuyenVien={openLookupDoneByChuyenVien}
-            openLookupDoneByTinhTrang={openLookupDoneByTinhTrang}
-            openThongKeFromTongQuan={openThongKeFromTongQuan}
-            openDangXuLyFromTongQuan={openDangXuLyFromTongQuan}
+            pendingExperts={{ hideEmptyExperts, setHideEmptyExperts }}
+            lookupPanels={{
+              lookupState,
+              setLookupState,
+              lookupDoneState,
+              setLookupDoneState,
+            }}
+            navigation={{
+              openLookupByChuyenVien,
+              openLookupByChuyenGia,
+              openLookupByTinhTrang,
+              openLookupDoneByChuyenVien,
+              openLookupDoneByTinhTrang,
+              openThongKeFromTongQuan,
+              openDangXuLyFromTongQuan,
+            }}
           />
 
           <AdminPanelMount isAdmin={isAdmin} showAdmin={showAdmin}>
