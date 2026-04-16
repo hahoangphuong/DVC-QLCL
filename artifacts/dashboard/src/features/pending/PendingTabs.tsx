@@ -5,7 +5,16 @@ import { cleanCvName } from "../../shared/nameFormatters";
 import { isoToDisplay } from "../../shared/displayFormatters";
 import { CHART_ANIMATION_MS } from "../../shared/chartConfig";
 import { type LookupTinhTrang } from "../lookup/lookupShared";
-import { CHO_COLORS, CHO_COLORS_48, fetchChuyenGia, fetchDangXuLy, type DangXuLyRow, type ChuyenGiaRow, type PendingThuTuc } from "./pendingShared";
+import {
+  CHO_COLORS,
+  CHO_COLORS_48,
+  PENDING_COMMON_MESSAGES,
+  fetchChuyenGia,
+  fetchDangXuLy,
+  type ChuyenGiaRow,
+  type DangXuLyRow,
+  type PendingThuTuc,
+} from "./pendingShared";
 
 // Extracted from App.tsx to keep pending-workflow UI isolated from the dashboard shell.
 
@@ -17,29 +26,29 @@ export function DangXuLyTab({
   hideEmptyExperts = false,
   setHideEmptyExperts,
 }: {
-  thuTuc: 48 | 47 | 46;
-  onCvLookup?: (tenCvRaw: string, thuTuc: 48 | 47 | 46) => void;
+  thuTuc: PendingThuTuc;
+  onCvLookup?: (tenCvRaw: string, thuTuc: PendingThuTuc) => void;
   onCgLookup?: (tenCg: string) => void;
-  onTinhTrangLookup?: (thuTuc: 48 | 47 | 46, tinhTrang: LookupTinhTrang) => void;
+  onTinhTrangLookup?: (thuTuc: PendingThuTuc, tinhTrang: LookupTinhTrang) => void;
   hideEmptyExperts?: boolean;
   setHideEmptyExperts?: (value: boolean) => void;
 }) {
   const [showTt48TotalBreakdown, setShowTt48TotalBreakdown] = useState(false);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["dang-xu-ly", thuTuc],
-    queryFn:  () => fetchDangXuLy(thuTuc),
+    queryFn: () => fetchDangXuLy(thuTuc),
     retry: 2,
   });
 
   if (isLoading) return (
     <div className="flex items-center justify-center h-48 text-slate-400 text-sm gap-2">
       <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-      Đang tải dữ liệu...
+      {PENDING_COMMON_MESSAGES.loadingPending}
     </div>
   );
   if (isError || !data) return (
     <div className="flex items-center justify-center h-48 text-red-400 text-sm">
-      Không thể tải dữ liệu đang xử lý TT{thuTuc}
+      {PENDING_COMMON_MESSAGES.errorPending(thuTuc)}
     </div>
   );
 
@@ -76,12 +85,12 @@ export function DangXuLyTab({
         fill:  c.fill,
       })).filter(d => d.value > 0)
     : [
-        { name: "Chờ CV",         value: totCv,       fill: CHO_COLORS.cho_cv.fill        },
-        { name: "Chờ CG",         value: totCg,       fill: CHO_COLORS.cho_cg.fill        },
-        { name: "Chờ Tổ trưởng", value: totToTruong, fill: CHO_COLORS.cho_to_truong.fill },
-        { name: "Chờ TrP",        value: totTrp,      fill: CHO_COLORS.cho_trp.fill       },
-        { name: "Chờ PCT",        value: totPct,      fill: CHO_COLORS.cho_pct.fill       },
-        { name: "Chờ Văn thư",   value: totVanThu,   fill: CHO_COLORS.cho_van_thu.fill   },
+        { name: CHO_COLORS.cho_cv.label,         value: totCv,       fill: CHO_COLORS.cho_cv.fill        },
+        { name: CHO_COLORS.cho_cg.label,         value: totCg,       fill: CHO_COLORS.cho_cg.fill        },
+        { name: CHO_COLORS.cho_to_truong.label,  value: totToTruong, fill: CHO_COLORS.cho_to_truong.fill },
+        { name: CHO_COLORS.cho_trp.label,        value: totTrp,      fill: CHO_COLORS.cho_trp.fill       },
+        { name: CHO_COLORS.cho_pct.label,        value: totPct,      fill: CHO_COLORS.cho_pct.fill       },
+        { name: CHO_COLORS.cho_van_thu.label,    value: totVanThu,   fill: CHO_COLORS.cho_van_thu.fill   },
       ].filter(d => d.value > 0);
 
   const hanData = [
@@ -683,19 +692,19 @@ function ChuyenGiaTable({
 }) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["chuyen-gia", thuTuc],
-    queryFn:  () => fetchChuyenGia(thuTuc),
+    queryFn: () => fetchChuyenGia(thuTuc),
     retry: 2,
   });
 
   if (isLoading) return (
     <div className="flex items-center justify-center h-20 text-slate-400 text-sm gap-2">
       <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
-      Đang tải thống kê chuyên gia...
+      {PENDING_COMMON_MESSAGES.loadingExperts}
     </div>
   );
   if (isError || !data) return (
     <div className="flex items-center justify-center h-20 text-red-400 text-sm">
-      Không thể tải dữ liệu chuyên gia TT{thuTuc}
+      {PENDING_COMMON_MESSAGES.errorExperts(thuTuc)}
     </div>
   );
 
@@ -839,7 +848,7 @@ function ChuyenGiaTable({
               </td>
             </tr>
             {visibleChuyenGia.length === 0 ? (
-              <tr><td colSpan={10} className="px-3 py-2 text-xs text-slate-400 italic text-center">Không có hồ sơ đang ở bước chuyên gia</td></tr>
+              <tr><td colSpan={10} className="px-3 py-2 text-xs text-slate-400 italic text-center">{PENDING_COMMON_MESSAGES.noExpertCases}</td></tr>
             ) : (
               visibleChuyenGia.map((row, idx) => renderRow(row, idx, "bg-green-50"))
             )}
@@ -850,7 +859,7 @@ function ChuyenGiaTable({
               </td>
             </tr>
             {visibleChuyenVienCg.length === 0 ? (
-              <tr><td colSpan={10} className="px-3 py-2 text-xs text-slate-400 italic text-center">Không có chuyên viên đóng vai chuyên gia</td></tr>
+              <tr><td colSpan={10} className="px-3 py-2 text-xs text-slate-400 italic text-center">{PENDING_COMMON_MESSAGES.noSpecialistExperts}</td></tr>
             ) : (
               visibleChuyenVienCg.map((row, idx) => renderRow(row, idx, "bg-amber-50"))
             )}

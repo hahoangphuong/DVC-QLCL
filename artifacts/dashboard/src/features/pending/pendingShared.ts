@@ -99,3 +99,12 @@ export const CHO_COLORS_48 = [
   { key: "cho_pct", fill: "#a855f7", label: "Chờ PCT" },
   { key: "cho_van_thu", fill: "#64748b", label: "Chờ Văn thư" },
 ] as const;
+
+export const PENDING_COMMON_MESSAGES = {
+  loadingPending: "Đang tải dữ liệu...",
+  errorPending: (thuTuc: PendingThuTuc) => `Không thể tải dữ liệu đang xử lý TT${thuTuc}`,
+  loadingExperts: "Đang tải thống kê chuyên gia...",
+  errorExperts: (thuTuc: number) => `Không thể tải dữ liệu chuyên gia TT${thuTuc}`,
+  noExpertCases: "Không có hồ sơ đang ở bước chuyên gia",
+  noSpecialistExperts: "Không có chuyên viên đóng vai chuyên gia",
+} as const;

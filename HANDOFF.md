@@ -229,6 +229,8 @@ Important behavior:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\StatsCharts.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/StatsCharts.tsx)
   - pending table display helpers:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\pending\pendingDisplay.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/pending/pendingDisplay.tsx)
+  - pending shared labels, fetchers, and common empty/loading/error messages:
+    - [`D:\DVC-QLCL\artifacts\dashboard\src\features\pending\pendingShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/pending/pendingShared.ts)
   - admin export table metadata:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\adminShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/adminShared.ts)
 - admin panel runtime UI should live in `features/admin/AdminPanel.tsx`; do not reintroduce a local `AdminPanel` block in `App.tsx`
