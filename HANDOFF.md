@@ -195,6 +195,7 @@ Important behavior:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useDashboardLookupState.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useDashboardLookupState.ts)
   - lookup tab local-state wiring:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupTabState.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupTabState.ts)
+    - shared `LookupTabProps` for `LookupPendingTab` and `LookupDoneTab` should come from this file, not be mirrored locally in each tab
   - lookup export state/handler wiring:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupExport.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupExport.ts)
   - lookup shared select field UI:

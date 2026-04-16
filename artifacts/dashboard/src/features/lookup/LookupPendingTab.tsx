@@ -1,4 +1,4 @@
-import { useDeferredValue, type Dispatch, type SetStateAction } from "react";
+import { useDeferredValue } from "react";
 import { LOOKUP_TEXT } from "../../uiText";
 import { LookupDetailModalMount } from "./LookupDetailModalMount";
 import { LookupFilterPanel } from "./LookupFilterPanel";
@@ -12,21 +12,16 @@ import { useLookupInactiveCancel } from "./useLookupInactiveCancel";
 import { useLookupResetFilters } from "./useLookupResetFilters";
 import { useLookupSortedRows } from "./useLookupSortedRows";
 import { useLookupSort } from "./useLookupSort";
-import { useLookupTabState } from "./useLookupTabState";
+import { useLookupTabState, type LookupTabProps } from "./useLookupTabState";
 import {
   DEFAULT_TRA_CUU_FILTER_STATE,
   LOOKUP_COMMON_MESSAGES,
   TRA_CUU_TINH_TRANG_OPTIONS,
   downloadTraCuuDangXuLyExcel,
   fetchTraCuuDangXuLy,
-  type TraCuuFilterState,
 } from "./lookupShared";
 
-export function LookupPendingTab(props?: {
-  state: TraCuuFilterState;
-  setState: Dispatch<SetStateAction<TraCuuFilterState>>;
-  isActive?: boolean;
-}) {
+export function LookupPendingTab(props?: LookupTabProps) {
   const { state, setState, isActive } = useLookupTabState(props, DEFAULT_TRA_CUU_FILTER_STATE);
   const { thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo, sortBy, sortDir } = state;
   const { selectedDetail, openDetail, closeDetail } = useLookupDetailModal();
