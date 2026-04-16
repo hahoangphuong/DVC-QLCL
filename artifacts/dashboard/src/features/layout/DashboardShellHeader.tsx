@@ -2,12 +2,8 @@ import { DashboardHeaderActions } from "./DashboardHeaderActions";
 import { DashboardHeaderBrand } from "./DashboardHeaderBrand";
 import { DashboardTabBar } from "../navigation/DashboardTabBar";
 import type { DashboardTabId, DashboardTabItem } from "../navigation/dashboardTabs";
-
-type DashboardRole = "viewer" | "admin";
-type SyncStatus = {
-  lastSyncedAt: string | null;
-  totalSizeMB: number;
-};
+import type { DashboardRole } from "../auth/authApi";
+import type { SyncStatus } from "./useDashboardSyncStatus";
 
 type Props = {
   authRole: DashboardRole;

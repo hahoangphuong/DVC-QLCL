@@ -1,10 +1,6 @@
 import { SyncStatusBadge } from "./SyncStatusBadge";
-
-type DashboardRole = "viewer" | "admin";
-type SyncStatus = {
-  lastSyncedAt: string | null;
-  totalSizeMB: number;
-};
+import type { DashboardRole } from "../auth/authApi";
+import type { SyncStatus } from "./useDashboardSyncStatus";
 
 type Props = {
   authRole: DashboardRole;
