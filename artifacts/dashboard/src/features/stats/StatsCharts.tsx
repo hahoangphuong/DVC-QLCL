@@ -66,27 +66,6 @@ export function SummaryBarChart({ data }: { data: BarData[] }) {
   );
 }
 
-export function KpiCard({ label, value, color, bgColor }: {
-  label: string;
-  value: number;
-  color: string;
-  bgColor: string;
-}) {
-  return (
-    <div
-      className="flex flex-col items-center justify-center rounded-xl p-4 text-center min-w-0 shadow-sm border border-slate-100"
-      style={{ backgroundColor: bgColor }}
-    >
-      <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color }}>
-        {label}
-      </div>
-      <div className="text-3xl font-bold" style={{ color }}>
-        {value.toLocaleString("vi-VN")}
-      </div>
-    </div>
-  );
-}
-
 export interface DonutSegment {
   name: string;
   value: number;

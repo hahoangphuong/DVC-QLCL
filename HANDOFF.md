@@ -242,7 +242,7 @@ Important behavior:
 - repeated lookup action-bar UI (`reset`, `xuất Excel`, `đang tải/tìm thấy`) should live in `features/lookup/LookupActionBar.tsx`; `App.tsx` should not duplicate that block across lookup tabs
 - repeated lookup error-panel UI should live in `features/lookup/LookupErrorPanel.tsx`; `App.tsx` should not duplicate the red error-state block across lookup tabs
 - stats shared constants/types/fetchers (`COLORS`, `QUICK_FILTERS`, `getPreset`, summary/monthly/ton-sau/chuyen-vien/tt48 classification fetchers, and related types) should live in `features/stats/statsShared.ts`; `App.tsx` should not reintroduce local duplicates
-- stats presentational chart components (`SummaryBarChart`, `DonutChart`, `KpiCard`) should live in `features/stats/StatsCharts.tsx`; `App.tsx` should not reintroduce local chart blocks
+- stats presentational chart components (`SummaryBarChart`, `DonutChart`) should live in `features/stats/StatsCharts.tsx`; `App.tsx` and `StatsOverview.tsx` should not reintroduce local chart blocks
 - pending table display helpers (`Num`, `Pct`, row summation helper) should live in `features/pending/pendingDisplay.tsx`; `App.tsx` should not reintroduce local duplicates
 - repeated lookup progress-bar UI should live in `features/lookup/LookupProgressBar.tsx`; `App.tsx` should not duplicate the loading progress block across lookup tabs
 - repeated lookup inactive-tab query cancel wiring should live in `features/lookup/useLookupInactiveCancel.ts`; `App.tsx` should not duplicate `useEffect(... cancelQueries ...)` across lookup tabs
