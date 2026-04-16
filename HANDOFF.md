@@ -87,6 +87,7 @@ Current shell and feature files:
 
 - shell:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\App.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/App.tsx)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\layout\DashboardRuntime.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/layout/DashboardRuntime.tsx)
 - shared text:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\uiText.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/uiText.ts)
 - shared date helpers:
@@ -129,6 +130,7 @@ Current shell and feature files:
 - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\OverviewTab.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/OverviewTab.tsx)
 - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\ThongKeTab.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/ThongKeTab.tsx)
 - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\MonthlyTrendChart.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/MonthlyTrendChart.tsx)
+- [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\Tt48LoaiHoSoTable.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/Tt48LoaiHoSoTable.tsx)
 - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\Tt48LoaiHoSoMonthlyChart.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/Tt48LoaiHoSoMonthlyChart.tsx)
 - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\useDashboardStatsFilters.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/useDashboardStatsFilters.ts)
 - navigation feature:
@@ -151,7 +153,7 @@ Current shell and feature files:
 
 Important behavior:
 
-- `App.tsx` should now act mainly as shell/orchestration for tabs, auth state, and cross-tab navigation
+- `App.tsx` should now stay as the root provider/router only; dashboard runtime shell should live in `features/layout/DashboardRuntime.tsx`
 - login screen before dashboard
 - role-based tab visibility
 - admin button only for `admin`
@@ -166,6 +168,7 @@ Important behavior:
 - statistics tab runtime shell should live in `features/stats/ThongKeTab.tsx`; `App.tsx` should only pass render callbacks for heavier chart/table blocks
 - specialist statistics table runtime should live in `features/stats/ChuyenVienTable.tsx`; `App.tsx` should not reintroduce the local `ChuyenVienTable` implementation
 - monthly trend chart runtime should live in `features/stats/MonthlyTrendChart.tsx`; `App.tsx` should not reintroduce the local `MonthlyTrendChart` implementation
+- TT48 dossier classification table should live in `features/stats/Tt48LoaiHoSoTable.tsx`; `App.tsx` should not reintroduce the local `Tt48LoaiHoSoTable` implementation
 - TT48 received-by-month classification chart should live in `features/stats/Tt48LoaiHoSoMonthlyChart.tsx`; `App.tsx` should not reintroduce the local `Tt48LoaiHoSoMonthlyChart` implementation
 - stats filter context should live in `features/stats/statsFilterContext.tsx`, not be recreated inside `App.tsx`
 - stats filter state/provider wiring should live in `features/stats/useDashboardStatsFilters.ts`; `App.tsx` should consume `StatsFiltersCtx.Provider` via that hook, not recreate local filter context/types
