@@ -1,32 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { EXPORT_TABLES } from "./adminShared";
+import {
+  EXPORT_TABLES,
+  authHeaders,
+  fmtSyncAt,
+  type DbStats,
+  type SchedulerInfo,
+  type SyncLog,
+} from "./adminShared";
 
 const API = "/api";
-function authHeaders(token: string): HeadersInit {
-  return { "x-admin-token": token };
-}
-
-type TableMeta = { last_sync: string | null; fetch_sec: number | null; insert_sec: number | null };
-type DbStats = {
-  tables: {
-    tra_cuu_chung: { total: number } & TableMeta;
-    dang_xu_ly:    { total: number; by_thu_tuc: Record<string,number> } & TableMeta;
-    da_xu_ly:      { total: number; by_thu_tuc: Record<string,number> } & TableMeta;
-  };
-};
-
-type SchedulerInfo = { interval_hours: number; next_run: string | null };
-type SyncLog      = { lines: string[]; total_lines: number; showing_last: number };
-
-function fmtSyncAt(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  const dd  = String(d.getDate()).padStart(2,"0");
-  const mm  = String(d.getMonth()+1).padStart(2,"0");
-  const hh  = String(d.getHours()).padStart(2,"0");
-  const min = String(d.getMinutes()).padStart(2,"0");
-  return `${dd}/${mm}/${d.getFullYear()} ${hh}:${min}`;
-}
 
 export function AdminPanel({ onClose }: { onClose: () => void }) {
   const STORAGE_KEY = "dav_admin_token";
