@@ -58,6 +58,24 @@ export function DashboardRuntimePanels({
     />
   );
 
+  const renderLookupPendingTab = () =>
+    !isAdmin ? null : (
+      <LookupPendingTab
+        state={lookupState}
+        setState={setLookupState}
+        isActive={activeTab === "tra_cuu_dang_xl"}
+      />
+    );
+
+  const renderLookupDoneTab = () =>
+    !isAdmin ? null : (
+      <LookupDoneTab
+        state={lookupDoneState}
+        setState={setLookupDoneState}
+        isActive={activeTab === "tra_cuu_da_xl"}
+      />
+    );
+
   const renderTabContent = (tabId: DashboardTabId) => (
     <DashboardContentSwitch
       tabId={tabId}
@@ -105,24 +123,8 @@ export function DashboardRuntimePanels({
           <PendingDangXuLyTab thuTuc={thuTuc} onCvLookup={openLookupByChuyenVien} />
         )
       }
-      renderLookupDangXuLy={() =>
-        isAdmin ? (
-          <LookupPendingTab
-            state={lookupState}
-            setState={setLookupState}
-            isActive={activeTab === "tra_cuu_dang_xl"}
-          />
-        ) : null
-      }
-      renderLookupDaXuLy={() =>
-        isAdmin ? (
-          <LookupDoneTab
-            state={lookupDoneState}
-            setState={setLookupDoneState}
-            isActive={activeTab === "tra_cuu_da_xl"}
-          />
-        ) : null
-      }
+      renderLookupDangXuLy={renderLookupPendingTab}
+      renderLookupDaXuLy={renderLookupDoneTab}
     />
   );
 
