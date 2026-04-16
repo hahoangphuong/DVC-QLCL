@@ -720,3 +720,8 @@ Whenever major behavior changes, update this file with:
 - This hook now owns both:
   - navigation from `Đang xử lý` -> `Tra cứu HS đang xử lý`
   - navigation from `Thống kê` specialist table -> `Tra cứu HS đã xử lý`
+- Processed dossier lookup ownership:
+  - [`D:\DVC-QLCL\artifacts\api-server\src\lib\stats\workflow.ts`](/D:/DVC-QLCL/artifacts/api-server/src/lib/stats/workflow.ts)
+- Rule:
+  - `Tra cứu HS đã xử lý` must deduplicate by handling cycle, not by `ma_ho_so`
+  - preferred cycle key is `COALESCE(NULLIF(TRIM(da_xu_ly_id), ''), tcc_id)`

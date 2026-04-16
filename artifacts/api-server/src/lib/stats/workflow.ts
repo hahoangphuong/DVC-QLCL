@@ -764,15 +764,17 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
   const [optionRows, rows] = await Promise.all([
     query<PendingLookupOptionRow>(
       `WITH latest_case_facts AS (
-         SELECT DISTINCT ON (thu_tuc, ma_ho_so)
+         SELECT DISTINCT ON (thu_tuc, luot_xu_ly_id)
            thu_tuc,
+           COALESCE(NULLIF(TRIM(da_xu_ly_id), ''), tcc_id) AS luot_xu_ly_id,
            ma_ho_so,
            cv_name_raw,
            chuyen_gia_name
          FROM mv_stats_case_facts
          WHERE ($1::int IS NULL OR thu_tuc = $1)
            AND trang_thai IN ('4', '6', '7')
-         ORDER BY thu_tuc, ma_ho_so, ngay_tra DESC NULLS LAST, ngay_nhan DESC NULLS LAST
+           AND COALESCE(NULLIF(TRIM(da_xu_ly_id), ''), tcc_id) IS NOT NULL
+         ORDER BY thu_tuc, luot_xu_ly_id, ngay_tra DESC NULLS LAST, ngay_nhan DESC NULLS LAST
        ),
        option_rows AS (
          SELECT
@@ -793,8 +795,9 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
     ),
     query<PendingLookupRow>(
       `WITH latest_case_facts AS (
-         SELECT DISTINCT ON (thu_tuc, ma_ho_so)
+         SELECT DISTINCT ON (thu_tuc, luot_xu_ly_id)
            thu_tuc,
+           COALESCE(NULLIF(TRIM(da_xu_ly_id), ''), tcc_id) AS luot_xu_ly_id,
            ma_ho_so,
            ngay_nhan AS ngay_tiep_nhan,
            ngay_tra AS ngay_hen_tra,
@@ -821,7 +824,8 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
          FROM mv_stats_case_facts
          WHERE ($1::int IS NULL OR thu_tuc = $1)
            AND trang_thai IN ('4', '6', '7')
-         ORDER BY thu_tuc, ma_ho_so, ngay_tra DESC NULLS LAST, ngay_nhan DESC NULLS LAST
+           AND COALESCE(NULLIF(TRIM(da_xu_ly_id), ''), tcc_id) IS NOT NULL
+         ORDER BY thu_tuc, luot_xu_ly_id, ngay_tra DESC NULLS LAST, ngay_nhan DESC NULLS LAST
        )
        SELECT
          thu_tuc,
