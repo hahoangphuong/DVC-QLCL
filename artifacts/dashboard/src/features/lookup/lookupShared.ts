@@ -55,7 +55,7 @@ export type TraCuuFilterState = {
   sortDir: "asc" | "desc";
 };
 
-export const DEFAULT_TRA_CUU_FILTER_STATE: TraCuuFilterState = {
+const BASE_TRA_CUU_FILTER_STATE: TraCuuFilterState = {
   thuTuc: "all",
   chuyenVien: "",
   chuyenGia: "",
@@ -65,14 +65,12 @@ export const DEFAULT_TRA_CUU_FILTER_STATE: TraCuuFilterState = {
   sortDir: "asc",
 };
 
+export const DEFAULT_TRA_CUU_FILTER_STATE: TraCuuFilterState = {
+  ...BASE_TRA_CUU_FILTER_STATE,
+};
+
 export const DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE: TraCuuFilterState = {
-  thuTuc: "all",
-  chuyenVien: "",
-  chuyenGia: "",
-  tinhTrang: "all",
-  maHoSo: "",
-  sortBy: "stt",
-  sortDir: "asc",
+  ...BASE_TRA_CUU_FILTER_STATE,
 };
 
 export interface TraCuuDangXuLyData {
