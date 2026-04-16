@@ -178,6 +178,7 @@ Important behavior:
 - those grouped runtime-panel prop types should reuse exported types from `features/lookup/useDashboardLookupState.ts` and `features/navigation/useDashboardNavigation.ts` instead of mirroring local type definitions
 - dashboard cross-tab navigation callbacks should live in `features/navigation/useDashboardNavigation.ts`; `App.tsx` should only wire state setters/defaults into that hook
 - dashboard role-based visible tabs and active-tab access guard should live in `features/navigation/useDashboardTabAccess.ts`
+- admin-only tab detection should come from `features/navigation/dashboardTabs.ts` (`adminOnly` metadata / helpers), not be hardcoded in access guards
 - dashboard header sync-status rendering should live in `features/layout/SyncStatusBadge.tsx`, not be expanded inline again in `App.tsx`
 - dashboard header auth controls (role badge, Admin button, logout button) should live in `features/layout/DashboardHeaderActions.tsx`, not be expanded inline again in `App.tsx`
 - dashboard header brand/title rendering should live in `features/layout/DashboardHeaderBrand.tsx`, not be expanded inline again in `App.tsx`

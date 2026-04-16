@@ -1,5 +1,10 @@
 import { useEffect, useMemo } from "react";
-import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB_ID, type DashboardTabId } from "./dashboardTabs";
+import {
+  DASHBOARD_TABS,
+  DEFAULT_DASHBOARD_TAB_ID,
+  isAdminOnlyDashboardTab,
+  type DashboardTabId,
+} from "./dashboardTabs";
 
 type Params = {
   isAdmin: boolean;
@@ -14,7 +19,7 @@ export function useDashboardTabAccess({ isAdmin, activeTab, setActiveTab }: Para
   );
 
   useEffect(() => {
-    if (!isAdmin && (activeTab === "tra_cuu_dang_xl" || activeTab === "tra_cuu_da_xl")) {
+    if (!isAdmin && isAdminOnlyDashboardTab(activeTab)) {
       setActiveTab(DEFAULT_DASHBOARD_TAB_ID);
     }
   }, [activeTab, isAdmin, setActiveTab]);

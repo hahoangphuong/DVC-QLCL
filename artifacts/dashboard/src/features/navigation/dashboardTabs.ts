@@ -14,3 +14,11 @@ export type DashboardTabItem = typeof DASHBOARD_TABS[number];
 export type DashboardTabId = typeof DASHBOARD_TABS[number]["id"];
 
 export const DEFAULT_DASHBOARD_TAB_ID: DashboardTabId = DASHBOARD_TABS[0].id;
+
+export const ADMIN_ONLY_DASHBOARD_TAB_IDS = DASHBOARD_TABS
+  .filter((tab) => tab.adminOnly)
+  .map((tab) => tab.id) as readonly DashboardTabId[];
+
+export function isAdminOnlyDashboardTab(tabId: DashboardTabId): boolean {
+  return ADMIN_ONLY_DASHBOARD_TAB_IDS.includes(tabId);
+}
