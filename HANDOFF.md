@@ -95,11 +95,8 @@ Current shell and feature files:
 - auth feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\authApi.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/authApi.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\LoginScreen.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/LoginScreen.tsx)
-  - runtime-safe auth slice currently uses:
-    - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\authApiSafe.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/authApiSafe.ts)
-    - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\LoginScreenSafe.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/LoginScreenSafe.tsx)
-    - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\DashboardAuthGate.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/DashboardAuthGate.tsx)
-    - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\useDashboardAuth.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/useDashboardAuth.ts)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\DashboardAuthGate.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/DashboardAuthGate.tsx)
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\useDashboardAuth.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/useDashboardAuth.ts)
 - lookup feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\lookupShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/lookupShared.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useDashboardLookupState.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useDashboardLookupState.ts)
@@ -119,7 +116,6 @@ Current shell and feature files:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupResetFilters.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupResetFilters.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useLookupSort.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useLookupSort.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupHoSoDetailModal.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupHoSoDetailModal.tsx)
-  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupTabs.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupTabs.tsx)
 - pending feature:
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\pending\pendingShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/pending/pendingShared.ts)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\pending\PendingTabs.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/pending/PendingTabs.tsx)
@@ -562,7 +558,6 @@ For [`D:\DVC-QLCL\artifacts\dashboard\src\App.tsx`](/D:/DVC-QLCL/artifacts/dashb
 - do not introduce new mutable Vietnamese literals inline if they belong to lookup/detail modal; put them in [`D:\DVC-QLCL\artifacts\dashboard\src\uiText.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/uiText.ts)
 - when a direct inline change is unavoidable, prefer local constants or `{ "...escaped..." }` string expressions over raw JSX text
 - after the refactor, do not add new lookup/auth/admin UI blocks back into `App.tsx`; edit the feature files directly:
-  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupTabs.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupTabs.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\LookupHoSoDetailModal.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/LookupHoSoDetailModal.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\auth\LoginScreen.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/auth/LoginScreen.tsx)
   - [`D:\DVC-QLCL\artifacts\dashboard\src\features\admin\AdminPanel.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/admin/AdminPanel.tsx)

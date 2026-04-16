@@ -16,7 +16,7 @@ export function LoginScreen({
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
         <div className="bg-slate-800 px-6 py-5">
           <p className="text-slate-300 text-xs font-bold uppercase tracking-[0.2em]">Dashboard DAV</p>
-          <h1 className="text-white text-lg font-bold mt-1">Đăng nhập truy cập hệ thống</h1>
+          <h1 className="text-white text-lg font-bold mt-1">{"\u0110\u0103ng nh\u1eadp truy c\u1eadp h\u1ec7 th\u1ed1ng"}</h1>
         </div>
         <form
           className="p-6 space-y-4"
@@ -27,13 +27,13 @@ export function LoginScreen({
         >
           <div>
             <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
-              Mật khẩu
+              {"M\u1eadt kh\u1ea9u"}
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Nhập mật khẩu viewer hoặc admin"
+              placeholder={"Nh\u1eadp m\u1eadt kh\u1ea9u viewer ho\u1eb7c admin"}
               className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
             />
@@ -48,14 +48,13 @@ export function LoginScreen({
             disabled={busy || !password.trim()}
             className="w-full rounded-xl bg-blue-600 text-white font-bold text-sm px-4 py-3 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {busy ? "Đang đăng nhập..." : "Đăng nhập"}
+            {busy ? "\u0110ang \u0111\u0103ng nh\u1eadp..." : "\u0110\u0103ng nh\u1eadp"}
           </button>
           <p className="text-xs text-slate-500 leading-relaxed">
-            Role viewer chỉ xem thống kê. Role admin được xem thêm Tra cứu và Admin panel.
+            {"Role viewer ch\u1ec9 xem th\u1ed1ng k\u00ea. Role admin \u0111\u01b0\u1ee3c xem th\u00eam Tra c\u1ee9u v\u00e0 Admin panel."}
           </p>
         </form>
       </div>
     </div>
   );
 }
-

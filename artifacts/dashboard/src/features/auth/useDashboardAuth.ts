@@ -4,7 +4,7 @@ import {
   loginDashboard,
   logoutDashboard,
   type DashboardRole,
-} from "./authApiSafe";
+} from "./authApi";
 
 type Params = {
   onAfterLogout: () => void;

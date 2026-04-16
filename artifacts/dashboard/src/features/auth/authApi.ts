@@ -20,7 +20,7 @@ export async function loginDashboard(password: string): Promise<AuthMe> {
   if (!res.ok) throw new Error(data.detail ?? `HTTP ${res.status}`);
   const me = await fetchAuthMe();
   if (!me.authenticated || !me.role) {
-    throw new Error("??ng nh?p kh?ng t?o ???c session tr?n tr?nh duy?t.");
+    throw new Error("\u0110\u0103ng nh\u1eadp kh\u00f4ng t\u1ea1o \u0111\u01b0\u1ee3c session tr\u00ean tr\u00ecnh duy\u1ec7t.");
   }
   return me;
 }

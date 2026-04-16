@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { LoginScreen } from "./LoginScreenSafe";
+import { LoginScreen } from "./LoginScreen";
 
 type DashboardRole = "viewer" | "admin";
 
