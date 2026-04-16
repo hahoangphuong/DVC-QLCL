@@ -278,9 +278,10 @@ interface ChuyenVienTableProps {
   fromDate: string;
   toDate:   string;
   onCvClick?: (tenCvRaw: string) => void;
+  onTinhTrangClick?: (tinhTrang: "can_bo_sung" | "khong_dat" | "da_hoan_thanh") => void;
 }
 
-function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTableProps) {
+function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick, onTinhTrangClick }: ChuyenVienTableProps) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["chuyen-vien", thuTuc, fromDate, toDate],
     queryFn:  () => fetchChuyenVien(thuTuc, fromDate, toDate),
@@ -393,6 +394,25 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTabl
   }
 
   const colSpan = 17;
+  const renderDoneHeader = (
+    label: string,
+    tinhTrang: "can_bo_sung" | "khong_dat" | "da_hoan_thanh",
+    cls: string,
+  ) => (
+    <th className={cls}>
+      {onTinhTrangClick ? (
+        <button
+          type="button"
+          onClick={() => onTinhTrangClick(tinhTrang)}
+          className="cursor-pointer text-center hover:text-blue-700"
+        >
+          {label}
+        </button>
+      ) : (
+        label
+      )}
+    </th>
+  );
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
@@ -432,9 +452,9 @@ function ChuyenVienTable({ thuTuc, fromDate, toDate, onCvClick }: ChuyenVienTabl
             </tr>
             <tr className="bg-slate-100">
               <th className={`${thC} bg-green-50`}>Tổng</th>
-              <th className={`${thS} bg-amber-50`}>Cần bổ sung</th>
-              <th className={`${thS} bg-red-50`}>Không đạt</th>
-              <th className={`${thS} bg-green-50`}>Hoàn thành</th>
+              {renderDoneHeader("Cần bổ sung", "can_bo_sung", `${thS} bg-amber-50`)}
+              {renderDoneHeader("Không đạt", "khong_dat", `${thS} bg-red-50`)}
+              {renderDoneHeader("Hoàn thành", "da_hoan_thanh", `${thS} bg-green-50`)}
               <th className={`${thS} bg-green-50 text-green-700`}>Đúng hạn</th>
               <th className={`${thS} bg-red-50 text-red-700`}>Quá hạn</th>
               <th className={`${thS} bg-slate-50`}>Thời gian TB</th>
@@ -1496,12 +1516,16 @@ function Dashboard() {
     openLookupByChuyenVien,
     openLookupByChuyenGia,
     openLookupByTinhTrang,
+    openLookupDoneByChuyenVien,
+    openLookupDoneByTinhTrang,
     openThongKeFromTongQuan,
     openDangXuLyFromTongQuan,
   } = useDashboardNavigation({
     isAdmin,
     defaultLookupState: DEFAULT_TRA_CUU_FILTER_STATE,
+    defaultLookupDoneState: DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE,
     setLookupState,
+    setLookupDoneState,
     setActiveTab,
     updateFilter,
   });
@@ -1522,7 +1546,13 @@ function Dashboard() {
         <ThongKeTab
           thuTuc={thuTuc}
           renderChuyenVienTable={(tt, fromDate, toDate) => (
-            <ChuyenVienTable thuTuc={tt} fromDate={fromDate} toDate={toDate} />
+            <ChuyenVienTable
+              thuTuc={tt}
+              fromDate={fromDate}
+              toDate={toDate}
+              onCvClick={(tenCvRaw) => openLookupDoneByChuyenVien(tenCvRaw, tt)}
+              onTinhTrangClick={(tinhTrang) => openLookupDoneByTinhTrang(tt, tinhTrang)}
+            />
           )}
           renderMonthlyTrend={(tt, fromDate, toDate) => (
             <MonthlyTrendChart thuTuc={tt} fromDate={fromDate} toDate={toDate} />

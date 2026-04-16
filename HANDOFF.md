@@ -715,3 +715,8 @@ Whenever major behavior changes, update this file with:
   - expand-cell rendering
   - TT48 sub-row rendering
 - [`D:\DVC-QLCL\artifacts\dashboard\src\App.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/App.tsx) may keep thin wrappers only when needed for local table state such as `expandedRows` and `toggleRow`, but should not grow new TT48 table display logic again.
+- Cross-tab dashboard navigation continues to live in:
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\navigation\useDashboardNavigation.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/navigation/useDashboardNavigation.ts)
+- This hook now owns both:
+  - navigation from `Đang xử lý` -> `Tra cứu HS đang xử lý`
+  - navigation from `Thống kê` specialist table -> `Tra cứu HS đã xử lý`

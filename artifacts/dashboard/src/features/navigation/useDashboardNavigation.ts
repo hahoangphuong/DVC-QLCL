@@ -15,7 +15,9 @@ type TabFilterLike = {
 type Params<TLookupState extends object> = {
   isAdmin: boolean;
   defaultLookupState: TLookupState;
+  defaultLookupDoneState: TLookupState;
   setLookupState: (state: TLookupState) => void;
+  setLookupDoneState: (state: TLookupState) => void;
   setActiveTab: (tabId: DashboardTabId) => void;
   updateFilter: (thuTuc: ThuTuc, patch: Partial<TabFilterLike>) => void;
 };
@@ -23,7 +25,9 @@ type Params<TLookupState extends object> = {
 export function useDashboardNavigation<TLookupState extends object>({
   isAdmin,
   defaultLookupState,
+  defaultLookupDoneState,
   setLookupState,
+  setLookupDoneState,
   setActiveTab,
   updateFilter,
 }: Params<TLookupState>) {
@@ -58,6 +62,26 @@ export function useDashboardNavigation<TLookupState extends object>({
     setActiveTab("tra_cuu_dang_xl");
   }, [defaultLookupState, isAdmin, setActiveTab, setLookupState]);
 
+  const openLookupDoneByChuyenVien = useCallback((tenCvRaw: string, thuTuc: ThuTuc) => {
+    if (!isAdmin) return;
+    setLookupDoneState({
+      ...defaultLookupDoneState,
+      thuTuc,
+      chuyenVien: tenCvRaw,
+    } as TLookupState);
+    setActiveTab("tra_cuu_da_xl");
+  }, [defaultLookupDoneState, isAdmin, setActiveTab, setLookupDoneState]);
+
+  const openLookupDoneByTinhTrang = useCallback((thuTuc: ThuTuc, tinhTrang: string) => {
+    if (!isAdmin) return;
+    setLookupDoneState({
+      ...defaultLookupDoneState,
+      thuTuc,
+      tinhTrang,
+    } as TLookupState);
+    setActiveTab("tra_cuu_da_xl");
+  }, [defaultLookupDoneState, isAdmin, setActiveTab, setLookupDoneState]);
+
   const openThongKeFromTongQuan = useCallback((thuTuc: ThuTuc, filter: TabFilterLike) => {
     updateFilter(thuTuc, {
       fromDate: filter.fromDate,
@@ -78,6 +102,8 @@ export function useDashboardNavigation<TLookupState extends object>({
     openLookupByChuyenVien,
     openLookupByChuyenGia,
     openLookupByTinhTrang,
+    openLookupDoneByChuyenVien,
+    openLookupDoneByTinhTrang,
     openThongKeFromTongQuan,
     openDangXuLyFromTongQuan,
   };
