@@ -183,7 +183,7 @@ Important behavior:
 - dashboard auth loading/login gate should live in `features/auth/DashboardAuthGate.tsx`; `App.tsx` should only pass auth shell state into it
 - dashboard auth bootstrap/login/logout wiring should live in `features/auth/useDashboardAuth.ts`; `App.tsx` should only pass reset callbacks into that hook
 - lookup shared source of truth:
-  - labels, sort order, option lists, submission display, export helpers:
+  - labels, sort order, option lists, submission display, common lookup messages, export helpers:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\lookupShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/lookupShared.ts)
   - lookup shell state/reset wiring:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useDashboardLookupState.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useDashboardLookupState.ts)

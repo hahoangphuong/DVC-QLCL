@@ -15,13 +15,10 @@ import { useLookupSort } from "./useLookupSort";
 import { useLookupTabState } from "./useLookupTabState";
 import {
   DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE,
+  LOOKUP_COMMON_MESSAGES,
   TRA_CUU_DA_XU_LY_TINH_TRANG_OPTIONS,
-  displayLookupCg,
-  displayLookupCv,
   downloadTraCuuDaXuLyExcel,
   fetchTraCuuDaXuLy,
-  type LookupThuTuc,
-  type LookupTinhTrang,
   type TraCuuFilterState,
 } from "./lookupShared";
 
@@ -104,9 +101,9 @@ export function LookupDoneTab(props?: {
         onToggleSort={toggleSort}
         dateReceivedLabel={LOOKUP_TEXT.dateReceived}
         secondDateLabel={LOOKUP_TEXT.resultDateShort}
-        durationLabel={"Th\u1eddi gian x\u1eed l\u00fd"}
-        loadingMessage={"\u0110ang chu\u1ea9n b\u1ecb d\u1eef li\u1ec7u tra c\u1ee9u..."}
-        emptyMessage={"Kh\u00f4ng c\u00f3 h\u1ed3 s\u01a1 ph\u00f9 h\u1ee3p v\u1edbi \u0111i\u1ec1u ki\u1ec7n l\u1ecdc."}
+        durationLabel={LOOKUP_COMMON_MESSAGES.doneDurationLabel}
+        loadingMessage={LOOKUP_COMMON_MESSAGES.loadingResults}
+        emptyMessage={LOOKUP_COMMON_MESSAGES.emptyResults}
         onOpenDetail={openDetail}
       />
 
