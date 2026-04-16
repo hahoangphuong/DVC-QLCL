@@ -1,6 +1,8 @@
+import type { SupportedThuTuc } from "../stats/statsShared";
+
 const API = "/api";
 
-export type PendingThuTuc = 48 | 47 | 46;
+export type PendingThuTuc = SupportedThuTuc;
 
 export interface DangXuLyRow {
   cv_name: string;
