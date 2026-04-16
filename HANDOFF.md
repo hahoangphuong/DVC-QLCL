@@ -703,3 +703,15 @@ Whenever major behavior changes, update this file with:
 - new admin actions
 - changed TT48 workflow assumptions
 - major performance or migration changes
+
+## 13. Dashboard refactor ownership notes
+
+- TT48 classification table display helpers now live in:
+  - [`D:\DVC-QLCL\artifacts\dashboard\src\features\stats\tt48LoaiHoSoDisplay.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/features/stats/tt48LoaiHoSoDisplay.tsx)
+- This file owns:
+  - group-total rendering
+  - inline value-with-percent rendering
+  - numeric cell rendering
+  - expand-cell rendering
+  - TT48 sub-row rendering
+- [`D:\DVC-QLCL\artifacts\dashboard\src\App.tsx`](/D:/DVC-QLCL/artifacts/dashboard/src/App.tsx) may keep thin wrappers only when needed for local table state such as `expandedRows` and `toggleRow`, but should not grow new TT48 table display logic again.

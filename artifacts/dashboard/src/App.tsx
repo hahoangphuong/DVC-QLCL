@@ -33,6 +33,14 @@ import { OverviewTab } from "./features/stats/OverviewTab";
 import { DonutChart, SummaryBarChart } from "./features/stats/StatsCharts";
 import { ThongKeTab } from "./features/stats/ThongKeTab";
 import {
+  renderTt48ExpandCell,
+  renderTt48GroupTotal,
+  renderTt48InlineValueWithPct,
+  renderTt48Num,
+  renderTt48SubRow,
+  type Tt48LoaiHoSoSubRowValues,
+} from "./features/stats/tt48LoaiHoSoDisplay";
+import {
   COLORS,
   QUICK_FILTERS,
   TT48_LOAI_LABELS,
@@ -1216,28 +1224,6 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
     treo: 0,
   });
 
-  const pct = (value: number, total: number) => total > 0 ? `${Math.round(value / total * 100)}%` : "0%";
-  const renderGroupTotal = (value: number, total: number, textColor: string) => (
-    value ? (
-      <div className="flex items-baseline justify-center gap-2">
-        <span className={`font-bold ${textColor}`}>{value.toLocaleString("vi-VN")}</span>
-        <span className="text-slate-600">({pct(value, total)})</span>
-      </div>
-    ) : null
-  );
-  const renderInlineValueWithPct = (value: number, total: number, cls = "") => (
-    <td className={`px-2 py-2 text-center text-sm ${cls}`}>
-      {value ? (
-        <div className="flex items-baseline justify-center gap-2">
-          <span>{value.toLocaleString("vi-VN")}</span>
-          <span className="text-slate-500">({pct(value, total)})</span>
-        </div>
-      ) : ""}
-    </td>
-  );
-  const num = (value: number, cls = "") => (
-    <td className={`px-2 py-2 text-center text-sm ${cls}`}>{value ? value.toLocaleString("vi-VN") : ""}</td>
-  );
   const thC = "px-2 py-2 text-center text-xs font-bold uppercase tracking-wide";
   const thL = "px-3 py-2 text-left text-xs font-bold uppercase tracking-wide";
   const thS = "px-2 py-2 text-center text-xs font-semibold";
@@ -1249,69 +1235,22 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
   const toggleRow = (key: string) => {
     setExpandedRows((prev) => ({ ...prev, [key]: !prev[key] }));
   };
-  const renderExpandCell = (key: string, label: string, isTotal = false) => (
-    <td className={`${tdL} ${isTotal ? "text-slate-700 font-bold" : ""}`}>
-      <button
-        type="button"
-        onClick={() => toggleRow(key)}
-        className="inline-flex items-center gap-2 text-left"
-      >
-        <span className="flex h-5 w-5 items-center justify-center rounded border border-slate-300 bg-white text-xs font-bold text-slate-600">
-          {expandedRows[key] ? "−" : "+"}
-        </span>
-        <span>{label}</span>
-      </button>
-    </td>
-  );
-  const renderSubRow = (
-    key: string,
-    label: string,
-    values: {
-      ton_truoc: number;
-      ton_truoc_hinh_thuc_1?: number;
-      ton_truoc_hinh_thuc_2?: number;
-      da_nhan: number;
-      da_nhan_hinh_thuc_1?: number;
-      da_nhan_hinh_thuc_2?: number;
-      giai_quyet: number;
-      giai_quyet_hinh_thuc_1?: number;
-      giai_quyet_hinh_thuc_2?: number;
-      ton: number;
-      ton_hinh_thuc_1?: number;
-      ton_hinh_thuc_2?: number;
-    },
-    isTotal = false,
-  ) => (
-    <tr key={key} className={`${isTotal ? "bg-slate-100" : "bg-slate-50/80"} border-t border-slate-200`}>
-      <td className="px-3 py-2 text-left text-xs font-medium text-slate-600">
-        <div className="flex items-center gap-2 pl-7">
-          <span className="inline-block h-px w-3 bg-slate-300" />
-          <span>{label}</span>
-        </div>
-      </td>
-      {isTotal
-        ? renderInlineValueWithPct(values.ton_truoc, totals.ton_truoc_total, `${tdC} bg-pink-50/50 text-slate-600`)
-        : num(values.ton_truoc, `${tdC} bg-pink-50/50 text-slate-600`)}
-      {num(values.ton_truoc_hinh_thuc_1 ?? 0, `${tdC} bg-pink-50/50 text-slate-600`)}
-      {num(values.ton_truoc_hinh_thuc_2 ?? 0, `${tdC} bg-pink-50/50 text-slate-600`)}
-      {isTotal
-        ? renderInlineValueWithPct(values.da_nhan, totals.da_nhan_total, `${tdC} bg-blue-50/50 text-slate-600`)
-        : num(values.da_nhan, `${tdC} bg-blue-50/50 text-slate-600`)}
-      {num(values.da_nhan_hinh_thuc_1 ?? 0, `${tdC} bg-blue-50/50 text-slate-600`)}
-      {num(values.da_nhan_hinh_thuc_2 ?? 0, `${tdC} bg-blue-50/50 text-slate-600`)}
-      {isTotal
-        ? renderInlineValueWithPct(values.giai_quyet, totals.giai_quyet_total, `${tdC} bg-green-50/60 text-slate-600`)
-        : num(values.giai_quyet, `${tdC} bg-green-50/60 text-slate-600`)}
-      {num(values.giai_quyet_hinh_thuc_1 ?? 0, `${tdC} bg-green-50/60 text-slate-600`)}
-      {num(values.giai_quyet_hinh_thuc_2 ?? 0, `${tdC} bg-green-50/60 text-slate-600`)}
-      {isTotal
-        ? renderInlineValueWithPct(values.ton, totals.ton_total, `${tdC} bg-amber-50/60 text-slate-600`)
-        : num(values.ton, `${tdC} bg-amber-50/60 text-slate-600`)}
-      {num(values.ton_hinh_thuc_1 ?? 0, `${tdC} bg-amber-50/60 text-slate-600`)}
-      {num(values.ton_hinh_thuc_2 ?? 0, `${tdC} bg-amber-50/60 text-slate-600`)}
-      <td className={`${tdC} bg-orange-50/70`} />
-    </tr>
-  );
+
+  const renderExpandCell = (key: string, label: string, isTotal = false) =>
+    renderTt48ExpandCell(key, label, expandedRows, toggleRow, tdL, isTotal);
+  const renderSubRow = (key: string, label: string, values: Tt48LoaiHoSoSubRowValues, isTotal = false) =>
+    renderTt48SubRow({
+      key,
+      label,
+      values,
+      totals,
+      tdC,
+      tdL,
+      numCell: renderTt48Num,
+      renderInlineValueWithPct: renderTt48InlineValueWithPct,
+      isTotal,
+    });
+
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
@@ -1360,20 +1299,20 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
             {rows.map((row, idx) => (
               <Fragment key={row.loai_ho_so}>
               <tr className={`${idx % 2 === 0 ? "bg-white" : "bg-slate-50"} hover:bg-blue-50/40 transition-colors`}>
-                {renderExpandCell(row.loai_ho_so, TT48_LOAI_LABELS[row.loai_ho_so] ?? row.loai_ho_so)}
-                <td className={`${tdC} bg-pink-50/70`}>{renderGroupTotal(row.ton_truoc_total, totals.ton_truoc_total, "text-pink-700")}</td>
-                {num(row.ton_truoc_hinh_thuc_1, `${tdC} bg-pink-50/70 text-slate-700`)}
-                {num(row.ton_truoc_hinh_thuc_2, `${tdC} bg-pink-50/70 text-slate-700`)}
-                <td className={`${tdC} bg-blue-50/70`}>{renderGroupTotal(row.da_nhan_total, totals.da_nhan_total, "text-blue-700")}</td>
-                {num(row.da_nhan_hinh_thuc_1, `${tdC} bg-blue-50/70 text-slate-700`)}
-                {num(row.da_nhan_hinh_thuc_2, `${tdC} bg-blue-50/70 text-slate-700`)}
-                <td className={`${tdC} bg-green-50/80`}>{renderGroupTotal(row.giai_quyet_total, totals.giai_quyet_total, "text-green-700")}</td>
-                {num(row.giai_quyet_hinh_thuc_1, `${tdC} bg-green-50/80 text-slate-700`)}
-                {num(row.giai_quyet_hinh_thuc_2, `${tdC} bg-green-50/80 text-slate-700`)}
-                <td className={`${tdC} bg-amber-50/80`}>{renderGroupTotal(row.ton_total, totals.ton_total, "text-amber-700")}</td>
-                {num(row.ton_hinh_thuc_1, `${tdC} bg-amber-50/80 text-slate-700`)}
-                {num(row.ton_hinh_thuc_2, `${tdC} bg-amber-50/80 text-slate-700`)}
-                {num(row.treo, `${tdC} bg-orange-50 font-bold text-orange-700`)}
+                {renderTt48ExpandCell(row.loai_ho_so, TT48_LOAI_LABELS[row.loai_ho_so] ?? row.loai_ho_so, expandedRows, toggleRow, tdL)}
+                <td className={`${tdC} bg-pink-50/70`}>{renderTt48GroupTotal(row.ton_truoc_total, totals.ton_truoc_total, "text-pink-700")}</td>
+                {renderTt48Num(row.ton_truoc_hinh_thuc_1, `${tdC} bg-pink-50/70 text-slate-700`)}
+                {renderTt48Num(row.ton_truoc_hinh_thuc_2, `${tdC} bg-pink-50/70 text-slate-700`)}
+                <td className={`${tdC} bg-blue-50/70`}>{renderTt48GroupTotal(row.da_nhan_total, totals.da_nhan_total, "text-blue-700")}</td>
+                {renderTt48Num(row.da_nhan_hinh_thuc_1, `${tdC} bg-blue-50/70 text-slate-700`)}
+                {renderTt48Num(row.da_nhan_hinh_thuc_2, `${tdC} bg-blue-50/70 text-slate-700`)}
+                <td className={`${tdC} bg-green-50/80`}>{renderTt48GroupTotal(row.giai_quyet_total, totals.giai_quyet_total, "text-green-700")}</td>
+                {renderTt48Num(row.giai_quyet_hinh_thuc_1, `${tdC} bg-green-50/80 text-slate-700`)}
+                {renderTt48Num(row.giai_quyet_hinh_thuc_2, `${tdC} bg-green-50/80 text-slate-700`)}
+                <td className={`${tdC} bg-amber-50/80`}>{renderTt48GroupTotal(row.ton_total, totals.ton_total, "text-amber-700")}</td>
+                {renderTt48Num(row.ton_hinh_thuc_1, `${tdC} bg-amber-50/80 text-slate-700`)}
+                {renderTt48Num(row.ton_hinh_thuc_2, `${tdC} bg-amber-50/80 text-slate-700`)}
+                {renderTt48Num(row.treo, `${tdC} bg-orange-50 font-bold text-orange-700`)}
               </tr>
               {expandedRows[row.loai_ho_so] && renderSubRow(
                 `${row.loai_ho_so}-first`,
@@ -1417,19 +1356,19 @@ function Tt48LoaiHoSoTable({ fromDate, toDate }: { fromDate: string; toDate: str
           <tfoot>
             <tr className={totalRow}>
               {renderExpandCell("TOTAL", "TỔNG", true)}
-              {num(totals.ton_truoc_total, `${tdC} text-pink-700 font-bold`)}
-              {renderInlineValueWithPct(totals.ton_truoc_hinh_thuc_1, totals.ton_truoc_total, `${tdC} text-pink-700 font-bold`)}
-              {renderInlineValueWithPct(totals.ton_truoc_hinh_thuc_2, totals.ton_truoc_total, `${tdC} text-pink-700 font-bold`)}
-              {num(totals.da_nhan_total, `${tdC} text-blue-700 font-bold`)}
-              {renderInlineValueWithPct(totals.da_nhan_hinh_thuc_1, totals.da_nhan_total, `${tdC} text-blue-700 font-bold`)}
-              {renderInlineValueWithPct(totals.da_nhan_hinh_thuc_2, totals.da_nhan_total, `${tdC} text-blue-700 font-bold`)}
-              {num(totals.giai_quyet_total, `${tdC} text-green-700 font-bold`)}
-              {renderInlineValueWithPct(totals.giai_quyet_hinh_thuc_1, totals.giai_quyet_total, `${tdC} text-green-700 font-bold`)}
-              {renderInlineValueWithPct(totals.giai_quyet_hinh_thuc_2, totals.giai_quyet_total, `${tdC} text-green-700 font-bold`)}
-              {num(totals.ton_total, `${tdC} text-amber-700 font-bold`)}
-              {renderInlineValueWithPct(totals.ton_hinh_thuc_1, totals.ton_total, `${tdC} text-amber-700 font-bold`)}
-              {renderInlineValueWithPct(totals.ton_hinh_thuc_2, totals.ton_total, `${tdC} text-amber-700 font-bold`)}
-              {num(totals.treo, `${tdC} text-orange-700 font-bold`)}
+              {renderTt48Num(totals.ton_truoc_total, `${tdC} text-pink-700 font-bold`)}
+              {renderTt48InlineValueWithPct(totals.ton_truoc_hinh_thuc_1, totals.ton_truoc_total, `${tdC} text-pink-700 font-bold`)}
+              {renderTt48InlineValueWithPct(totals.ton_truoc_hinh_thuc_2, totals.ton_truoc_total, `${tdC} text-pink-700 font-bold`)}
+              {renderTt48Num(totals.da_nhan_total, `${tdC} text-blue-700 font-bold`)}
+              {renderTt48InlineValueWithPct(totals.da_nhan_hinh_thuc_1, totals.da_nhan_total, `${tdC} text-blue-700 font-bold`)}
+              {renderTt48InlineValueWithPct(totals.da_nhan_hinh_thuc_2, totals.da_nhan_total, `${tdC} text-blue-700 font-bold`)}
+              {renderTt48Num(totals.giai_quyet_total, `${tdC} text-green-700 font-bold`)}
+              {renderTt48InlineValueWithPct(totals.giai_quyet_hinh_thuc_1, totals.giai_quyet_total, `${tdC} text-green-700 font-bold`)}
+              {renderTt48InlineValueWithPct(totals.giai_quyet_hinh_thuc_2, totals.giai_quyet_total, `${tdC} text-green-700 font-bold`)}
+              {renderTt48Num(totals.ton_total, `${tdC} text-amber-700 font-bold`)}
+              {renderTt48InlineValueWithPct(totals.ton_hinh_thuc_1, totals.ton_total, `${tdC} text-amber-700 font-bold`)}
+              {renderTt48InlineValueWithPct(totals.ton_hinh_thuc_2, totals.ton_total, `${tdC} text-amber-700 font-bold`)}
+              {renderTt48Num(totals.treo, `${tdC} text-orange-700 font-bold`)}
             </tr>
             {expandedRows.TOTAL && renderSubRow(
               "TOTAL-first",
