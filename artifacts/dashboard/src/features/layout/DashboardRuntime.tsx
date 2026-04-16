@@ -21,13 +21,8 @@ export function DashboardRuntime() {
   const [activeTab, setActiveTab] = useState<DashboardTabId>(DEFAULT_DASHBOARD_TAB_ID);
   const [showAdmin, setShowAdmin] = useState(false);
   const [hideEmptyExperts, setHideEmptyExperts] = useState(true);
-  const {
-    lookupState,
-    setLookupState,
-    lookupDoneState,
-    setLookupDoneState,
-    resetLookupStates,
-  } = useDashboardLookupState();
+  const lookupPanels = useDashboardLookupState();
+  const { resetLookupStates } = lookupPanels;
   const {
     authLoading,
     authRole,
@@ -66,20 +61,12 @@ export function DashboardRuntime() {
     updateFilter,
   } = useDashboardStatsFilters();
 
-  const {
-    openLookupByChuyenVien,
-    openLookupByChuyenGia,
-    openLookupByTinhTrang,
-    openLookupDoneByChuyenVien,
-    openLookupDoneByTinhTrang,
-    openThongKeFromTongQuan,
-    openDangXuLyFromTongQuan,
-  } = useDashboardNavigation({
+  const navigation = useDashboardNavigation({
     isAdmin,
     defaultLookupState: DEFAULT_TRA_CUU_FILTER_STATE,
     defaultLookupDoneState: DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE,
-    setLookupState,
-    setLookupDoneState,
+    setLookupState: lookupPanels.setLookupState,
+    setLookupDoneState: lookupPanels.setLookupDoneState,
     setActiveTab,
     updateFilter,
   });
@@ -112,21 +99,8 @@ export function DashboardRuntime() {
             activeTab={activeTab}
             isAdmin={isAdmin}
             pendingExperts={{ hideEmptyExperts, setHideEmptyExperts }}
-            lookupPanels={{
-              lookupState,
-              setLookupState,
-              lookupDoneState,
-              setLookupDoneState,
-            }}
-            navigation={{
-              openLookupByChuyenVien,
-              openLookupByChuyenGia,
-              openLookupByTinhTrang,
-              openLookupDoneByChuyenVien,
-              openLookupDoneByTinhTrang,
-              openThongKeFromTongQuan,
-              openDangXuLyFromTongQuan,
-            }}
+            lookupPanels={lookupPanels}
+            navigation={navigation}
           />
 
           <AdminPanelMount isAdmin={isAdmin} showAdmin={showAdmin}>
