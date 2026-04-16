@@ -1,3 +1,4 @@
+import type { Dispatch, SetStateAction } from "react";
 import { LOOKUP_TEXT } from "../../uiText";
 import { cleanCgName, cleanCvName } from "../../shared/nameFormatters";
 export { isoToDisplay } from "../../shared/displayFormatters";
@@ -54,6 +55,8 @@ export type TraCuuFilterState = {
   sortBy: TraCuuSortKey;
   sortDir: "asc" | "desc";
 };
+
+export type TraCuuFilterStateSetter = Dispatch<SetStateAction<TraCuuFilterState>>;
 
 const BASE_TRA_CUU_FILTER_STATE: TraCuuFilterState = {
   thuTuc: "all",

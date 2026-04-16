@@ -1,9 +1,9 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
-import type { TraCuuFilterState } from "./lookupShared";
+import { useState } from "react";
+import type { TraCuuFilterState, TraCuuFilterStateSetter } from "./lookupShared";
 
 export type LookupTabProps = {
   state: TraCuuFilterState;
-  setState: Dispatch<SetStateAction<TraCuuFilterState>>;
+  setState: TraCuuFilterStateSetter;
   isActive?: boolean;
 };
 

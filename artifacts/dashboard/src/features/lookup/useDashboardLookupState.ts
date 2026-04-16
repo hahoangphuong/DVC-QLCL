@@ -3,13 +3,14 @@ import {
   DEFAULT_TRA_CUU_DA_XU_LY_FILTER_STATE,
   DEFAULT_TRA_CUU_FILTER_STATE,
   type TraCuuFilterState,
+  type TraCuuFilterStateSetter,
 } from "./lookupShared";
 
 export type DashboardLookupPanelsState = {
   lookupState: TraCuuFilterState;
-  setLookupState: (state: TraCuuFilterState) => void;
+  setLookupState: TraCuuFilterStateSetter;
   lookupDoneState: TraCuuFilterState;
-  setLookupDoneState: (state: TraCuuFilterState) => void;
+  setLookupDoneState: TraCuuFilterStateSetter;
 };
 
 export function useDashboardLookupState() {

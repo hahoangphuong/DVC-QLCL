@@ -191,6 +191,7 @@ Important behavior:
   - labels, sort order, option lists, submission display, common lookup messages, export helpers:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\lookupShared.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/lookupShared.ts)
   - default lookup filter states should derive from the single base state in `features/lookup/lookupShared.ts`, not be duplicated as separate inline objects
+  - shared lookup state setter types should also come from `features/lookup/lookupShared.ts`, not be redefined piecemeal as local `Dispatch<SetStateAction<...>>` aliases
   - lookup shell state/reset wiring:
     - [`D:\DVC-QLCL\artifacts\dashboard\src\features\lookup\useDashboardLookupState.ts`](/D:/DVC-QLCL/artifacts/dashboard/src/features/lookup/useDashboardLookupState.ts)
   - lookup tab local-state wiring:

@@ -1,8 +1,8 @@
 import { useCallback } from "react";
-import type { TraCuuFilterState, TraCuuSortKey } from "./lookupShared";
+import type { TraCuuFilterStateSetter, TraCuuSortKey } from "./lookupShared";
 
 export function useLookupSort(
-  setState: React.Dispatch<React.SetStateAction<TraCuuFilterState>>,
+  setState: TraCuuFilterStateSetter,
   sortBy: TraCuuSortKey,
 ) {
   return useCallback((key: TraCuuSortKey) => {

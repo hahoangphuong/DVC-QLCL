@@ -1,8 +1,12 @@
 import { useCallback } from "react";
-import type { LookupTinhTrang, LookupThuTuc, TraCuuFilterState } from "./lookupShared";
+import type {
+  LookupTinhTrang,
+  LookupThuTuc,
+  TraCuuFilterStateSetter,
+} from "./lookupShared";
 
 export function useLookupFilterControls(
-  setState: React.Dispatch<React.SetStateAction<TraCuuFilterState>>,
+  setState: TraCuuFilterStateSetter,
 ) {
   const setChuyenVien = useCallback((value: string) => {
     setState((prev) => ({ ...prev, chuyenVien: value }));
