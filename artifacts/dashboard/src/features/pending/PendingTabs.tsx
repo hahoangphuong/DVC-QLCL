@@ -817,12 +817,11 @@ function ChuyenGiaTable({
             <tr className="bg-slate-700 text-white">
               <th className="px-2 py-2 text-center text-xs w-9" rowSpan={2}>STT</th>
               <th className="px-3 py-2 text-left text-xs min-w-[220px]" rowSpan={2}>Chuyên gia</th>
-              <th className="px-2 py-2 text-center text-xs bg-emerald-700" colSpan={1}>ĐÃ GIẢI QUYẾT</th>
+              <th className="px-2 py-2 text-center text-xs bg-emerald-700" rowSpan={2}>ĐÃ GIẢI QUYẾT</th>
               <th className="px-2 py-2 text-center text-xs bg-blue-600" colSpan={3}>ĐANG GIẢI QUYẾT</th>
               <th className="px-2 py-2 text-center text-xs bg-rose-700" colSpan={4}>Hồ sơ chậm nhất</th>
             </tr>
             <tr className="bg-slate-600 text-white">
-              <th className="px-2 py-1 text-center text-xs bg-emerald-700 font-bold">TỔNG</th>
               <th className="px-2 py-1 text-center text-xs bg-slate-600 font-bold">TỔNG</th>
               <th className="px-2 py-1 text-center text-xs bg-green-700">Còn hạn</th>
               <th className="px-2 py-1 text-center text-xs bg-orange-600">Quá hạn</th>
