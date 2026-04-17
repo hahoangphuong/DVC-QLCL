@@ -1,12 +1,12 @@
 import type { DashboardTabId, DashboardTabItem } from "./dashboardTabs";
 
-type Props = {
+export type DashboardTabBarProps = {
   tabs: readonly DashboardTabItem[];
   activeTab: DashboardTabId;
   onSelectTab: (tabId: DashboardTabId) => void;
 };
 
-export function DashboardTabBar({ tabs, activeTab, onSelectTab }: Props) {
+export function DashboardTabBar({ tabs, activeTab, onSelectTab }: DashboardTabBarProps) {
   return (
     <div className="max-w-screen-2xl mx-auto px-4 flex overflow-x-auto gap-0 scrollbar-none">
       {tabs.map((tab) => (

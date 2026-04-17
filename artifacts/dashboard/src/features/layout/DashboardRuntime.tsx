@@ -87,11 +87,13 @@ export function DashboardRuntime() {
             authRole={authRole}
             isAdmin={isAdmin}
             syncStatus={syncStatus}
-            visibleTabs={visibleTabs}
-            activeTab={activeTab}
+            tabBar={{
+              tabs: visibleTabs,
+              activeTab,
+              onSelectTab: setActiveTab,
+            }}
             onOpenAdmin={openAdmin}
             onLogout={handleLogout}
-            onSelectTab={setActiveTab}
           />
 
           <DashboardRuntimePanels

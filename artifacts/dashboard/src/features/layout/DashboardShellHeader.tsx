@@ -1,23 +1,18 @@
 import { DashboardHeaderActions, type DashboardHeaderActionsProps } from "./DashboardHeaderActions";
 import { DashboardHeaderBrand } from "./DashboardHeaderBrand";
-import { DashboardTabBar } from "../navigation/DashboardTabBar";
-import type { DashboardTabId, DashboardTabItem } from "../navigation/dashboardTabs";
+import { DashboardTabBar, type DashboardTabBarProps } from "../navigation/DashboardTabBar";
 
 type Props = DashboardHeaderActionsProps & {
-  visibleTabs: readonly DashboardTabItem[];
-  activeTab: DashboardTabId;
-  onSelectTab: (tabId: DashboardTabId) => void;
+  tabBar: DashboardTabBarProps;
 };
 
 export function DashboardShellHeader({
   authRole,
   isAdmin,
   syncStatus,
-  visibleTabs,
-  activeTab,
+  tabBar,
   onOpenAdmin,
   onLogout,
-  onSelectTab,
 }: Props) {
   return (
     <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-40">
@@ -31,7 +26,7 @@ export function DashboardShellHeader({
           onLogout={onLogout}
         />
       </div>
-      <DashboardTabBar tabs={visibleTabs} activeTab={activeTab} onSelectTab={onSelectTab} />
+      <DashboardTabBar {...tabBar} />
     </header>
   );
 }

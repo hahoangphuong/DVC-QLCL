@@ -187,6 +187,7 @@ Important behavior:
 - dashboard header sync-status rendering should live in `features/layout/SyncStatusBadge.tsx`, not be expanded inline again in `App.tsx`
 - dashboard header auth controls (role badge, Admin button, logout button) should live in `features/layout/DashboardHeaderActions.tsx`, not be expanded inline again in `App.tsx`
 - shared header-action props should be exported from `features/layout/DashboardHeaderActions.tsx` and reused by `DashboardShellHeader.tsx`, not mirrored locally
+- shared tab-bar props should be exported from `features/navigation/DashboardTabBar.tsx` and passed into `DashboardShellHeader.tsx` as a grouped `tabBar` prop, not mirrored as separate fields
 - dashboard header brand/title rendering should live in `features/layout/DashboardHeaderBrand.tsx`, not be expanded inline again in `App.tsx`
 - dashboard header shell composition should live in `features/layout/DashboardShellHeader.tsx`; `App.tsx` should only pass shell props into it
 - dashboard header files should import shared `DashboardRole` and `SyncStatus` types from `features/auth/authApi.ts` and `features/layout/useDashboardSyncStatus.ts` instead of redefining them locally
