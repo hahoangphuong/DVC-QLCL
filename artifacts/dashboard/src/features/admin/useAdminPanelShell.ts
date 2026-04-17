@@ -1,8 +1,11 @@
 import { useCallback, useEffect } from "react";
 
-type Params = {
+export type AdminPanelVisibilityState = {
   isAdmin: boolean;
   showAdmin: boolean;
+};
+
+type Params = AdminPanelVisibilityState & {
   setShowAdmin: (value: boolean) => void;
 };
 

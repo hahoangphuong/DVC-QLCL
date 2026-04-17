@@ -254,6 +254,7 @@ Important behavior:
 - admin panel runtime UI should live in `features/admin/AdminPanel.tsx`; do not reintroduce a local `AdminPanel` block in `App.tsx`
 - admin panel shell mounting should live in `features/admin/AdminPanelMount.tsx`; `App.tsx` should only pass gate flags and panel content
 - admin panel hash/Esc/open/close shell wiring should live in `features/admin/useAdminPanelShell.ts`; `App.tsx` should only pass gate state and use returned handlers
+- shared admin-panel visibility state types (`isAdmin`, `showAdmin`) should come from `features/admin/useAdminPanelShell.ts`, not be mirrored separately in `AdminPanelMount.tsx`
 - lookup shell state/reset should live in `features/lookup/useDashboardLookupState.ts`; `App.tsx` should not recreate local lookup filter state or reset logic
 - repeated lookup tab local-state wiring (`localState / state / setState / isActive`) should live in `features/lookup/useLookupTabState.ts`; `App.tsx` should not duplicate it across lookup tabs
 - repeated lookup export state/handler wiring (`exporting / handleExportExcel`) should live in `features/lookup/useLookupExport.ts`; `App.tsx` should not duplicate export try/catch/finally blocks across lookup tabs

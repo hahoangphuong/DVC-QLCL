@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
+import type { AdminPanelVisibilityState } from "./useAdminPanelShell";
 
-type Props = {
-  isAdmin: boolean;
-  showAdmin: boolean;
+type Props = AdminPanelVisibilityState & {
   children: ReactNode;
 };
 
