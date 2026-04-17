@@ -1,4 +1,7 @@
-import { DashboardContentSwitch } from "../navigation/DashboardContentSwitch";
+import {
+  DashboardContentSwitch,
+  type DashboardContentSwitchProps,
+} from "../navigation/DashboardContentSwitch";
 import { DashboardTabPanels } from "../navigation/DashboardTabPanels";
 import type { DashboardTabId, DashboardTabItem } from "../navigation/dashboardTabs";
 import type { DashboardRuntimeNavigation } from "../navigation/useDashboardNavigation";
@@ -90,43 +93,44 @@ export function DashboardRuntimePanels({
       />
     );
 
+  const contentSwitchProps: Omit<DashboardContentSwitchProps, "tabId"> = {
+    renderTongQuan: () => (
+      <OverviewTab
+        onOpenThongKe={openThongKeFromTongQuan}
+        onOpenDangXuLy={openDangXuLyFromTongQuan}
+        renderMonthlyTrend={(thuTuc, fromDate, toDate) =>
+          renderMonthlyTrend(thuTuc, fromDate, toDate, true)
+        }
+      />
+    ),
+    renderThongKe: (thuTuc) => (
+      <ThongKeTab
+        thuTuc={thuTuc}
+        renderChuyenVienTable={(tt, fromDate, toDate) => (
+          <ChuyenVienTable
+            thuTuc={tt}
+            fromDate={fromDate}
+            toDate={toDate}
+            onCvClick={(tenCvRaw) => openLookupDoneByChuyenVien(tenCvRaw, tt)}
+            onTinhTrangClick={(tinhTrang) => openLookupDoneByTinhTrang(tt, tinhTrang)}
+          />
+        )}
+        renderMonthlyTrend={renderMonthlyTrend}
+        renderTt48LoaiHoSoTable={(fromDate, toDate) => (
+          <Tt48LoaiHoSoTable fromDate={fromDate} toDate={toDate} />
+        )}
+        renderTt48LoaiHoSoMonthlyChart={(fromDate, toDate) => (
+          <Tt48LoaiHoSoMonthlyChart fromDate={fromDate} toDate={toDate} />
+        )}
+      />
+    ),
+    renderDangXuLy: renderPendingTab,
+    renderLookupDangXuLy: renderLookupPendingTab,
+    renderLookupDaXuLy: renderLookupDoneTab,
+  };
+
   const renderTabContent = (tabId: DashboardTabId) => (
-    <DashboardContentSwitch
-      tabId={tabId}
-      renderTongQuan={() => (
-        <OverviewTab
-          onOpenThongKe={openThongKeFromTongQuan}
-          onOpenDangXuLy={openDangXuLyFromTongQuan}
-          renderMonthlyTrend={(thuTuc, fromDate, toDate) =>
-            renderMonthlyTrend(thuTuc, fromDate, toDate, true)
-          }
-        />
-      )}
-      renderThongKe={(thuTuc) => (
-        <ThongKeTab
-          thuTuc={thuTuc}
-          renderChuyenVienTable={(tt, fromDate, toDate) => (
-            <ChuyenVienTable
-              thuTuc={tt}
-              fromDate={fromDate}
-              toDate={toDate}
-              onCvClick={(tenCvRaw) => openLookupDoneByChuyenVien(tenCvRaw, tt)}
-              onTinhTrangClick={(tinhTrang) => openLookupDoneByTinhTrang(tt, tinhTrang)}
-            />
-          )}
-          renderMonthlyTrend={renderMonthlyTrend}
-          renderTt48LoaiHoSoTable={(fromDate, toDate) => (
-            <Tt48LoaiHoSoTable fromDate={fromDate} toDate={toDate} />
-          )}
-          renderTt48LoaiHoSoMonthlyChart={(fromDate, toDate) => (
-            <Tt48LoaiHoSoMonthlyChart fromDate={fromDate} toDate={toDate} />
-          )}
-        />
-      )}
-      renderDangXuLy={renderPendingTab}
-      renderLookupDangXuLy={renderLookupPendingTab}
-      renderLookupDaXuLy={renderLookupDoneTab}
-    />
+    <DashboardContentSwitch tabId={tabId} {...contentSwitchProps} />
   );
 
   return (

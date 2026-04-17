@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { SupportedThuTuc } from "../stats/statsShared";
 import type { DashboardTabId } from "./dashboardTabs";
 
-type Props = {
+export type DashboardContentSwitchProps = {
   tabId: DashboardTabId;
   renderTongQuan: () => ReactNode;
   renderThongKe: (thuTuc: SupportedThuTuc) => ReactNode;
@@ -18,7 +18,7 @@ export function DashboardContentSwitch({
   renderDangXuLy,
   renderLookupDangXuLy,
   renderLookupDaXuLy,
-}: Props) {
+}: DashboardContentSwitchProps) {
   switch (tabId) {
     case "tong_quan":
       return <>{renderTongQuan()}</>;
