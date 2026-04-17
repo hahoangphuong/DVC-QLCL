@@ -189,6 +189,7 @@ Important behavior:
 - dashboard header brand/title rendering should live in `features/layout/DashboardHeaderBrand.tsx`, not be expanded inline again in `App.tsx`
 - dashboard header shell composition should live in `features/layout/DashboardShellHeader.tsx`; `App.tsx` should only pass shell props into it
 - dashboard header files should import shared `DashboardRole` and `SyncStatus` types from `features/auth/authApi.ts` and `features/layout/useDashboardSyncStatus.ts` instead of redefining them locally
+- that includes `features/layout/SyncStatusBadge.tsx`; it should not keep its own local `SyncStatus` mirror
 - dashboard sync-status fetch/query should live in `features/layout/useDashboardSyncStatus.ts`; `App.tsx` should only consume the hook result
 - dashboard auth loading/login gate should live in `features/auth/DashboardAuthGate.tsx`; `App.tsx` should only pass auth shell state into it
 - `features/auth/DashboardAuthGate.tsx` should reuse `DashboardRole` from `features/auth/authApi.ts`, not mirror the `"viewer" | "admin"` union locally

@@ -1,7 +1,4 @@
-type SyncStatus = {
-  lastSyncedAt: string | null;
-  totalSizeMB: number;
-};
+import type { SyncStatus } from "./useDashboardSyncStatus";
 
 export function SyncStatusBadge({ syncStatus }: { syncStatus: SyncStatus | null | undefined }) {
   if (!syncStatus) return null;
