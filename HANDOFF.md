@@ -186,6 +186,7 @@ Important behavior:
 - admin-only tab detection should come from `features/navigation/dashboardTabs.ts` (`adminOnly` metadata / helpers), not be hardcoded in access guards
 - dashboard header sync-status rendering should live in `features/layout/SyncStatusBadge.tsx`, not be expanded inline again in `App.tsx`
 - dashboard header auth controls (role badge, Admin button, logout button) should live in `features/layout/DashboardHeaderActions.tsx`, not be expanded inline again in `App.tsx`
+- shared header-action props should be exported from `features/layout/DashboardHeaderActions.tsx` and reused by `DashboardShellHeader.tsx`, not mirrored locally
 - dashboard header brand/title rendering should live in `features/layout/DashboardHeaderBrand.tsx`, not be expanded inline again in `App.tsx`
 - dashboard header shell composition should live in `features/layout/DashboardShellHeader.tsx`; `App.tsx` should only pass shell props into it
 - dashboard header files should import shared `DashboardRole` and `SyncStatus` types from `features/auth/authApi.ts` and `features/layout/useDashboardSyncStatus.ts` instead of redefining them locally

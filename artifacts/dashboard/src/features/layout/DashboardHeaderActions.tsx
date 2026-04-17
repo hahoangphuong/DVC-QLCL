@@ -2,7 +2,7 @@ import { SyncStatusBadge } from "./SyncStatusBadge";
 import type { DashboardRole } from "../auth/authApi";
 import type { SyncStatus } from "./useDashboardSyncStatus";
 
-type Props = {
+export type DashboardHeaderActionsProps = {
   authRole: DashboardRole;
   isAdmin: boolean;
   syncStatus: SyncStatus | null | undefined;
@@ -16,7 +16,7 @@ export function DashboardHeaderActions({
   syncStatus,
   onOpenAdmin,
   onLogout,
-}: Props) {
+}: DashboardHeaderActionsProps) {
   return (
     <>
       <div className="flex items-center gap-2 flex-wrap">

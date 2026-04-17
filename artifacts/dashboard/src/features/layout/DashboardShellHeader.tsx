@@ -1,18 +1,11 @@
-import { DashboardHeaderActions } from "./DashboardHeaderActions";
+import { DashboardHeaderActions, type DashboardHeaderActionsProps } from "./DashboardHeaderActions";
 import { DashboardHeaderBrand } from "./DashboardHeaderBrand";
 import { DashboardTabBar } from "../navigation/DashboardTabBar";
 import type { DashboardTabId, DashboardTabItem } from "../navigation/dashboardTabs";
-import type { DashboardRole } from "../auth/authApi";
-import type { SyncStatus } from "./useDashboardSyncStatus";
 
-type Props = {
-  authRole: DashboardRole;
-  isAdmin: boolean;
-  syncStatus: SyncStatus | null | undefined;
+type Props = DashboardHeaderActionsProps & {
   visibleTabs: readonly DashboardTabItem[];
   activeTab: DashboardTabId;
-  onOpenAdmin: () => void;
-  onLogout: () => void;
   onSelectTab: (tabId: DashboardTabId) => void;
 };
 
