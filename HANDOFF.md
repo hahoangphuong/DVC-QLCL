@@ -172,6 +172,7 @@ Important behavior:
 - dashboard tab ids/labels should live in `features/navigation/dashboardTabs.ts`, not be redefined inline in `App.tsx`
 - dashboard tab navigation rendering should live in `features/navigation/DashboardTabBar.tsx`, not be expanded inline again in `App.tsx`
 - dashboard main tab-panel host rendering should live in `features/navigation/DashboardTabPanels.tsx`, not be expanded inline again in `App.tsx`
+- shared tab-panel props should be exported from `features/navigation/DashboardTabPanels.tsx` and reused by `DashboardRuntimePanels.tsx`, not mirrored as local `tabs/activeTab` contracts
 - dashboard tab dispatcher switch should live in `features/navigation/DashboardContentSwitch.tsx`; `App.tsx` should only pass render callbacks and shell state
 - `DashboardContentSwitch.tsx` should export its shared prop contract, and `DashboardRuntimePanels.tsx` should build one grouped `contentSwitchProps` object instead of mirroring the callback surface inline
 - dashboard runtime tab mounting/wiring should live in `features/layout/DashboardRuntimePanels.tsx`; `DashboardRuntime.tsx` should only pass shell state and callbacks into it

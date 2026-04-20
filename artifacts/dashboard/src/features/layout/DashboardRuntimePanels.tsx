@@ -2,8 +2,11 @@ import {
   DashboardContentSwitch,
   type DashboardContentSwitchProps,
 } from "../navigation/DashboardContentSwitch";
-import { DashboardTabPanels } from "../navigation/DashboardTabPanels";
-import type { DashboardTabId, DashboardTabItem } from "../navigation/dashboardTabs";
+import {
+  DashboardTabPanels,
+  type DashboardTabPanelsProps,
+} from "../navigation/DashboardTabPanels";
+import type { DashboardTabId } from "../navigation/dashboardTabs";
 import type { DashboardRuntimeNavigation } from "../navigation/useDashboardNavigation";
 import { LookupDoneTab } from "../lookup/LookupDoneTab";
 import { LookupPendingTab } from "../lookup/LookupPendingTab";
@@ -18,9 +21,7 @@ import { ThongKeTab } from "../stats/ThongKeTab";
 import { Tt48LoaiHoSoMonthlyChart } from "../stats/Tt48LoaiHoSoMonthlyChart";
 import { Tt48LoaiHoSoTable } from "../stats/Tt48LoaiHoSoTable";
 
-type Props = {
-  tabs: readonly DashboardTabItem[];
-  activeTab: DashboardTabId;
+type Props = Pick<DashboardTabPanelsProps, "tabs" | "activeTab"> & {
   isAdmin: boolean;
   lookupPanels: DashboardLookupPanelsState;
   pendingExperts: PendingExpertsState;
