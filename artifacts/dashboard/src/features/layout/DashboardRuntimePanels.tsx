@@ -6,7 +6,6 @@ import {
   DashboardTabPanels,
   type DashboardTabPanelsProps,
 } from "../navigation/DashboardTabPanels";
-import type { DashboardTabId } from "../navigation/dashboardTabs";
 import type { DashboardRuntimeNavigation } from "../navigation/useDashboardNavigation";
 import { LookupDoneTab } from "../lookup/LookupDoneTab";
 import { LookupPendingTab } from "../lookup/LookupPendingTab";
@@ -130,7 +129,7 @@ export function DashboardRuntimePanels({
     renderLookupDaXuLy: renderLookupDoneTab,
   };
 
-  const renderTabContent = (tabId: DashboardTabId) => (
+  const renderTabContent: DashboardTabPanelsProps["renderTabContent"] = (tabId) => (
     <DashboardContentSwitch tabId={tabId} {...contentSwitchProps} />
   );
 
