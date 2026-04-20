@@ -2,7 +2,7 @@ import { DashboardHeaderActions, type DashboardHeaderActionsProps } from "./Dash
 import { DashboardHeaderBrand } from "./DashboardHeaderBrand";
 import { DashboardTabBar, type DashboardTabBarProps } from "../navigation/DashboardTabBar";
 
-type Props = DashboardHeaderActionsProps & {
+export type DashboardShellHeaderProps = DashboardHeaderActionsProps & {
   tabBar: DashboardTabBarProps;
 };
 
@@ -13,7 +13,7 @@ export function DashboardShellHeader({
   tabBar,
   onOpenAdmin,
   onLogout,
-}: Props) {
+}: DashboardShellHeaderProps) {
   return (
     <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-40">
       <div className="max-w-screen-2xl mx-auto px-4 py-3 flex items-center gap-3">

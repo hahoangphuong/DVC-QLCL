@@ -9,7 +9,10 @@ import {
   DEFAULT_TRA_CUU_FILTER_STATE,
 } from "../lookup/lookupShared";
 import { DashboardRuntimePanels } from "./DashboardRuntimePanels";
-import { DashboardShellHeader } from "./DashboardShellHeader";
+import {
+  DashboardShellHeader,
+  type DashboardShellHeaderProps,
+} from "./DashboardShellHeader";
 import { useDashboardSyncStatus } from "./useDashboardSyncStatus";
 import { useDashboardLookupState } from "../lookup/useDashboardLookupState";
 import { DEFAULT_DASHBOARD_TAB_ID, type DashboardTabId } from "../navigation/dashboardTabs";
@@ -71,6 +74,19 @@ export function DashboardRuntime() {
     updateFilter,
   });
 
+  const headerProps: DashboardShellHeaderProps = {
+    authRole,
+    isAdmin,
+    syncStatus,
+    tabBar: {
+      tabs: visibleTabs,
+      activeTab,
+      onSelectTab: setActiveTab,
+    },
+    onOpenAdmin: openAdmin,
+    onLogout: handleLogout,
+  };
+
   return (
     <DashboardAuthGate
       authLoading={authLoading}
@@ -83,18 +99,7 @@ export function DashboardRuntime() {
     >
       <StatsFiltersProvider value={filtersValue}>
         <div className="min-h-screen bg-slate-50">
-          <DashboardShellHeader
-            authRole={authRole}
-            isAdmin={isAdmin}
-            syncStatus={syncStatus}
-            tabBar={{
-              tabs: visibleTabs,
-              activeTab,
-              onSelectTab: setActiveTab,
-            }}
-            onOpenAdmin={openAdmin}
-            onLogout={handleLogout}
-          />
+          <DashboardShellHeader {...headerProps} />
 
           <DashboardRuntimePanels
             tabs={visibleTabs}
