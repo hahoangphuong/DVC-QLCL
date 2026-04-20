@@ -1,16 +1,18 @@
+export type LoginScreenProps = {
+  password: string;
+  setPassword: (value: string) => void;
+  busy: boolean;
+  error: string | null;
+  onSubmit: () => void;
+};
+
 export function LoginScreen({
   password,
   setPassword,
   busy,
   error,
   onSubmit,
-}: {
-  password: string;
-  setPassword: (value: string) => void;
-  busy: boolean;
-  error: string | null;
-  onSubmit: () => void;
-}) {
+}: LoginScreenProps) {
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">

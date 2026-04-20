@@ -1,15 +1,10 @@
 import type { ReactNode } from "react";
 import type { DashboardRole } from "./authApi";
-import { LoginScreen } from "./LoginScreen";
+import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
 
-type Props = {
+type Props = LoginScreenProps & {
   authLoading: boolean;
   authRole: DashboardRole | null;
-  password: string;
-  setPassword: (value: string) => void;
-  busy: boolean;
-  error: string | null;
-  onSubmit: () => void;
   children: ReactNode;
 };
 

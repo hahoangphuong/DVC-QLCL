@@ -196,6 +196,7 @@ Important behavior:
 - dashboard sync-status fetch/query should live in `features/layout/useDashboardSyncStatus.ts`; `App.tsx` should only consume the hook result
 - dashboard auth loading/login gate should live in `features/auth/DashboardAuthGate.tsx`; `App.tsx` should only pass auth shell state into it
 - `features/auth/DashboardAuthGate.tsx` should reuse `DashboardRole` from `features/auth/authApi.ts`, not mirror the `"viewer" | "admin"` union locally
+- shared login form props should be exported from `features/auth/LoginScreen.tsx` and reused by `DashboardAuthGate.tsx`, not mirrored as a local auth-form contract
 - dashboard auth bootstrap/login/logout wiring should live in `features/auth/useDashboardAuth.ts`; `App.tsx` should only pass reset callbacks into that hook
 - lookup shared source of truth:
   - labels, sort order, option lists, submission display, common lookup messages, export helpers:
