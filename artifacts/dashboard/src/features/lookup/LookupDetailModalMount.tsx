@@ -6,7 +6,7 @@ export function LookupDetailModalMount({
   onClose,
 }: {
   selectedDetail: LookupDetailSelection | null;
-  onClose: () => void;
+  onClose: VoidFunction;
 }) {
   if (!selectedDetail) return null;
   return (

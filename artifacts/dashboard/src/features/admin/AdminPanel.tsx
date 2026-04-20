@@ -10,7 +10,7 @@ import {
 
 const API = "/api";
 
-export function AdminPanel({ onClose }: { onClose: () => void }) {
+export function AdminPanel({ onClose }: { onClose: VoidFunction }) {
   const STORAGE_KEY = "dav_admin_token";
   const [token, setToken] = useState<string>(() => {
     try { return localStorage.getItem(STORAGE_KEY) ?? ""; } catch { return ""; }

@@ -3,7 +3,7 @@ export type LoginScreenProps = {
   setPassword: (value: string) => void;
   busy: boolean;
   error: string | null;
-  onSubmit: () => void;
+  onSubmit: VoidFunction;
 };
 
 export function LoginScreen({

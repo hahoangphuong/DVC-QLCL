@@ -10,7 +10,7 @@ export function LookupHoSoDetailModal({
 }: {
   hoSoId: number;
   maHoSo: string;
-  onClose: () => void;
+  onClose: VoidFunction;
 }) {
   const [infoTab, setInfoTab] = useState<"co_so" | "doanh_nghiep">("co_so");
   const [attachmentTab, setAttachmentTab] = useState("");

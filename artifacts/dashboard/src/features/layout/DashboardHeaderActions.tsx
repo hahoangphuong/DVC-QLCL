@@ -6,8 +6,8 @@ export type DashboardHeaderActionsProps = {
   authRole: DashboardRole;
   isAdmin: boolean;
   syncStatus: SyncStatus | null | undefined;
-  onOpenAdmin: () => void;
-  onLogout: () => void;
+  onOpenAdmin: VoidFunction;
+  onLogout: VoidFunction;
 };
 
 export function DashboardHeaderActions({

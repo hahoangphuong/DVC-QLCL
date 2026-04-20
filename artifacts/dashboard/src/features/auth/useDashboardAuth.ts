@@ -7,7 +7,7 @@ import {
 } from "./authApi";
 
 type Params = {
-  onAfterLogout: () => void;
+  onAfterLogout: VoidFunction;
 };
 
 export function useDashboardAuth({ onAfterLogout }: Params) {
