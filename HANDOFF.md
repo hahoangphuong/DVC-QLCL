@@ -170,6 +170,7 @@ Important behavior:
 - stats filter state/provider wiring should live in `features/stats/useDashboardStatsFilters.ts`; `App.tsx` should consume `StatsFiltersCtx.Provider` via that hook, not recreate local filter context/types
 - shared date parsing/clamping should live in `shared/dateUtils.ts`, and shared ISO display formatting should live in `shared/displayFormatters.ts`; duplicated local helpers have been removed from `App.tsx`
 - dashboard tab ids/labels should live in `features/navigation/dashboardTabs.ts`, not be redefined inline in `App.tsx`
+- shared tab-selection callback type should also live in `features/navigation/dashboardTabs.ts`, not be mirrored as repeated `(tabId: DashboardTabId) => void` contracts
 - dashboard tab navigation rendering should live in `features/navigation/DashboardTabBar.tsx`, not be expanded inline again in `App.tsx`
 - dashboard main tab-panel host rendering should live in `features/navigation/DashboardTabPanels.tsx`, not be expanded inline again in `App.tsx`
 - shared tab-panel props should be exported from `features/navigation/DashboardTabPanels.tsx` and reused by `DashboardRuntimePanels.tsx`, not mirrored as local `tabs/activeTab` contracts

@@ -1,9 +1,9 @@
-import type { DashboardTabId, DashboardTabItem } from "./dashboardTabs";
+import type { DashboardTabId, DashboardTabItem, DashboardTabSetter } from "./dashboardTabs";
 
 export type DashboardTabBarProps = {
   tabs: readonly DashboardTabItem[];
   activeTab: DashboardTabId;
-  onSelectTab: (tabId: DashboardTabId) => void;
+  onSelectTab: DashboardTabSetter;
 };
 
 export function DashboardTabBar({ tabs, activeTab, onSelectTab }: DashboardTabBarProps) {

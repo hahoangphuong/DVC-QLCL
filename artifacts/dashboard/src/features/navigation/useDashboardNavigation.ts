@@ -5,7 +5,7 @@ import type {
   TraCuuFilterState,
   TraCuuFilterStateSetter,
 } from "../lookup/lookupShared";
-import type { DashboardTabId } from "./dashboardTabs";
+import type { DashboardTabId, DashboardTabSetter } from "./dashboardTabs";
 
 type Params = {
   isAdmin: boolean;
@@ -13,7 +13,7 @@ type Params = {
   defaultLookupDoneState: TraCuuFilterState;
   setLookupState: TraCuuFilterStateSetter;
   setLookupDoneState: TraCuuFilterStateSetter;
-  setActiveTab: (tabId: DashboardTabId) => void;
+  setActiveTab: DashboardTabSetter;
   updateFilter: (thuTuc: SupportedThuTuc, patch: Partial<TabFilter>) => void;
 };
 

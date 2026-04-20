@@ -4,12 +4,13 @@ import {
   DEFAULT_DASHBOARD_TAB_ID,
   isAdminOnlyDashboardTab,
   type DashboardTabId,
+  type DashboardTabSetter,
 } from "./dashboardTabs";
 
 type Params = {
   isAdmin: boolean;
   activeTab: DashboardTabId;
-  setActiveTab: (tabId: DashboardTabId) => void;
+  setActiveTab: DashboardTabSetter;
 };
 
 export function useDashboardTabAccess({ isAdmin, activeTab, setActiveTab }: Params) {

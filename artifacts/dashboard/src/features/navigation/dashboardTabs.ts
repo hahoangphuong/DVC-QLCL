@@ -12,6 +12,7 @@ export const DASHBOARD_TABS = [
 
 export type DashboardTabItem = typeof DASHBOARD_TABS[number];
 export type DashboardTabId = typeof DASHBOARD_TABS[number]["id"];
+export type DashboardTabSetter = (tabId: DashboardTabId) => void;
 
 export const DEFAULT_DASHBOARD_TAB_ID: DashboardTabId = DASHBOARD_TABS[0].id;
 
