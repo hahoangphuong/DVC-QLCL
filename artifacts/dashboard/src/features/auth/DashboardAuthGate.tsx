@@ -1,12 +1,11 @@
-import type { ReactNode } from "react";
+import type { PropsWithChildren } from "react";
 import type { DashboardRole } from "./authApi";
 import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
 
-type Props = LoginScreenProps & {
+type Props = PropsWithChildren<LoginScreenProps & {
   authLoading: boolean;
   authRole: DashboardRole | null;
-  children: ReactNode;
-};
+}>;
 
 export function DashboardAuthGate({
   authLoading,
