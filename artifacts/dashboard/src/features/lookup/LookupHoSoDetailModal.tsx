@@ -3,15 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { DOSSIER_DETAIL_TEXT } from "../../uiText";
 import { buildDavViewFileUrl, fetchDavTt48HoSoDetail, isoToDisplay } from "./lookupShared";
 
+export type LookupHoSoDetailModalProps = {
+  hoSoId: number;
+  maHoSo: string;
+  onClose: VoidFunction;
+};
+
 export function LookupHoSoDetailModal({
   hoSoId,
   maHoSo,
   onClose,
-}: {
-  hoSoId: number;
-  maHoSo: string;
-  onClose: VoidFunction;
-}) {
+}: LookupHoSoDetailModalProps) {
   const [infoTab, setInfoTab] = useState<"co_so" | "doanh_nghiep">("co_so");
   const [attachmentTab, setAttachmentTab] = useState("");
   const { data, isLoading, isError } = useQuery({

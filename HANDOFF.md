@@ -284,6 +284,7 @@ Important behavior:
 - runtime shell for `Tra cứu HS đang xử lý` should live in `features/lookup/LookupPendingTab.tsx`; the old inline implementation has been removed from `App.tsx`
 - repeated lookup filter-panel UI should live in `features/lookup/LookupFilterPanel.tsx`; feature tab shells should not duplicate the combobox/input/action-bar form block
 - repeated lookup detail-modal mount should live in `features/lookup/LookupDetailModalMount.tsx`; feature tab shells should not duplicate the conditional modal render block
+- shared detail-modal props should be exported from `features/lookup/LookupHoSoDetailModal.tsx` and reused by `LookupDetailModalMount.tsx`, not mirrored as a separate local `onClose` contract
 - dead local `LookupHoSoDetailModal` and `LoginScreen` implementations have been removed from `App.tsx`; do not reintroduce them there
 - repeated lookup field setter callbacks should live in `features/lookup/useLookupFilterControls.ts`; `App.tsx` should not duplicate `setChuyenVien/setChuyenGia/setThuTuc/setTinhTrang/setMaHoSo` across lookup tabs
 - lookup detail modal open/close state should live in `features/lookup/useLookupDetailModal.ts`; duplicated `selectedDetail` state should not be recreated inline across lookup tabs

@@ -1,12 +1,14 @@
-import { LookupHoSoDetailModal } from "./LookupHoSoDetailModal";
+import {
+  LookupHoSoDetailModal,
+  type LookupHoSoDetailModalProps,
+} from "./LookupHoSoDetailModal";
 import type { LookupDetailSelection } from "./useLookupDetailModal";
 
 export function LookupDetailModalMount({
   selectedDetail,
   onClose,
-}: {
+}: Pick<LookupHoSoDetailModalProps, "onClose"> & {
   selectedDetail: LookupDetailSelection | null;
-  onClose: VoidFunction;
 }) {
   if (!selectedDetail) return null;
   return (
