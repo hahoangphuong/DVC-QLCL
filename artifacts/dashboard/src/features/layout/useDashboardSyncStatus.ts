@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { DashboardRole } from "../auth/authApi";
 
 export type SyncStatus = {
   lastSyncedAt: string | null;
@@ -11,7 +12,7 @@ async function fetchSyncStatus(): Promise<SyncStatus> {
   return res.json();
 }
 
-export function useDashboardSyncStatus(authRole: string | null) {
+export function useDashboardSyncStatus(authRole: DashboardRole | null) {
   return useQuery({
     queryKey: ["sync-status", authRole],
     queryFn: fetchSyncStatus,
