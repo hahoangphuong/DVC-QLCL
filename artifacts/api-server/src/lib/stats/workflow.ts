@@ -66,13 +66,41 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
          WHERE thu_tuc = $1
          ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
        ),
+       latest_tcc_roles AS (
+         SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
+           (data->>'thuTucId')::int AS thu_tuc,
+           data->>'maHoSo' AS ma_ho_so,
+           NULLIF(TRIM(data->>'id'), '') AS tcc_id,
+           NULLIF(TRIM(data->>'hoSoXuLyId_Active'), '') AS ho_so_xu_ly_id,
+           NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name
+         FROM tra_cuu_chung
+         WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
+           AND (data->>'thuTucId')::int = $1
+         ORDER BY
+           (data->>'thuTucId')::int,
+           data->>'maHoSo',
+           CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
+           NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
+       ),
        tt47_46_case_facts AS (
          SELECT
            COALESCE(
+             CASE
+               WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+               ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i')
+             END,
              NULLIF(TRIM(d.data->>'nguoiXuLy'), ''),
              NULLIF(TRIM(d.data->>'chuyenVienPhoiHopName'), ''),
              NULLIF(TRIM(d.data->>'chuyenVienXuLyName'), ''),
              CASE
+               WHEN dx.don_vi = 'Chuyên viên phối hợp thẩm định'
+               THEN COALESCE(
+                 dx.nguoi_xu_ly,
+                 CASE
+                   WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+                   ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i')
+                 END
+               )
                WHEN dx.don_vi = 'Chuy\u00ean vi\u00ean'
                  AND dx.nguoi_xu_ly IS NOT NULL
                  AND dx.nguoi_xu_ly <> cf.cv_name_raw
@@ -93,6 +121,9 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
          LEFT JOIN latest_dang_xu_ly dx
            ON dx.thu_tuc = $1
           AND dx.ma_ho_so = cf.ma_ho_so
+         LEFT JOIN latest_tcc_roles roles
+           ON roles.thu_tuc = $1
+          AND (roles.tcc_id = cf.tcc_id OR roles.ma_ho_so = cf.ma_ho_so)
          WHERE is_active OR da_xu_ly_id IS NOT NULL
        ),
        stats AS (
@@ -436,10 +467,33 @@ export async function getDangXuLyStats(thuTuc: number) {
     }>(
       `WITH
      ${buildWorkflowCasesCte("$1")},
+     latest_tcc_roles AS (
+       SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
+         (data->>'thuTucId')::int AS thu_tuc,
+         data->>'maHoSo' AS ma_ho_so,
+         NULLIF(TRIM(data->>'chuyenVienThuLyName'), '') AS cv_thu_ly_name,
+         NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name
+       FROM tra_cuu_chung
+       WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
+         AND (data->>'thuTucId')::int = $1
+       ORDER BY
+         (data->>'thuTucId')::int,
+         data->>'maHoSo',
+         CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
+         NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
+     ),
      base AS (
        SELECT
          CASE
            WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN '__CHUA_PHAN__'
+           WHEN don_vi = 'Chuyên viên phối hợp thẩm định' THEN COALESCE(
+             NULLIF(TRIM(nguoi_xu_ly), ''),
+             CASE
+               WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+               ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i')
+             END,
+             cv_name
+           )
            WHEN don_vi = 'Chuy\u00ean vi\u00ean'
              AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
              AND NULLIF(TRIM(cv_name), '') IS NOT NULL
@@ -452,6 +506,7 @@ export async function getDangXuLyStats(thuTuc: number) {
          ngay_nhan,
          CASE
            WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN 'cho_phan_cong'
+           WHEN don_vi = 'Chuyên viên phối hợp thẩm định' THEN 'dang_xu_ly'
            WHEN don_vi = 'Chuy\u00ean vi\u00ean'
              AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
              AND NULLIF(TRIM(cv_name), '') IS NOT NULL
@@ -461,7 +516,10 @@ export async function getDangXuLyStats(thuTuc: number) {
            ELSE NULL
          END AS buoc_tt47_46
        FROM workflow_cases
-       WHERE don_vi IN ('Ph\u00f2ng ban ph\u00e2n c\u00f4ng', 'Chuy\u00ean vi\u00ean')
+       LEFT JOIN latest_tcc_roles roles
+         ON roles.thu_tuc = $1
+        AND roles.ma_ho_so = workflow_cases.ma_ho_so
+       WHERE don_vi IN ('Ph\u00f2ng ban ph\u00e2n c\u00f4ng', 'Chuy\u00ean vi\u00ean', 'Chuyên viên phối hợp thẩm định')
      ),
      stats AS (
        SELECT
@@ -722,6 +780,20 @@ latest_workflow_experts AS (
     AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
   ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
 ),
+latest_tcc_roles AS (
+  SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
+    (data->>'thuTucId')::int AS thu_tuc,
+    data->>'maHoSo' AS ma_ho_so,
+    NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name
+  FROM tra_cuu_chung
+  WHERE ($1::int IS NULL OR (data->>'thuTucId')::int = $1)
+    AND NULLIF(data->>'thuTucId', '') IS NOT NULL
+  ORDER BY
+    (data->>'thuTucId')::int,
+    data->>'maHoSo',
+    CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
+    NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
+),
 workflow_base AS (
   SELECT
     w.thu_tuc,
@@ -732,7 +804,7 @@ workflow_base AS (
     cf.submission_kind,
     CASE
       WHEN w.don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN 'cho_phan_cong'
-      WHEN w.thu_tuc IN (46, 47) AND w.don_vi = 'Chuy\u00ean vi\u00ean' THEN 'cho_chuyen_vien'
+      WHEN w.thu_tuc IN (46, 47) AND w.don_vi IN ('Chuy\u00ean vi\u00ean', 'Chuyên viên phối hợp thẩm định') THEN 'cho_chuyen_vien'
       WHEN w.thu_tuc = 48 AND w.buoc = 'chua_xu_ly' THEN 'chua_xu_ly'
       WHEN w.thu_tuc = 48 AND w.buoc = 'bi_tra_lai' THEN 'bi_tra_lai'
       WHEN w.thu_tuc = 48 AND w.buoc = 'cho_tong_hop' THEN 'cho_tong_hop'
@@ -748,6 +820,16 @@ workflow_base AS (
     END AS tinh_trang,
     CASE
       WHEN w.don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN NULL
+      WHEN w.thu_tuc IN (46, 47)
+        AND w.don_vi = 'Chuyên viên phối hợp thẩm định'
+      THEN COALESCE(
+        NULLIF(TRIM(w.nguoi_xu_ly), ''),
+        CASE
+          WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+          ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i')
+        END,
+        NULLIF(TRIM(w.cv_name), '')
+      )
       WHEN w.thu_tuc IN (46, 47)
         AND w.don_vi = 'Chuy\u00ean vi\u00ean'
         AND NULLIF(TRIM(w.nguoi_xu_ly), '') IS NOT NULL
@@ -777,6 +859,9 @@ workflow_base AS (
   LEFT JOIN latest_case_facts cf
     ON cf.thu_tuc = w.thu_tuc
    AND cf.ma_ho_so = w.ma_ho_so
+  LEFT JOIN latest_tcc_roles roles
+    ON roles.thu_tuc = w.thu_tuc
+   AND roles.ma_ho_so = w.ma_ho_so
   LEFT JOIN latest_workflow_experts we
     ON we.thu_tuc = w.thu_tuc
    AND we.ma_ho_so = w.ma_ho_so
@@ -925,6 +1010,7 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
            thu_tuc,
            COALESCE(NULLIF(TRIM(da_xu_ly_id), ''), tcc_id) AS luot_xu_ly_id,
            ma_ho_so,
+           tcc_id,
            cv_name_raw,
            chuyen_gia_name
          FROM mv_stats_case_facts
@@ -933,10 +1019,24 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
            AND COALESCE(NULLIF(TRIM(da_xu_ly_id), ''), tcc_id) IS NOT NULL
          ORDER BY thu_tuc, luot_xu_ly_id, ngay_tra DESC NULLS LAST, ngay_nhan DESC NULLS LAST
        ),
+       latest_tcc_roles AS (
+         SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'id')
+           (data->>'thuTucId')::int AS thu_tuc,
+           NULLIF(TRIM(data->>'id'), '') AS tcc_id,
+           data->>'maHoSo' AS ma_ho_so,
+           NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name
+         FROM tra_cuu_chung
+         WHERE ($1::int IS NULL OR (data->>'thuTucId')::int = $1)
+           AND NULLIF(data->>'thuTucId', '') IS NOT NULL
+       ),
        resolved_enriched AS (
          SELECT
            CASE
              WHEN l.thu_tuc IN (46, 47) THEN COALESCE(
+               CASE
+                 WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+                 ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i')
+               END,
                NULLIF(TRIM(d.data->>'nguoiXuLy'), ''),
                NULLIF(TRIM(d.data->>'chuyenVienPhoiHopName'), ''),
                NULLIF(TRIM(d.data->>'chuyenVienXuLyName'), '')
@@ -949,6 +1049,9 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
              ELSE REGEXP_REPLACE(TRIM(l.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
            END AS chuyen_gia
          FROM latest_case_facts l
+         LEFT JOIN latest_tcc_roles roles
+           ON roles.thu_tuc = l.thu_tuc
+          AND (roles.tcc_id = l.tcc_id OR roles.ma_ho_so = l.ma_ho_so)
          LEFT JOIN da_xu_ly d
            ON d.thu_tuc = l.thu_tuc
           AND d.data->>'id' = l.luot_xu_ly_id
@@ -964,6 +1067,7 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
            thu_tuc,
            COALESCE(NULLIF(TRIM(da_xu_ly_id), ''), tcc_id) AS luot_xu_ly_id,
            ma_ho_so,
+           tcc_id,
            ngay_nhan AS ngay_tiep_nhan,
            ngay_tra AS ngay_hen_tra,
            loai_ho_so,
@@ -986,6 +1090,16 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
            AND COALESCE(NULLIF(TRIM(da_xu_ly_id), ''), tcc_id) IS NOT NULL
          ORDER BY thu_tuc, luot_xu_ly_id, ngay_tra DESC NULLS LAST, ngay_nhan DESC NULLS LAST
        ),
+       latest_tcc_roles AS (
+         SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'id')
+           (data->>'thuTucId')::int AS thu_tuc,
+           NULLIF(TRIM(data->>'id'), '') AS tcc_id,
+           data->>'maHoSo' AS ma_ho_so,
+           NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name
+         FROM tra_cuu_chung
+         WHERE ($1::int IS NULL OR (data->>'thuTucId')::int = $1)
+           AND NULLIF(data->>'thuTucId', '') IS NOT NULL
+       ),
        resolved_enriched AS (
          SELECT
            l.thu_tuc,
@@ -997,6 +1111,10 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
            l.tinh_trang,
            CASE
              WHEN l.thu_tuc IN (46, 47) THEN COALESCE(
+               CASE
+                 WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+                 ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i')
+               END,
                NULLIF(TRIM(d.data->>'nguoiXuLy'), ''),
                NULLIF(TRIM(d.data->>'chuyenVienPhoiHopName'), ''),
                NULLIF(TRIM(d.data->>'chuyenVienXuLyName'), '')
@@ -1010,6 +1128,9 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
            END AS chuyen_gia,
            l.thoi_gian_cho_ngay
          FROM latest_case_facts l
+         LEFT JOIN latest_tcc_roles roles
+           ON roles.thu_tuc = l.thu_tuc
+          AND (roles.tcc_id = l.tcc_id OR roles.ma_ho_so = l.ma_ho_so)
          LEFT JOIN da_xu_ly d
            ON d.thu_tuc = l.thu_tuc
           AND d.data->>'id' = l.luot_xu_ly_id
