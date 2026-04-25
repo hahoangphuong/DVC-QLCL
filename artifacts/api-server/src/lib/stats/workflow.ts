@@ -37,6 +37,128 @@ function normalizeLookupExpertText(value: string | null | undefined): string | n
 
 export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDate: string) {
   const { fromDt, toDt } = toDateRange(fromDate, toDate);
+  if (thuTuc === 46 || thuTuc === 47) {
+    const rows = await query<{
+      cv_name: string;
+      ton_truoc: string;
+      da_nhan: string;
+      gq_tong: string;
+      can_bo_sung: string;
+      khong_dat: string;
+      hoan_thanh: string;
+      dung_han: string;
+      qua_han: string;
+      tg_tb: string | null;
+      ton_sau_tong: string;
+      ton_sau_con_han: string;
+      ton_sau_qua_han: string;
+      treo: string;
+    }>(
+      `WITH
+       ${buildCaseFactsCte("$1")},
+       latest_dang_xu_ly AS (
+         SELECT DISTINCT ON (thu_tuc, ma_ho_so)
+           thu_tuc,
+           ma_ho_so,
+           don_vi,
+           NULLIF(TRIM(nguoi_xu_ly), '') AS nguoi_xu_ly
+         FROM mv_stats_workflow_cases
+         WHERE thu_tuc = $1
+         ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
+       ),
+       tt47_46_case_facts AS (
+         SELECT
+           COALESCE(
+             NULLIF(TRIM(d.data->>'nguoiXuLy'), ''),
+             NULLIF(TRIM(d.data->>'chuyenVienPhoiHopName'), ''),
+             NULLIF(TRIM(d.data->>'chuyenVienXuLyName'), ''),
+             CASE
+               WHEN dx.don_vi = 'Chuy\u00ean vi\u00ean'
+                 AND dx.nguoi_xu_ly IS NOT NULL
+                 AND dx.nguoi_xu_ly <> cf.cv_name_raw
+               THEN dx.nguoi_xu_ly
+               ELSE NULL
+             END
+           ) AS cv_name,
+           cf.ngay_nhan,
+           cf.nhan_hen_tra,
+           cf.ngay_tra,
+           cf.kq_hen_tra,
+           cf.trang_thai
+         FROM case_facts cf
+         LEFT JOIN da_xu_ly d
+           ON d.thu_tuc = $1
+          AND cf.da_xu_ly_id IS NOT NULL
+          AND d.data->>'id' = cf.da_xu_ly_id
+         LEFT JOIN latest_dang_xu_ly dx
+           ON dx.thu_tuc = $1
+          AND dx.ma_ho_so = cf.ma_ho_so
+         WHERE is_active OR da_xu_ly_id IS NOT NULL
+       ),
+       stats AS (
+         SELECT
+           cv_name,
+           COUNT(*) FILTER (WHERE ngay_nhan < $2 AND (ngay_tra IS NULL OR ngay_tra >= $2)) AS ton_truoc,
+           COUNT(*) FILTER (WHERE ngay_nhan >= $2 AND ngay_nhan <= $3) AS da_nhan,
+           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3) AS gq_tong,
+           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND trang_thai = '4') AS can_bo_sung,
+           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND trang_thai = '7') AS khong_dat,
+           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND trang_thai = '6') AS hoan_thanh,
+           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND kq_hen_tra IS NOT NULL AND ngay_tra <= kq_hen_tra) AS dung_han,
+           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND (kq_hen_tra IS NULL OR ngay_tra > kq_hen_tra)) AS qua_han,
+           ROUND(AVG(EXTRACT(EPOCH FROM (ngay_tra - ngay_nhan)) / 86400.0) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3))::int AS tg_tb,
+           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3)) AS ton_sau_tong,
+           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3) AND nhan_hen_tra IS NOT NULL AND nhan_hen_tra > $3) AS ton_sau_con_han,
+           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3) AND (nhan_hen_tra IS NULL OR nhan_hen_tra <= $3)) AS ton_sau_qua_han
+         FROM tt47_46_case_facts
+         WHERE cv_name IS NOT NULL
+         GROUP BY cv_name
+       ),
+       treo_by_cv AS (
+         SELECT cv_name, treo
+         FROM mv_stats_treo_by_cv
+         WHERE thu_tuc = $1
+       )
+       SELECT s.*, COALESCE(t.treo, 0) AS treo
+       FROM stats s
+       LEFT JOIN treo_by_cv t ON s.cv_name = t.cv_name`,
+      [thuTuc, fromDt, toDt]
+    );
+
+    const mappedRows = rows.map((row) => {
+      const gqTong = toCount(row.gq_tong);
+      const tonTruoc = toCount(row.ton_truoc);
+      const daNhan = toCount(row.da_nhan);
+      const dungHan = toCount(row.dung_han);
+      return {
+        ten_cv: row.cv_name,
+        ton_truoc: tonTruoc,
+        da_nhan: daNhan,
+        gq_tong: gqTong,
+        can_bo_sung: toCount(row.can_bo_sung),
+        khong_dat: toCount(row.khong_dat),
+        hoan_thanh: toCount(row.hoan_thanh),
+        dung_han: dungHan,
+        qua_han: toCount(row.qua_han),
+        tg_tb: row.tg_tb != null ? toCount(row.tg_tb) : null,
+        pct_gq_dung_han: gqTong > 0 ? Math.round((dungHan / gqTong) * 100) : 0,
+        pct_da_gq: tonTruoc + daNhan > 0 ? Math.round((gqTong / (tonTruoc + daNhan)) * 100) : 0,
+        ton_sau_tong: toCount(row.ton_sau_tong),
+        ton_sau_con_han: toCount(row.ton_sau_con_han),
+        ton_sau_qua_han: toCount(row.ton_sau_qua_han),
+        treo: toCount(row.treo),
+      };
+    });
+
+    return {
+      thu_tuc: thuTuc,
+      from_date: fromDate,
+      to_date: toDate,
+      cho_phan_cong: null,
+      rows: sortByPriority(mappedRows, (row) => row.ten_cv),
+    };
+  }
+
   const rows = await query<{
     cv_name: string;
     ton_truoc: string;
@@ -200,33 +322,33 @@ export async function getDangXuLyStats(thuTuc: number) {
            COUNT(*) AS tong,
            COUNT(*) FILTER (WHERE buoc = 'chua_xu_ly') AS chua_xu_ly,
            COUNT(*) FILTER (WHERE buoc = 'bi_tra_lai') AS bi_tra_lai,
-           COUNT(*) FILTER (WHERE don_vi = 'Chuyên gia thẩm định') AS cho_cg,
+           COUNT(*) FILTER (WHERE don_vi = 'ChuyÃƒÆ’Ã‚Âªn gia thÃƒÂ¡Ã‚ÂºÃ‚Â©m Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¹nh') AS cho_cg,
            COUNT(*) FILTER (WHERE buoc = 'cho_tong_hop') AS cho_tong_hop,
-           COUNT(*) FILTER (WHERE don_vi = 'Tổ trưởng chuyên gia') AS cho_to_truong,
-           COUNT(*) FILTER (WHERE don_vi = 'Trưởng phòng') AS cho_trp,
+           COUNT(*) FILTER (WHERE don_vi = 'TÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¢ trÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã…Â¸ng chuyÃƒÆ’Ã‚Âªn gia') AS cho_to_truong,
+           COUNT(*) FILTER (WHERE don_vi = 'TrÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã…Â¸ng phÃƒÆ’Ã‚Â²ng') AS cho_trp,
            COUNT(*) FILTER (WHERE buoc = 'cho_ket_thuc') AS cho_cong_bo,
-           COUNT(*) FILTER (WHERE don_vi = 'Phó Cục trưởng') AS cho_pct,
-           COUNT(*) FILTER (WHERE don_vi LIKE 'Văn thư%') AS cho_van_thu,
+           COUNT(*) FILTER (WHERE don_vi = 'PhÃƒÆ’Ã‚Â³ CÃƒÂ¡Ã‚Â»Ã‚Â¥c trÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã…Â¸ng') AS cho_pct,
+           COUNT(*) FILTER (WHERE don_vi LIKE 'VÃƒâ€žÃ†â€™n thÃƒâ€ Ã‚Â°%') AS cho_van_thu,
            COUNT(*) FILTER (WHERE qua_han_ngay <= 0) AS con_han,
            COUNT(*) FILTER (WHERE qua_han_ngay > 0) AS qua_han,
            COUNT(*) FILTER (WHERE buoc = 'chua_xu_ly' AND qua_han_ngay <= 0) AS chua_xu_ly_con,
            COUNT(*) FILTER (WHERE buoc = 'chua_xu_ly' AND qua_han_ngay > 0) AS chua_xu_ly_qua,
            COUNT(*) FILTER (WHERE buoc = 'bi_tra_lai' AND qua_han_ngay <= 0) AS bi_tra_lai_con,
            COUNT(*) FILTER (WHERE buoc = 'bi_tra_lai' AND qua_han_ngay > 0) AS bi_tra_lai_qua,
-           COUNT(*) FILTER (WHERE don_vi = 'Chuyên gia thẩm định' AND qua_han_ngay <= 0) AS cho_cg_con,
-           COUNT(*) FILTER (WHERE don_vi = 'Chuyên gia thẩm định' AND qua_han_ngay > 0) AS cho_cg_qua,
+           COUNT(*) FILTER (WHERE don_vi = 'ChuyÃƒÆ’Ã‚Âªn gia thÃƒÂ¡Ã‚ÂºÃ‚Â©m Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¹nh' AND qua_han_ngay <= 0) AS cho_cg_con,
+           COUNT(*) FILTER (WHERE don_vi = 'ChuyÃƒÆ’Ã‚Âªn gia thÃƒÂ¡Ã‚ÂºÃ‚Â©m Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¹nh' AND qua_han_ngay > 0) AS cho_cg_qua,
            COUNT(*) FILTER (WHERE buoc = 'cho_tong_hop' AND qua_han_ngay <= 0) AS cho_tong_hop_con,
            COUNT(*) FILTER (WHERE buoc = 'cho_tong_hop' AND qua_han_ngay > 0) AS cho_tong_hop_qua,
-           COUNT(*) FILTER (WHERE don_vi = 'Tổ trưởng chuyên gia' AND qua_han_ngay <= 0) AS cho_to_truong_con,
-           COUNT(*) FILTER (WHERE don_vi = 'Tổ trưởng chuyên gia' AND qua_han_ngay > 0) AS cho_to_truong_qua,
-           COUNT(*) FILTER (WHERE don_vi = 'Trưởng phòng' AND qua_han_ngay <= 0) AS cho_trp_con,
-           COUNT(*) FILTER (WHERE don_vi = 'Trưởng phòng' AND qua_han_ngay > 0) AS cho_trp_qua,
+           COUNT(*) FILTER (WHERE don_vi = 'TÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¢ trÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã…Â¸ng chuyÃƒÆ’Ã‚Âªn gia' AND qua_han_ngay <= 0) AS cho_to_truong_con,
+           COUNT(*) FILTER (WHERE don_vi = 'TÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¢ trÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã…Â¸ng chuyÃƒÆ’Ã‚Âªn gia' AND qua_han_ngay > 0) AS cho_to_truong_qua,
+           COUNT(*) FILTER (WHERE don_vi = 'TrÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã…Â¸ng phÃƒÆ’Ã‚Â²ng' AND qua_han_ngay <= 0) AS cho_trp_con,
+           COUNT(*) FILTER (WHERE don_vi = 'TrÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã…Â¸ng phÃƒÆ’Ã‚Â²ng' AND qua_han_ngay > 0) AS cho_trp_qua,
            COUNT(*) FILTER (WHERE buoc = 'cho_ket_thuc' AND qua_han_ngay <= 0) AS cho_cong_bo_con,
            COUNT(*) FILTER (WHERE buoc = 'cho_ket_thuc' AND qua_han_ngay > 0) AS cho_cong_bo_qua,
-           COUNT(*) FILTER (WHERE don_vi = 'Phó Cục trưởng' AND qua_han_ngay <= 0) AS cho_pct_con,
-           COUNT(*) FILTER (WHERE don_vi = 'Phó Cục trưởng' AND qua_han_ngay > 0) AS cho_pct_qua,
-           COUNT(*) FILTER (WHERE don_vi LIKE 'Văn thư%' AND qua_han_ngay <= 0) AS cho_van_thu_con,
-           COUNT(*) FILTER (WHERE don_vi LIKE 'Văn thư%' AND qua_han_ngay > 0) AS cho_van_thu_qua
+           COUNT(*) FILTER (WHERE don_vi = 'PhÃƒÆ’Ã‚Â³ CÃƒÂ¡Ã‚Â»Ã‚Â¥c trÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã…Â¸ng' AND qua_han_ngay <= 0) AS cho_pct_con,
+           COUNT(*) FILTER (WHERE don_vi = 'PhÃƒÆ’Ã‚Â³ CÃƒÂ¡Ã‚Â»Ã‚Â¥c trÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã…Â¸ng' AND qua_han_ngay > 0) AS cho_pct_qua,
+           COUNT(*) FILTER (WHERE don_vi LIKE 'VÃƒâ€žÃ†â€™n thÃƒâ€ Ã‚Â°%' AND qua_han_ngay <= 0) AS cho_van_thu_con,
+           COUNT(*) FILTER (WHERE don_vi LIKE 'VÃƒâ€žÃ†â€™n thÃƒâ€ Ã‚Â°%' AND qua_han_ngay > 0) AS cho_van_thu_qua
          FROM base
          GROUP BY cv_name
        ),
@@ -316,26 +438,45 @@ export async function getDangXuLyStats(thuTuc: number) {
      ${buildWorkflowCasesCte("$1")},
      base AS (
        SELECT
-         cv_name,
-         don_vi,
+         CASE
+           WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN '__CHUA_PHAN__'
+           WHEN don_vi = 'Chuy\u00ean vi\u00ean'
+             AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
+             AND NULLIF(TRIM(cv_name), '') IS NOT NULL
+             AND TRIM(nguoi_xu_ly) <> TRIM(cv_name)
+           THEN TRIM(nguoi_xu_ly)
+           ELSE cv_name
+         END AS cv_name,
          ma_ho_so,
          qua_han_ngay,
-         ngay_nhan
+         ngay_nhan,
+         CASE
+           WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN 'cho_phan_cong'
+           WHEN don_vi = 'Chuy\u00ean vi\u00ean'
+             AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
+             AND NULLIF(TRIM(cv_name), '') IS NOT NULL
+             AND TRIM(nguoi_xu_ly) <> TRIM(cv_name)
+           THEN 'dang_xu_ly'
+           WHEN don_vi = 'Chuy\u00ean vi\u00ean' THEN 'dang_tham_dinh'
+           ELSE NULL
+         END AS buoc_tt47_46
        FROM workflow_cases
+       WHERE don_vi IN ('Ph\u00f2ng ban ph\u00e2n c\u00f4ng', 'Chuy\u00ean vi\u00ean')
      ),
      stats AS (
        SELECT
          cv_name,
-         COUNT(*) AS tong,
-         COUNT(*) FILTER (WHERE don_vi = 'Chuyên viên') AS cho_cv,
-         COUNT(*) FILTER (WHERE don_vi = 'Chuyên gia thẩm định') AS cho_cg,
-         COUNT(*) FILTER (WHERE don_vi = 'Tổ trưởng chuyên gia') AS cho_to_truong,
-         COUNT(*) FILTER (WHERE don_vi = 'Trưởng phòng') AS cho_trp,
-         COUNT(*) FILTER (WHERE don_vi = 'Phó Cục trưởng') AS cho_pct,
-         COUNT(*) FILTER (WHERE don_vi LIKE 'Văn thư%') AS cho_van_thu,
+         COUNT(*) FILTER (WHERE buoc_tt47_46 IN ('dang_tham_dinh', 'dang_xu_ly')) AS tong,
+         COUNT(*) FILTER (WHERE buoc_tt47_46 = 'dang_tham_dinh') AS cho_cv,
+         COUNT(*) FILTER (WHERE buoc_tt47_46 = 'dang_xu_ly') AS cho_cg,
+         0::bigint AS cho_to_truong,
+         0::bigint AS cho_trp,
+         0::bigint AS cho_pct,
+         0::bigint AS cho_van_thu,
          COUNT(*) FILTER (WHERE qua_han_ngay <= 0) AS con_han,
          COUNT(*) FILTER (WHERE qua_han_ngay > 0) AS qua_han
        FROM base
+       WHERE buoc_tt47_46 IS NOT NULL
        GROUP BY cv_name
      ),
      cham_nhat AS (
@@ -345,6 +486,7 @@ export async function getDangXuLyStats(thuTuc: number) {
          ma_ho_so AS cham_ma,
          ngay_nhan AS cham_ngay
        FROM base
+       WHERE buoc_tt47_46 IS NOT NULL
        ORDER BY cv_name, qua_han_ngay DESC
      )
      SELECT s.*, cn.cham_so_ngay, cn.cham_ma, cn.cham_ngay
@@ -440,7 +582,7 @@ export async function getChuyenGiaStats(thuTuc: number) {
          COALESCE(NULLIF(TRIM(cv_name), ''), '') AS cv_thu_ly
        FROM workflow_cases
        LEFT JOIN latest_case_facts cf ON cf.ma_ho_so = workflow_cases.ma_ho_so
-       WHERE don_vi = 'Chuyên gia thẩm định'
+       WHERE don_vi = 'ChuyÃƒÆ’Ã‚Âªn gia thÃƒÂ¡Ã‚ÂºÃ‚Â©m Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¹nh'
          AND COALESCE(
            NULLIF(TRIM(cf.chuyen_gia_name), ''),
            NULLIF(TRIM(nguoi_xu_ly), '')
@@ -522,7 +664,7 @@ export async function getChuyenGiaStats(thuTuc: number) {
   );
 
   const chuyenGia = expertNamesFromDb.map((name) => zeroRow(name));
-  const chuyenVienCg = sortByPriority(cvCgNamesFromDb, (name) => `CV thụ lý : ${name}`).map((name) => zeroRow(name));
+  const chuyenVienCg = sortByPriority(cvCgNamesFromDb, (name) => `CV thÃƒÂ¡Ã‚Â»Ã‚Â¥ lÃƒÆ’Ã‚Â½ : ${name}`).map((name) => zeroRow(name));
 
   return {
     thu_tuc: thuTuc,
@@ -576,7 +718,7 @@ latest_workflow_experts AS (
     REGEXP_REPLACE(TRIM(nguoi_xu_ly), '^CG\\s*:\\s*', '', 'i') AS chuyen_gia_name
   FROM mv_stats_workflow_cases
   WHERE ($1::int IS NULL OR thu_tuc = $1)
-    AND don_vi = 'Chuyên gia thẩm định'
+    AND don_vi = 'Chuy\u00ean gia th\u1ea9m \u0111\u1ecbnh'
     AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
   ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
 ),
@@ -588,27 +730,35 @@ workflow_base AS (
     cf.nhan_hen_tra AS ngay_hen_tra,
     cf.loai_ho_so,
     cf.submission_kind,
-      CASE
-        WHEN w.don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN 'cho_phan_cong'
-        WHEN w.thu_tuc = 48 AND w.buoc = 'chua_xu_ly' THEN 'chua_xu_ly'
-        WHEN w.thu_tuc = 48 AND w.buoc = 'bi_tra_lai' THEN 'bi_tra_lai'
-        WHEN w.thu_tuc = 48 AND w.buoc = 'cho_tong_hop' THEN 'cho_tong_hop'
-        WHEN w.don_vi = 'Chuy\u00ean gia th\u1ea9m \u0111\u1ecbnh' THEN 'cho_chuyen_gia'
-        WHEN w.don_vi = 'T\u1ed5 tr\u01b0\u1edfng chuy\u00ean gia' THEN 'cho_to_truong'
-        WHEN w.don_vi = 'Tr\u01b0\u1edfng ph\u00f2ng' THEN 'cho_truong_phong'
-        WHEN w.don_vi LIKE 'V\u0103n th\u01b0%' THEN 'cho_van_thu'
-        WHEN w.buoc = 'cho_ket_thuc' OR w.don_vi = 'Ph\u00f3 C\u1ee5c tr\u01b0\u1edfng' THEN 'cho_cong_bo'
-        WHEN w.buoc IN ('chua_xu_ly', 'bi_tra_lai', 'cho_tong_hop')
-          OR w.don_vi IN ('Chuy\u00ean vi\u00ean')
-        THEN 'cho_chuyen_vien'
-        ELSE 'cho_chuyen_vien'
-      END AS tinh_trang,
     CASE
+      WHEN w.don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN 'cho_phan_cong'
+      WHEN w.thu_tuc IN (46, 47) AND w.don_vi = 'Chuy\u00ean vi\u00ean' THEN 'cho_chuyen_vien'
+      WHEN w.thu_tuc = 48 AND w.buoc = 'chua_xu_ly' THEN 'chua_xu_ly'
+      WHEN w.thu_tuc = 48 AND w.buoc = 'bi_tra_lai' THEN 'bi_tra_lai'
+      WHEN w.thu_tuc = 48 AND w.buoc = 'cho_tong_hop' THEN 'cho_tong_hop'
+      WHEN w.don_vi = 'Chuy\u00ean gia th\u1ea9m \u0111\u1ecbnh' THEN 'cho_chuyen_gia'
+      WHEN w.don_vi = 'T\u1ed5 tr\u01b0\u1edfng chuy\u00ean gia' THEN 'cho_to_truong'
+      WHEN w.don_vi = 'Tr\u01b0\u1edfng ph\u00f2ng' THEN 'cho_truong_phong'
+      WHEN w.don_vi LIKE 'V\u0103n th\u01b0%' THEN 'cho_van_thu'
+      WHEN w.buoc = 'cho_ket_thuc' OR w.don_vi = 'Ph\u00f3 C\u1ee5c tr\u01b0\u1edfng' THEN 'cho_cong_bo'
+      WHEN w.buoc IN ('chua_xu_ly', 'bi_tra_lai', 'cho_tong_hop')
+        OR w.don_vi IN ('Chuy\u00ean vi\u00ean')
+      THEN 'cho_chuyen_vien'
+      ELSE 'cho_chuyen_vien'
+    END AS tinh_trang,
+    CASE
+      WHEN w.don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN NULL
+      WHEN w.thu_tuc IN (46, 47)
+        AND w.don_vi = 'Chuy\u00ean vi\u00ean'
+        AND NULLIF(TRIM(w.nguoi_xu_ly), '') IS NOT NULL
+        AND NULLIF(TRIM(w.cv_name), '') IS NOT NULL
+        AND TRIM(w.nguoi_xu_ly) <> TRIM(w.cv_name)
+      THEN TRIM(w.nguoi_xu_ly)
       WHEN NULLIF(TRIM(w.cv_name), '') IS NULL OR w.cv_name = '__CHUA_PHAN__' THEN NULL
       ELSE TRIM(w.cv_name)
     END AS chuyen_vien,
     CASE
-      WHEN w.don_vi = 'Phòng ban phân công' THEN NULL
+      WHEN w.don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN NULL
       WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN REGEXP_REPLACE(TRIM(cf.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
       WHEN NULLIF(TRIM(we.chuyen_gia_name), '') IS NOT NULL THEN we.chuyen_gia_name
       ELSE NULL
@@ -658,18 +808,25 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
            REGEXP_REPLACE(TRIM(nguoi_xu_ly), '^CG\\s*:\\s*', '', 'i') AS chuyen_gia_name
          FROM mv_stats_workflow_cases
          WHERE ($1::int IS NULL OR thu_tuc = $1)
-           AND don_vi = 'Chuyên gia thẩm định'
+          AND don_vi = 'Chuy\u00ean gia th\u1ea9m \u0111\u1ecbnh'
            AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
          ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
        ),
        option_rows AS (
          SELECT
            CASE
+            WHEN w.don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN NULL
+             WHEN w.thu_tuc IN (46, 47)
+              AND w.don_vi = 'Chuy\u00ean vi\u00ean'
+               AND NULLIF(TRIM(w.nguoi_xu_ly), '') IS NOT NULL
+               AND NULLIF(TRIM(w.cv_name), '') IS NOT NULL
+               AND TRIM(w.nguoi_xu_ly) <> TRIM(w.cv_name)
+             THEN TRIM(w.nguoi_xu_ly)
              WHEN NULLIF(TRIM(w.cv_name), '') IS NULL OR w.cv_name = '__CHUA_PHAN__' THEN NULL
              ELSE TRIM(w.cv_name)
            END AS chuyen_vien,
            CASE
-             WHEN w.don_vi = 'Phòng ban phân công' THEN NULL
+            WHEN w.don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN NULL
              WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN REGEXP_REPLACE(TRIM(cf.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
              WHEN NULLIF(TRIM(we.chuyen_gia_name), '') IS NOT NULL THEN we.chuyen_gia_name
              ELSE NULL
@@ -776,20 +933,28 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
            AND COALESCE(NULLIF(TRIM(da_xu_ly_id), ''), tcc_id) IS NOT NULL
          ORDER BY thu_tuc, luot_xu_ly_id, ngay_tra DESC NULLS LAST, ngay_nhan DESC NULLS LAST
        ),
-       option_rows AS (
+       resolved_enriched AS (
          SELECT
            CASE
-             WHEN NULLIF(TRIM(cv_name_raw), '') IS NULL OR cv_name_raw = '__CHUA_PHAN__' THEN NULL
-             ELSE TRIM(cv_name_raw)
+             WHEN l.thu_tuc IN (46, 47) THEN COALESCE(
+               NULLIF(TRIM(d.data->>'nguoiXuLy'), ''),
+               NULLIF(TRIM(d.data->>'chuyenVienPhoiHopName'), ''),
+               NULLIF(TRIM(d.data->>'chuyenVienXuLyName'), '')
+             )
+             WHEN NULLIF(TRIM(l.cv_name_raw), '') IS NULL OR l.cv_name_raw = '__CHUA_PHAN__' THEN NULL
+             ELSE TRIM(l.cv_name_raw)
            END AS chuyen_vien,
            CASE
-             WHEN NULLIF(TRIM(chuyen_gia_name), '') IS NULL THEN NULL
-             ELSE REGEXP_REPLACE(TRIM(chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
+             WHEN NULLIF(TRIM(l.chuyen_gia_name), '') IS NULL THEN NULL
+             ELSE REGEXP_REPLACE(TRIM(l.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
            END AS chuyen_gia
-         FROM latest_case_facts
+         FROM latest_case_facts l
+         LEFT JOIN da_xu_ly d
+           ON d.thu_tuc = l.thu_tuc
+          AND d.data->>'id' = l.luot_xu_ly_id
        )
        SELECT DISTINCT chuyen_vien, chuyen_gia
-       FROM option_rows
+       FROM resolved_enriched
        ORDER BY chuyen_vien NULLS LAST, chuyen_gia NULLS LAST`,
       [thuTuc]
     ),
@@ -809,14 +974,8 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
              WHEN trang_thai = '6' THEN 'da_hoan_thanh'
              ELSE NULL
            END AS tinh_trang,
-           CASE
-             WHEN NULLIF(TRIM(cv_name_raw), '') IS NULL OR cv_name_raw = '__CHUA_PHAN__' THEN NULL
-             ELSE TRIM(cv_name_raw)
-           END AS chuyen_vien,
-           CASE
-             WHEN NULLIF(TRIM(chuyen_gia_name), '') IS NULL THEN NULL
-             ELSE REGEXP_REPLACE(TRIM(chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
-           END AS chuyen_gia,
+           cv_name_raw,
+           chuyen_gia_name,
            GREATEST(
              0,
              ((COALESCE(ngay_tra, ngay_nhan) AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - (ngay_nhan AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
@@ -826,6 +985,34 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
            AND trang_thai IN ('4', '6', '7')
            AND COALESCE(NULLIF(TRIM(da_xu_ly_id), ''), tcc_id) IS NOT NULL
          ORDER BY thu_tuc, luot_xu_ly_id, ngay_tra DESC NULLS LAST, ngay_nhan DESC NULLS LAST
+       ),
+       resolved_enriched AS (
+         SELECT
+           l.thu_tuc,
+           l.ma_ho_so,
+           l.ngay_tiep_nhan,
+           l.ngay_hen_tra,
+           l.loai_ho_so,
+           l.submission_kind,
+           l.tinh_trang,
+           CASE
+             WHEN l.thu_tuc IN (46, 47) THEN COALESCE(
+               NULLIF(TRIM(d.data->>'nguoiXuLy'), ''),
+               NULLIF(TRIM(d.data->>'chuyenVienPhoiHopName'), ''),
+               NULLIF(TRIM(d.data->>'chuyenVienXuLyName'), '')
+             )
+             WHEN NULLIF(TRIM(l.cv_name_raw), '') IS NULL OR l.cv_name_raw = '__CHUA_PHAN__' THEN NULL
+             ELSE TRIM(l.cv_name_raw)
+           END AS chuyen_vien,
+           CASE
+             WHEN NULLIF(TRIM(l.chuyen_gia_name), '') IS NULL THEN NULL
+             ELSE REGEXP_REPLACE(TRIM(l.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
+           END AS chuyen_gia,
+           l.thoi_gian_cho_ngay
+         FROM latest_case_facts l
+         LEFT JOIN da_xu_ly d
+           ON d.thu_tuc = l.thu_tuc
+          AND d.data->>'id' = l.luot_xu_ly_id
        )
        SELECT
          thu_tuc,
@@ -838,7 +1025,7 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
          chuyen_vien,
          chuyen_gia,
          thoi_gian_cho_ngay
-       FROM latest_case_facts
+       FROM resolved_enriched
        WHERE ($2::text IS NULL OR chuyen_vien = $2)
          AND ($3::text IS NULL OR chuyen_gia = $3)
          AND ($4::text IS NULL OR tinh_trang = $4)
@@ -886,6 +1073,7 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
     })),
   };
 }
+
 
 
 

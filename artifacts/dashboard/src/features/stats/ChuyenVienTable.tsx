@@ -63,7 +63,7 @@ export function ChuyenVienTable({
     totals.ton_truoc + totals.da_nhan > 0
       ? Math.round((totals.gq_tong / (totals.ton_truoc + totals.da_nhan)) * 100)
       : 0;
-
+  const pendingCapaLabel = thuTuc === 48 ? "\u0043\u1ea7n b\u1ed5 sung" : "\u0043h\u1edd CAPA";
   function topThresh(vals: (number | null)[]): number {
     const sorted = vals
       .filter((v): v is number => typeof v === "number" && v > 0)
@@ -201,7 +201,7 @@ export function ChuyenVienTable({
             </tr>
             <tr className="bg-slate-100">
               <th className={`${thC} bg-green-50`}>{"Tổng"}</th>
-              {renderDoneHeader("Cần bổ sung", "can_bo_sung", `${thS} bg-amber-50`)}
+              {renderDoneHeader(pendingCapaLabel, "can_bo_sung", `${thS} bg-amber-50`)}
               {renderDoneHeader("Không đạt", "khong_dat", `${thS} bg-red-50`)}
               {renderDoneHeader("Hoàn thành", "da_hoan_thanh", `${thS} bg-green-50`)}
               <th className={`${thS} bg-green-50 text-green-700`}>{"Đúng hạn"}</th>

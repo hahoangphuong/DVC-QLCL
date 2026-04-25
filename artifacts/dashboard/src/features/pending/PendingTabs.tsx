@@ -90,12 +90,8 @@ export function DangXuLyTab({
         fill:  c.fill,
       })).filter(d => d.value > 0)
     : [
-        { name: CHO_COLORS.cho_cv.label,         value: totCv,       fill: CHO_COLORS.cho_cv.fill        },
-        { name: CHO_COLORS.cho_cg.label,         value: totCg,       fill: CHO_COLORS.cho_cg.fill        },
-        { name: CHO_COLORS.cho_to_truong.label,  value: totToTruong, fill: CHO_COLORS.cho_to_truong.fill },
-        { name: CHO_COLORS.cho_trp.label,        value: totTrp,      fill: CHO_COLORS.cho_trp.fill       },
-        { name: CHO_COLORS.cho_pct.label,        value: totPct,      fill: CHO_COLORS.cho_pct.fill       },
-        { name: CHO_COLORS.cho_van_thu.label,    value: totVanThu,   fill: CHO_COLORS.cho_van_thu.fill   },
+        { name: "\u0110ang th\u1ea9m \u0111\u1ecbnh", value: totCv, fill: "#3b82f6" },
+        { name: "\u0110ang x\u1eed l\u00fd", value: totCg, fill: "#22c55e" },
       ].filter(d => d.value > 0);
 
   const hanData = [
@@ -311,34 +307,12 @@ export function DangXuLyTab({
       <tr key={row.cv_name} className={`${bgRow} hover:bg-blue-50 transition-colors`}>
         {stickyBase}
         {totCell}
-        {/* Chờ CV */}
         <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_cv > 50 ? "bg-blue-100 text-blue-800 font-bold" : row.cho_cv > 0 ? "text-blue-700" : "text-slate-300"}`}>
           {row.cho_cv || ""}
         </td>
-        {/* Chờ CG */}
         <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_cg > 30 ? "bg-green-100 text-green-800 font-bold" : row.cho_cg > 0 ? "text-green-700" : "text-slate-300"}`}>
           {row.cho_cg || ""}
         </td>
-        {/* Chờ Tổ trưởng */}
-        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_to_truong > 0 ? "text-orange-500 font-semibold" : "text-slate-300"}`}>
-          {row.cho_to_truong || ""}
-        </td>
-        {/* Chờ TrP */}
-        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_trp > 0 ? "text-orange-700" : "text-slate-300"}`}>
-          {row.cho_trp || ""}
-        </td>
-        {/* Chờ PCT — ẩn nếu không có */}
-        {showPct && (
-          <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_pct > 0 ? "text-purple-700 font-semibold" : "text-slate-300"}`}>
-            {row.cho_pct || ""}
-          </td>
-        )}
-        {/* Chờ Văn thư — ẩn nếu không có */}
-        {showVanThu && (
-          <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_van_thu > 0 ? "text-slate-600" : "text-slate-300"}`}>
-            {row.cho_van_thu || ""}
-          </td>
-        )}
         {hanCells}
         {chamCells}
       </tr>
@@ -502,12 +476,7 @@ export function DangXuLyTab({
                     {showVanThu && <col />}
                     <col /><col /><col />
                   </>
-                : <>{/* TT47/46: TỔNG + 4 bước cố định + PCT? + VT? + Còn hạn + Quá hạn + % */}
-                    <col /><col /><col /><col /><col />
-                    {showPct    && <col />}
-                    {showVanThu && <col />}
-                    <col /><col />
-                  </>
+                 : <>{/* TT47/46: T\u1ed4NG + 2 b\u01b0\u1edbc + C\u00f2n h\u1ea1n + Qu\u00e1 h\u1ea1n + % */}<col /><col /><col /><col /><col /><col /></>
               }
               {/* 3 cột Hồ sơ chậm nhất */}
               <col style={{ width: 90 }} />
@@ -522,7 +491,7 @@ export function DangXuLyTab({
                   Chuyên viên
                 </th>
                 <th className="px-2 py-2 text-center text-xs bg-blue-600"
-                    colSpan={(is48 ? 13 : 10) - (showPct ? 0 : 1) - (showVanThu ? 0 : 1)}>
+                    colSpan={is48 ? 13 - (showPct ? 0 : 1) - (showVanThu ? 0 : 1) : 6}>
                   ĐANG GIẢI QUYẾT
                 </th>
                 <th className="px-2 py-2 text-center text-xs bg-rose-700" colSpan={3}>Hồ sơ chậm nhất</th>
@@ -547,21 +516,17 @@ export function DangXuLyTab({
                     <th className="px-2 py-1 text-center text-xs bg-rose-600">Nộp từ</th>
                     <th className="px-2 py-1 text-center text-xs bg-rose-600">Mã hồ sơ</th>
                   </tr>
-                ) : (
+                 ) : (
                   <tr className="bg-slate-600 text-white">
-                    <th className="px-2 py-1 text-center text-xs bg-slate-600 font-bold">TỔNG</th>
-                    <th className="px-2 py-1 text-center text-xs bg-blue-700">Chờ CV</th>
-                    <th className="px-2 py-1 text-center text-xs bg-green-600">Chờ CG</th>
-                    <th className="px-2 py-1 text-center text-xs bg-orange-400">Chờ Tổ<br/>trưởng</th>
-                    <th className="px-2 py-1 text-center text-xs bg-orange-600">Chờ TrP</th>
-                    {showPct    && <th className="px-2 py-1 text-center text-xs bg-purple-600">Chờ PCT</th>}
-                    {showVanThu && <th className="px-2 py-1 text-center text-xs bg-slate-500">Chờ<br/>Văn thư</th>}
-                    <th className="px-2 py-1 text-center text-xs bg-green-700">Còn<br/>hạn</th>
-                    <th className="px-2 py-1 text-center text-xs bg-orange-600">Quá<br/>hạn</th>
-                    <th className="px-2 py-1 text-center text-xs bg-orange-700">% quá<br/>hạn</th>
-                    <th className="px-2 py-1 text-center text-xs bg-rose-600">Thời gian chờ</th>
-                    <th className="px-2 py-1 text-center text-xs bg-rose-600">Nộp từ</th>
-                    <th className="px-2 py-1 text-center text-xs bg-rose-600">Mã hồ sơ</th>
+                    <th className="px-2 py-1 text-center text-xs bg-slate-600 font-bold">{"T\u1ed4NG"}</th>
+                    <th className="px-2 py-1 text-center text-xs bg-blue-700">{"\u0110ang"}<br/>{"th\u1ea9m \u0111\u1ecbnh"}</th>
+                    <th className="px-2 py-1 text-center text-xs bg-green-600">{"\u0110ang"}<br/>{"x\u1eed l\u00fd"}</th>
+                    <th className="px-2 py-1 text-center text-xs bg-green-700">{"C\u00f2n"}<br/>{"h\u1ea1n"}</th>
+                    <th className="px-2 py-1 text-center text-xs bg-orange-600">{"Qu\u00e1"}<br/>{"h\u1ea1n"}</th>
+                    <th className="px-2 py-1 text-center text-xs bg-orange-700">% {"qu\u00e1"}<br/>{"h\u1ea1n"}</th>
+                    <th className="px-2 py-1 text-center text-xs bg-rose-600">{"Th\u1eddi gian ch\u1edd"}</th>
+                    <th className="px-2 py-1 text-center text-xs bg-rose-600">{"N\u1ed9p t\u1eeb"}</th>
+                    <th className="px-2 py-1 text-center text-xs bg-rose-600">{"M\u00e3 h\u1ed3 s\u01a1"}</th>
                   </tr>
                 )
               }
@@ -602,14 +567,10 @@ export function DangXuLyTab({
                     {showPct    && <td className="px-2 py-2 text-center text-xs text-purple-700">{sumPct || ""}</td>}
                     {showVanThu && <td className="px-2 py-2 text-center text-xs text-slate-600">{sumVanThu || ""}</td>}
                   </>
-                ) : (
+                 ) : (
                   <>
                     <td className="px-2 py-2 text-center text-xs text-blue-700">{sumCv || ""}</td>
                     <td className="px-2 py-2 text-center text-xs text-green-700">{sumCg || ""}</td>
-                    <td className="px-2 py-2 text-center text-xs text-emerald-700">{sumToTruong || ""}</td>
-                    <td className="px-2 py-2 text-center text-xs text-orange-700">{sumTrp || ""}</td>
-                    {showPct    && <td className="px-2 py-2 text-center text-xs text-purple-700">{sumPct || ""}</td>}
-                    {showVanThu && <td className="px-2 py-2 text-center text-xs text-slate-600">{sumVanThu || ""}</td>}
                   </>
                 )}
                 <td className="px-2 py-2 text-center text-xs text-blue-600">{sumCon}</td>
