@@ -178,6 +178,7 @@ Important behavior:
 - dashboard tab dispatcher switch should live in `features/navigation/DashboardContentSwitch.tsx`; `App.tsx` should only pass render callbacks and shell state
 - `DashboardContentSwitch.tsx` should export its shared prop contract, and `DashboardRuntimePanels.tsx` should build one grouped `contentSwitchProps` object instead of mirroring the callback surface inline
 - dashboard runtime tab mounting/wiring should live in `features/layout/DashboardRuntimePanels.tsx`; `DashboardRuntime.tsx` should only pass shell state and callbacks into it
+- `features/layout/DashboardRuntimePanels.tsx` should also export its full panel-host prop contract, and `DashboardRuntime.tsx` should prefer passing one typed `runtimePanelsProps` object instead of expanding the panel prop list inline
 - `DashboardRuntimePanels.tsx` should keep grouped shell props (`lookupPanels`, `pendingExperts`, `navigation`) instead of re-expanding a long flat prop list
 - those grouped runtime-panel prop types should reuse exported types from `features/lookup/useDashboardLookupState.ts` and `features/navigation/useDashboardNavigation.ts` instead of mirroring local type definitions
 - `DashboardRuntime.tsx` should pass grouped hook results through directly when the prop contract already matches (`lookupPanels`, `navigation`), instead of reconstructing inline mirror objects

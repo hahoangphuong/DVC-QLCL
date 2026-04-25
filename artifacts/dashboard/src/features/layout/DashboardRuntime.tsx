@@ -9,6 +9,7 @@ import {
   DEFAULT_TRA_CUU_FILTER_STATE,
 } from "../lookup/lookupShared";
 import { DashboardRuntimePanels } from "./DashboardRuntimePanels";
+import type { DashboardRuntimePanelsProps } from "./DashboardRuntimePanels";
 import {
   DashboardShellHeader,
   type DashboardShellHeaderProps,
@@ -87,6 +88,15 @@ export function DashboardRuntime() {
     onLogout: handleLogout,
   };
 
+  const runtimePanelsProps: DashboardRuntimePanelsProps = {
+    tabs: visibleTabs,
+    activeTab,
+    isAdmin,
+    pendingExperts: { hideEmptyExperts, setHideEmptyExperts },
+    lookupPanels,
+    navigation,
+  };
+
   return (
     <DashboardAuthGate
       authLoading={authLoading}
@@ -101,14 +111,7 @@ export function DashboardRuntime() {
         <div className="min-h-screen bg-slate-50">
           <DashboardShellHeader {...headerProps} />
 
-          <DashboardRuntimePanels
-            tabs={visibleTabs}
-            activeTab={activeTab}
-            isAdmin={isAdmin}
-            pendingExperts={{ hideEmptyExperts, setHideEmptyExperts }}
-            lookupPanels={lookupPanels}
-            navigation={navigation}
-          />
+          <DashboardRuntimePanels {...runtimePanelsProps} />
 
           <AdminPanelMount isAdmin={isAdmin} showAdmin={showAdmin}>
             <AdminPanel onClose={closeAdmin} />

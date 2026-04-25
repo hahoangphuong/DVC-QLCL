@@ -20,7 +20,7 @@ import { ThongKeTab } from "../stats/ThongKeTab";
 import { Tt48LoaiHoSoMonthlyChart } from "../stats/Tt48LoaiHoSoMonthlyChart";
 import { Tt48LoaiHoSoTable } from "../stats/Tt48LoaiHoSoTable";
 
-type Props = Pick<DashboardTabPanelsProps, "tabs" | "activeTab"> & {
+export type DashboardRuntimePanelsProps = Pick<DashboardTabPanelsProps, "tabs" | "activeTab"> & {
   isAdmin: boolean;
   lookupPanels: DashboardLookupPanelsState;
   pendingExperts: PendingExpertsState;
@@ -34,7 +34,7 @@ export function DashboardRuntimePanels({
   lookupPanels,
   pendingExperts,
   navigation,
-}: Props) {
+}: DashboardRuntimePanelsProps) {
   const { lookupState, setLookupState, lookupDoneState, setLookupDoneState } = lookupPanels;
   const { hideEmptyExperts, setHideEmptyExperts } = pendingExperts;
   const {
