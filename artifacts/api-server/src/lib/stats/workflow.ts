@@ -501,7 +501,7 @@ export async function getDangXuLyStats(thuTuc: number) {
            THEN TRIM(nguoi_xu_ly)
            ELSE cv_name
          END AS cv_name,
-         ma_ho_so,
+         workflow_cases.ma_ho_so,
          qua_han_ngay,
          ngay_nhan,
          CASE
