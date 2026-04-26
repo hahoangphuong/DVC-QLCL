@@ -98,15 +98,15 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            cv_name,
            COUNT(*) FILTER (WHERE ngay_nhan < $2 AND ngay_nhan <= $3) AS ton_truoc,
            COUNT(*) FILTER (WHERE ngay_nhan >= $2 AND ngay_nhan <= $3) AS da_nhan,
-           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND trang_thai_ho_so IN ('6', '7')) AS gq_tong,
+           COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND trang_thai_ho_so IN ('6', '7')) AS gq_tong,
            0::bigint AS can_bo_sung,
-           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND trang_thai_ho_so = '7') AS khong_dat,
-           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND trang_thai_ho_so = '6') AS hoan_thanh,
-           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND trang_thai_ho_so IN ('6', '7') AND kq_hen_tra IS NOT NULL AND resolved_at <= kq_hen_tra) AS dung_han,
-           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND trang_thai_ho_so IN ('6', '7') AND (kq_hen_tra IS NULL OR resolved_at > kq_hen_tra)) AS qua_han,
+           COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND trang_thai_ho_so = '7') AS khong_dat,
+           COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND trang_thai_ho_so = '6') AS hoan_thanh,
+           COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND trang_thai_ho_so IN ('6', '7') AND kq_hen_tra IS NOT NULL AND resolved_at <= kq_hen_tra) AS dung_han,
+           COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND trang_thai_ho_so IN ('6', '7') AND (kq_hen_tra IS NULL OR resolved_at > kq_hen_tra)) AS qua_han,
            ROUND(
              AVG(EXTRACT(EPOCH FROM (resolved_at - ngay_nhan)) / 86400.0) FILTER (
-               WHERE ngay_nhan <= $3 AND trang_thai_ho_so IN ('6', '7')
+               WHERE resolved_at >= $2 AND resolved_at <= $3 AND trang_thai_ho_so IN ('6', '7')
              )
            )::int AS tg_tb
          FROM coordinator_snapshot
