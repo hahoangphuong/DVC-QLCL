@@ -308,6 +308,11 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
              SELECT 1
              FROM tt47_46_case_facts f
              WHERE f.ma_ho_so = roles.ma_ho_so
+               AND (
+                 (roles.trang_thai_ho_so = '4' AND COALESCE(f.has_can_bo_sung, 0) = 1)
+                 OR (roles.trang_thai_ho_so = '7' AND COALESCE(f.has_khong_dat, 0) = 1)
+                 OR (roles.trang_thai_ho_so = '6' AND COALESCE(f.has_hoan_thanh, 0) = 1)
+               )
            )
        ),
        base_dossiers AS (
