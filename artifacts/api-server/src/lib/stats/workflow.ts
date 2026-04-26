@@ -641,7 +641,7 @@ export async function getChuyenGiaStats(thuTuc: number) {
          COALESCE(NULLIF(TRIM(cv_name), ''), '') AS cv_thu_ly
        FROM workflow_cases
        LEFT JOIN latest_case_facts cf ON cf.ma_ho_so = workflow_cases.ma_ho_so
-       WHERE don_vi = 'ChuyÃƒÆ’Ã‚Âªn gia thÃƒÂ¡Ã‚ÂºÃ‚Â©m Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¹nh'
+       WHERE don_vi = 'Chuy\u00ean gia th\u1ea9m \u0111\u1ecbnh'
          AND COALESCE(
            NULLIF(TRIM(cf.chuyen_gia_name), ''),
            NULLIF(TRIM(nguoi_xu_ly), '')
