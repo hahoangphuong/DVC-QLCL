@@ -19,6 +19,23 @@ function toPercent(part: number, total: number): number {
 }
 
 export async function getEarliestDate(thuTuc: number): Promise<string | null> {
+  if (thuTuc === 46 || thuTuc === 47) {
+    const row = await queryOne<{ min: Date | null }>(
+      `SELECT MIN((data->>'ngayTiepNhan')::timestamptz) AS min
+       FROM tra_cuu_chung
+       WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
+         AND (data->>'thuTucId')::int = $1
+         AND NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') IS NOT NULL
+         AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL`,
+      [thuTuc]
+    );
+
+    if (!row?.min) return null;
+    const d = new Date(row.min);
+    const vn = new Date(d.getTime() + 7 * 3600 * 1000);
+    return vn.toISOString().slice(0, 10);
+  }
+
   const row = await queryOne<{ min: Date | null }>(
     `SELECT earliest_ngay_nhan AS min
      FROM mv_stats_received_bounds
