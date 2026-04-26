@@ -74,6 +74,8 @@ export function DangXuLyTab({
   // Aggregate cho TT47/46
   const totCv       = allRows.reduce((s, r) => s + r.cho_cv,        0);
   const totCg       = allRows.reduce((s, r) => s + r.cho_cg,        0);
+  const totChoNopCapa = allRows.reduce((s, r) => s + r.cho_nop_capa, 0);
+  const totChoDanhGiaCapa = allRows.reduce((s, r) => s + r.cho_danh_gia_capa, 0);
   const totToTruong = allRows.reduce((s, r) => s + r.cho_to_truong, 0);
   const totTrp      = allRows.reduce((s, r) => s + r.cho_trp,       0);
   const totPct      = allRows.reduce((s, r) => s + r.cho_pct,       0);
@@ -92,6 +94,8 @@ export function DangXuLyTab({
     : [
         { name: "\u0110ang th\u1ea9m \u0111\u1ecbnh", value: totCv, fill: "#3b82f6" },
         { name: "\u0110ang x\u1eed l\u00fd", value: totCg, fill: "#22c55e" },
+        { name: "Ch\u1edd n\u1ed9p CAPA", value: totChoNopCapa, fill: "#f59e0b" },
+        { name: "Ch\u1edd \u0111\u00e1nh gi\u00e1 CAPA", value: totChoDanhGiaCapa, fill: "#8b5cf6" },
       ].filter(d => d.value > 0);
 
   const hanData = [
@@ -313,6 +317,12 @@ export function DangXuLyTab({
         <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_cg > 30 ? "bg-green-100 text-green-800 font-bold" : row.cho_cg > 0 ? "text-green-700" : "text-slate-300"}`}>
           {row.cho_cg || ""}
         </td>
+        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_nop_capa > 0 ? "text-amber-700 font-semibold" : "text-slate-300"}`}>
+          {row.cho_nop_capa || ""}
+        </td>
+        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_danh_gia_capa > 0 ? "text-violet-700 font-semibold" : "text-slate-300"}`}>
+          {row.cho_danh_gia_capa || ""}
+        </td>
         {hanCells}
         {chamCells}
       </tr>
@@ -325,6 +335,8 @@ export function DangXuLyTab({
   const sumTong     = sumN("tong");
   const sumCv       = sumN("cho_cv");
   const sumCg       = sumN("cho_cg");
+  const sumChoNopCapa = sumN("cho_nop_capa");
+  const sumChoDanhGiaCapa = sumN("cho_danh_gia_capa");
   const sumToTruong = sumN("cho_to_truong");
   const sumTrp      = sumN("cho_trp");
   const sumPct      = sumN("cho_pct");
@@ -476,7 +488,7 @@ export function DangXuLyTab({
                     {showVanThu && <col />}
                     <col /><col /><col />
                   </>
-                 : <>{/* TT47/46: T\u1ed4NG + 2 b\u01b0\u1edbc + C\u00f2n h\u1ea1n + Qu\u00e1 h\u1ea1n + % */}<col /><col /><col /><col /><col /><col /></>
+                 : <>{/* TT47/46: T\u1ed4NG + 4 b\u01b0\u1edbc + C\u00f2n h\u1ea1n + Qu\u00e1 h\u1ea1n + % */}<col /><col /><col /><col /><col /><col /><col /><col /></>
               }
               {/* 3 cột Hồ sơ chậm nhất */}
               <col style={{ width: 90 }} />
@@ -491,7 +503,7 @@ export function DangXuLyTab({
                   Chuyên viên
                 </th>
                 <th className="px-2 py-2 text-center text-xs bg-blue-600"
-                    colSpan={is48 ? 13 - (showPct ? 0 : 1) - (showVanThu ? 0 : 1) : 6}>
+                    colSpan={is48 ? 13 - (showPct ? 0 : 1) - (showVanThu ? 0 : 1) : 8}>
                   ĐANG GIẢI QUYẾT
                 </th>
                 <th className="px-2 py-2 text-center text-xs bg-rose-700" colSpan={3}>Hồ sơ chậm nhất</th>
@@ -521,6 +533,8 @@ export function DangXuLyTab({
                     <th className="px-2 py-1 text-center text-xs bg-slate-600 font-bold">{"T\u1ed4NG"}</th>
                     <th className="px-2 py-1 text-center text-xs bg-blue-700">{"\u0110ang"}<br/>{"th\u1ea9m \u0111\u1ecbnh"}</th>
                     <th className="px-2 py-1 text-center text-xs bg-green-600">{"\u0110ang"}<br/>{"x\u1eed l\u00fd"}</th>
+                    <th className="px-2 py-1 text-center text-xs bg-amber-500">{"Ch\u1edd n\u1ed9p"}<br/>{"CAPA"}</th>
+                    <th className="px-2 py-1 text-center text-xs bg-violet-600">{"Ch\u1edd \u0111\u00e1nh gi\u00e1"}<br/>{"CAPA"}</th>
                     <th className="px-2 py-1 text-center text-xs bg-green-700">{"C\u00f2n"}<br/>{"h\u1ea1n"}</th>
                     <th className="px-2 py-1 text-center text-xs bg-orange-600">{"Qu\u00e1"}<br/>{"h\u1ea1n"}</th>
                     <th className="px-2 py-1 text-center text-xs bg-orange-700">% {"qu\u00e1"}<br/>{"h\u1ea1n"}</th>
@@ -571,6 +585,8 @@ export function DangXuLyTab({
                   <>
                     <td className="px-2 py-2 text-center text-xs text-blue-700">{sumCv || ""}</td>
                     <td className="px-2 py-2 text-center text-xs text-green-700">{sumCg || ""}</td>
+                    <td className="px-2 py-2 text-center text-xs text-amber-700">{sumChoNopCapa || ""}</td>
+                    <td className="px-2 py-2 text-center text-xs text-violet-700">{sumChoDanhGiaCapa || ""}</td>
                   </>
                 )}
                 <td className="px-2 py-2 text-center text-xs text-blue-600">{sumCon}</td>

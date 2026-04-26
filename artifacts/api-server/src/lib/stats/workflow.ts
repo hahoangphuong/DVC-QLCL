@@ -511,6 +511,8 @@ export async function getDangXuLyStats(thuTuc: number) {
     tong: string;
     cho_cv: string;
     cho_cg: string;
+    cho_nop_capa: string;
+    cho_danh_gia_capa: string;
     cho_to_truong: string;
     cho_trp: string;
     cho_pct: string;
@@ -523,13 +525,14 @@ export async function getDangXuLyStats(thuTuc: number) {
     }>(
       `WITH
      ${buildWorkflowCasesCte("$1")},
-     latest_tcc_roles AS (
-       SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
-         (data->>'thuTucId')::int AS thu_tuc,
-         data->>'maHoSo' AS ma_ho_so,
-         NULLIF(TRIM(data->>'chuyenVienThuLyName'), '') AS cv_thu_ly_name,
-         NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name
-       FROM tra_cuu_chung
+       latest_tcc_roles AS (
+         SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
+           (data->>'thuTucId')::int AS thu_tuc,
+           data->>'maHoSo' AS ma_ho_so,
+           NULLIF(TRIM(data->>'chuyenVienThuLyName'), '') AS cv_thu_ly_name,
+           NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name,
+           NULLIF(TRIM(data->>'trangThaiHoSo'), '') AS trang_thai_ho_so
+         FROM tra_cuu_chung
        WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
          AND (data->>'thuTucId')::int = $1
        ORDER BY
@@ -561,38 +564,46 @@ export async function getDangXuLyStats(thuTuc: number) {
            )
            ELSE cv_name
          END AS cv_name,
-         workflow_cases.ma_ho_so,
-         qua_han_ngay,
-         ngay_nhan,
-         CASE
-           WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN 'cho_phan_cong'
-           WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN 'dang_xu_ly'
-           WHEN don_vi = 'Chuy\u00ean vi\u00ean'
-             AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
-           THEN 'dang_tham_dinh'
-           ELSE NULL
-         END AS buoc_tt47_46
+           workflow_cases.ma_ho_so,
+           qua_han_ngay,
+           ngay_nhan,
+           CASE
+             WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN 'cho_phan_cong'
+             WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh'
+               AND roles.trang_thai_ho_so = 'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i'
+             THEN 'cho_nop_capa'
+             WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh'
+               AND roles.trang_thai_ho_so = 'H\u1ed3 s\u01a1 \u0111\u00e3 n\u1ed9p b\u00e1o c\u00e1o kh\u1eafc ph\u1ee5c'
+             THEN 'cho_danh_gia_capa'
+             WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN 'dang_xu_ly'
+             WHEN don_vi = 'Chuy\u00ean vi\u00ean'
+               AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
+             THEN 'dang_tham_dinh'
+             ELSE NULL
+           END AS buoc_tt47_46
        FROM workflow_cases
        LEFT JOIN latest_tcc_roles roles
          ON roles.thu_tuc = $1
         AND roles.ma_ho_so = workflow_cases.ma_ho_so
-       WHERE don_vi IN ('Ph\u00f2ng ban ph\u00e2n c\u00f4ng', 'Chuy\u00ean vi\u00ean', 'Chuyên viên phối hợp thẩm định')
+       WHERE don_vi IN ('Ph\u00f2ng ban ph\u00e2n c\u00f4ng', 'Chuy\u00ean vi\u00ean', 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh')
      ),
-     stats AS (
-       SELECT
-         cv_name,
-         COUNT(*) FILTER (WHERE buoc_tt47_46 IN ('dang_tham_dinh', 'dang_xu_ly')) AS tong,
-         COUNT(*) FILTER (WHERE buoc_tt47_46 = 'dang_tham_dinh') AS cho_cv,
-         COUNT(*) FILTER (WHERE buoc_tt47_46 = 'dang_xu_ly') AS cho_cg,
-         0::bigint AS cho_to_truong,
-         0::bigint AS cho_trp,
-         0::bigint AS cho_pct,
-         0::bigint AS cho_van_thu,
-         COUNT(*) FILTER (WHERE qua_han_ngay <= 0) AS con_han,
-         COUNT(*) FILTER (WHERE qua_han_ngay > 0) AS qua_han
-       FROM base
-       WHERE buoc_tt47_46 IS NOT NULL
-       GROUP BY cv_name
+       stats AS (
+         SELECT
+           cv_name,
+           COUNT(*) FILTER (WHERE buoc_tt47_46 IN ('dang_tham_dinh', 'dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa')) AS tong,
+           COUNT(*) FILTER (WHERE buoc_tt47_46 = 'dang_tham_dinh') AS cho_cv,
+           COUNT(*) FILTER (WHERE buoc_tt47_46 = 'dang_xu_ly') AS cho_cg,
+           COUNT(*) FILTER (WHERE buoc_tt47_46 = 'cho_nop_capa') AS cho_nop_capa,
+           COUNT(*) FILTER (WHERE buoc_tt47_46 = 'cho_danh_gia_capa') AS cho_danh_gia_capa,
+           0::bigint AS cho_to_truong,
+           0::bigint AS cho_trp,
+           0::bigint AS cho_pct,
+           0::bigint AS cho_van_thu,
+           COUNT(*) FILTER (WHERE buoc_tt47_46 IN ('dang_tham_dinh', 'dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa') AND qua_han_ngay <= 0) AS con_han,
+           COUNT(*) FILTER (WHERE buoc_tt47_46 IN ('dang_tham_dinh', 'dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa') AND qua_han_ngay > 0) AS qua_han
+         FROM base
+         WHERE buoc_tt47_46 IS NOT NULL
+         GROUP BY cv_name
      ),
      cham_nhat AS (
        SELECT DISTINCT ON (cv_name)
@@ -616,6 +627,8 @@ export async function getDangXuLyStats(thuTuc: number) {
     tong: toCount(row.tong),
     cho_cv: toCount(row.cho_cv),
     cho_cg: toCount(row.cho_cg),
+    cho_nop_capa: toCount(row.cho_nop_capa),
+    cho_danh_gia_capa: toCount(row.cho_danh_gia_capa),
     cho_to_truong: toCount(row.cho_to_truong),
     cho_trp: toCount(row.cho_trp),
     cho_pct: toCount(row.cho_pct),
