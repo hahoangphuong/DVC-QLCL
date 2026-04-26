@@ -73,7 +73,12 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            NULLIF(TRIM(data->>'id'), '') AS tcc_id,
            NULLIF(TRIM(data->>'hoSoXuLyId_Active'), '') AS ho_so_xu_ly_id,
            NULLIF(TRIM(data->>'trangThaiHoSo'), '') AS trang_thai_ho_so,
-           NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name
+           NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name,
+           NULLIF(TRIM(data->>'chuyenVienThuLyName'), '') AS cv_thu_ly_name,
+           CASE
+             WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz
+             ELSE NULL
+           END AS ngay_tiep_nhan
          FROM tra_cuu_chung
          WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
            AND (data->>'thuTucId')::int = $1
@@ -82,6 +87,14 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            data->>'maHoSo',
            CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
            NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
+       ),
+       latest_case_facts AS (
+         SELECT DISTINCT ON (ma_ho_so)
+           ma_ho_so,
+           nhan_hen_tra,
+           ngay_nhan
+         FROM case_facts
+         ORDER BY ma_ho_so, ngay_nhan DESC NULLS LAST
        ),
        tt47_46_case_facts_raw AS (
          SELECT
@@ -157,6 +170,91 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
          WHERE cv_name IS NOT NULL
          GROUP BY ma_ho_so
        ),
+       workflow_base AS (
+         SELECT
+           CASE
+             WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN '__CHUA_PHAN__'
+             WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN COALESCE(
+               NULLIF(TRIM(nguoi_xu_ly), ''),
+               CASE
+                 WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+                 ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
+               END,
+               NULLIF(TRIM(cv_name), '')
+             )
+             WHEN don_vi = 'Chuy\u00ean vi\u00ean'
+               AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
+             THEN COALESCE(
+               CASE
+                 WHEN NULLIF(TRIM(roles.cv_thu_ly_name), '') IS NULL THEN NULL
+                 ELSE REGEXP_REPLACE(TRIM(roles.cv_thu_ly_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
+               END,
+               NULLIF(TRIM(cv_name), '')
+             )
+             ELSE cv_name
+           END AS cv_name,
+           workflow_cases.ma_ho_so,
+           qua_han_ngay,
+           ngay_nhan,
+           roles.trang_thai_ho_so,
+           NULLIF(TRIM(roles.cv_phoi_hop_name), '') AS cv_phoi_hop_name_raw,
+           CASE
+             WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN 'cho_phan_cong'
+             WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN 'dang_xu_ly'
+             WHEN don_vi = 'Chuy\u00ean vi\u00ean'
+               AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
+             THEN 'dang_tham_dinh'
+             ELSE NULL
+           END AS buoc_tt47_46
+         FROM workflow_cases
+         LEFT JOIN latest_tcc_roles roles
+           ON roles.thu_tuc = $1
+          AND roles.ma_ho_so = workflow_cases.ma_ho_so
+         WHERE don_vi IN ('Ph\u00f2ng ban ph\u00e2n c\u00f4ng', 'Chuy\u00ean vi\u00ean', 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh')
+       ),
+       capa_base AS (
+         SELECT
+           REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i') AS cv_name,
+           roles.ma_ho_so,
+           CASE
+             WHEN cf.nhan_hen_tra IS NOT NULL THEN (CURRENT_DATE - ((cf.nhan_hen_tra AT TIME ZONE 'Asia/Ho_Chi_Minh')::date))::int
+             ELSE 0
+           END AS qua_han_ngay,
+           COALESCE(cf.ngay_nhan, roles.ngay_tiep_nhan) AS ngay_nhan,
+           CASE
+             WHEN roles.trang_thai_ho_so = '210' THEN 'cho_nop_capa'
+             WHEN roles.trang_thai_ho_so = '220' THEN 'cho_danh_gia_capa'
+             ELSE NULL
+           END AS buoc_tt47_46
+         FROM latest_tcc_roles roles
+         LEFT JOIN latest_case_facts cf
+           ON cf.ma_ho_so = roles.ma_ho_so
+         WHERE NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
+           AND roles.trang_thai_ho_so IN ('220', '210')
+       ),
+       pending_base AS (
+         SELECT cv_name, ma_ho_so, qua_han_ngay, ngay_nhan, buoc_tt47_46
+         FROM workflow_base
+         WHERE NOT (
+           cv_phoi_hop_name_raw IS NOT NULL
+           AND trang_thai_ho_so IN ('220', '210')
+         )
+         UNION ALL
+         SELECT cv_name, ma_ho_so, qua_han_ngay, ngay_nhan, buoc_tt47_46
+         FROM capa_base
+       ),
+       pending_stats AS (
+         SELECT
+           cv_name,
+           COUNT(*) FILTER (WHERE buoc_tt47_46 IN ('dang_tham_dinh', 'dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa')) AS ton_sau_tong,
+           COUNT(*) FILTER (WHERE buoc_tt47_46 IN ('dang_tham_dinh', 'dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa') AND qua_han_ngay <= 0) AS ton_sau_con_han,
+           COUNT(*) FILTER (WHERE buoc_tt47_46 IN ('dang_tham_dinh', 'dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa') AND qua_han_ngay > 0) AS ton_sau_qua_han
+         FROM pending_base
+         WHERE buoc_tt47_46 IS NOT NULL
+           AND cv_name IS NOT NULL
+           AND cv_name <> '__CHUA_PHAN__'
+         GROUP BY cv_name
+       ),
        stats AS (
          SELECT
            cv_name,
@@ -183,31 +281,7 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            ) AS hoan_thanh,
            COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND kq_hen_tra IS NOT NULL AND ngay_tra <= kq_hen_tra) AS dung_han,
            COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND (kq_hen_tra IS NULL OR ngay_tra > kq_hen_tra)) AS qua_han,
-           ROUND(AVG(EXTRACT(EPOCH FROM (ngay_tra - ngay_nhan)) / 86400.0) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3))::int AS tg_tb,
-           COUNT(*) FILTER (
-             WHERE ngay_nhan <= $3
-                AND (
-                  (ngay_tra IS NULL OR ngay_tra > $3)
-                  OR is_cho_capa = 1
-                )
-           ) AS ton_sau_tong,
-           COUNT(*) FILTER (
-             WHERE ngay_nhan <= $3
-                AND (
-                  (ngay_tra IS NULL OR ngay_tra > $3)
-                  OR is_cho_capa = 1
-                )
-                AND nhan_hen_tra IS NOT NULL
-                AND nhan_hen_tra > $3
-           ) AS ton_sau_con_han,
-           COUNT(*) FILTER (
-             WHERE ngay_nhan <= $3
-                AND (
-                  (ngay_tra IS NULL OR ngay_tra > $3)
-                  OR is_cho_capa = 1
-                )
-                AND (nhan_hen_tra IS NULL OR nhan_hen_tra <= $3)
-           ) AS ton_sau_qua_han
+           ROUND(AVG(EXTRACT(EPOCH FROM (ngay_tra - ngay_nhan)) / 86400.0) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3))::int AS tg_tb
          FROM tt47_46_case_facts
          GROUP BY cv_name
        ),
@@ -216,9 +290,26 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
          FROM mv_stats_treo_by_cv
          WHERE thu_tuc = $1
        )
-       SELECT s.*, COALESCE(t.treo, 0) AS treo
+       SELECT
+         COALESCE(s.cv_name, p.cv_name) AS cv_name,
+         COALESCE(s.ton_truoc, 0) AS ton_truoc,
+         COALESCE(s.da_nhan, 0) AS da_nhan,
+         COALESCE(s.gq_tong, 0) AS gq_tong,
+         COALESCE(s.can_bo_sung, 0) AS can_bo_sung,
+         COALESCE(s.khong_dat, 0) AS khong_dat,
+         COALESCE(s.hoan_thanh, 0) AS hoan_thanh,
+         COALESCE(s.dung_han, 0) AS dung_han,
+         COALESCE(s.qua_han, 0) AS qua_han,
+         s.tg_tb,
+         COALESCE(p.ton_sau_tong, 0) AS ton_sau_tong,
+         COALESCE(p.ton_sau_con_han, 0) AS ton_sau_con_han,
+         COALESCE(p.ton_sau_qua_han, 0) AS ton_sau_qua_han,
+         COALESCE(t.treo, 0) AS treo
        FROM stats s
-       LEFT JOIN treo_by_cv t ON s.cv_name = t.cv_name`,
+       FULL OUTER JOIN pending_stats p
+         ON s.cv_name = p.cv_name
+       LEFT JOIN treo_by_cv t
+         ON COALESCE(s.cv_name, p.cv_name) = t.cv_name`,
       [thuTuc, fromDt, toDt]
     );
 
