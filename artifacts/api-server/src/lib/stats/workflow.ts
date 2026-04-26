@@ -277,6 +277,14 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            COALESCE(f.ma_ho_so, p.ma_ho_so) AS ma_ho_so,
            COALESCE(f.ngay_nhan, p.ngay_nhan) AS ngay_nhan,
            f.ngay_tra,
+           CASE
+             WHEN f.ngay_tra IS NOT NULL THEN f.ngay_tra
+             WHEN COALESCE(f.has_can_bo_sung, 0) = 1
+               OR COALESCE(f.has_khong_dat, 0) = 1
+               OR COALESCE(f.has_hoan_thanh, 0) = 1
+             THEN COALESCE(f.kq_hen_tra, f.nhan_hen_tra, f.ngay_nhan)
+             ELSE NULL
+           END AS resolved_at,
            f.kq_hen_tra,
            f.has_can_bo_sung,
            f.has_khong_dat,
@@ -298,38 +306,38 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            ) AS ton_truoc,
            COUNT(*) FILTER (WHERE ngay_nhan >= $2 AND ngay_nhan <= $3) AS da_nhan,
            COUNT(*) FILTER (
-             WHERE ngay_tra >= $2 AND ngay_tra <= $3
+             WHERE resolved_at >= $2 AND resolved_at <= $3
                AND is_pending = 0
            ) AS gq_tong,
            COUNT(*) FILTER (
-             WHERE ngay_tra >= $2 AND ngay_tra <= $3
+             WHERE resolved_at >= $2 AND resolved_at <= $3
                AND is_pending = 0
                AND has_can_bo_sung = 1
            ) AS can_bo_sung,
            COUNT(*) FILTER (
-             WHERE (ngay_tra >= $2 AND ngay_tra <= $3)
+             WHERE (resolved_at >= $2 AND resolved_at <= $3)
                AND is_pending = 0
                AND has_khong_dat = 1
            ) AS khong_dat,
            COUNT(*) FILTER (
-             WHERE (ngay_tra >= $2 AND ngay_tra <= $3)
+             WHERE (resolved_at >= $2 AND resolved_at <= $3)
                AND is_pending = 0
                AND has_hoan_thanh = 1
            ) AS hoan_thanh,
            COUNT(*) FILTER (
-             WHERE ngay_tra >= $2 AND ngay_tra <= $3
+             WHERE resolved_at >= $2 AND resolved_at <= $3
                AND is_pending = 0
                AND kq_hen_tra IS NOT NULL
-               AND ngay_tra <= kq_hen_tra
+               AND resolved_at <= kq_hen_tra
            ) AS dung_han,
            COUNT(*) FILTER (
-             WHERE ngay_tra >= $2 AND ngay_tra <= $3
+             WHERE resolved_at >= $2 AND resolved_at <= $3
                AND is_pending = 0
-               AND (kq_hen_tra IS NULL OR ngay_tra > kq_hen_tra)
+               AND (kq_hen_tra IS NULL OR resolved_at > kq_hen_tra)
            ) AS qua_han,
            ROUND(
-             AVG(EXTRACT(EPOCH FROM (ngay_tra - ngay_nhan)) / 86400.0) FILTER (
-               WHERE ngay_tra >= $2 AND ngay_tra <= $3
+             AVG(EXTRACT(EPOCH FROM (resolved_at - ngay_nhan)) / 86400.0) FILTER (
+               WHERE resolved_at >= $2 AND resolved_at <= $3
                  AND is_pending = 0
              )
            )::int AS tg_tb
