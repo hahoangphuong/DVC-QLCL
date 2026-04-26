@@ -525,14 +525,24 @@ export async function getDangXuLyStats(thuTuc: number) {
     }>(
       `WITH
      ${buildWorkflowCasesCte("$1")},
-       latest_tcc_roles AS (
-         SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
-           (data->>'thuTucId')::int AS thu_tuc,
-           data->>'maHoSo' AS ma_ho_so,
-           NULLIF(TRIM(data->>'chuyenVienThuLyName'), '') AS cv_thu_ly_name,
-           NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name,
-           NULLIF(TRIM(data->>'trangThaiHoSo'), '') AS trang_thai_ho_so
-         FROM tra_cuu_chung
+     ${buildCaseFactsCte("$1")},
+     latest_case_facts AS (
+       SELECT DISTINCT ON (ma_ho_so)
+         ma_ho_so,
+         ngay_nhan,
+         nhan_hen_tra
+       FROM case_facts
+       ORDER BY ma_ho_so, ngay_nhan DESC NULLS LAST
+     ),
+     latest_tcc_roles AS (
+       SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
+         (data->>'thuTucId')::int AS thu_tuc,
+         data->>'maHoSo' AS ma_ho_so,
+         NULLIF(TRIM(data->>'chuyenVienThuLyName'), '') AS cv_thu_ly_name,
+         NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name,
+         NULLIF(TRIM(data->>'trangThaiHoSo'), '') AS trang_thai_ho_so,
+         CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END AS ngay_tiep_nhan
+       FROM tra_cuu_chung
        WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
          AND (data->>'thuTucId')::int = $1
        ORDER BY
@@ -541,18 +551,9 @@ export async function getDangXuLyStats(thuTuc: number) {
          CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
          NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
      ),
-      base AS (
+      workflow_base AS (
         SELECT
           CASE
-            WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
-              AND roles.trang_thai_ho_so IN (
-                'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i',
-                'H\u1ed3 s\u01a1 \u0111\u00e3 n\u1ed9p b\u00e1o c\u00e1o kh\u1eafc ph\u1ee5c'
-              )
-            THEN CASE
-              WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
-              ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
-            END
             WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN '__CHUA_PHAN__'
             WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN COALESCE(
               NULLIF(TRIM(nguoi_xu_ly), ''),
@@ -576,14 +577,10 @@ export async function getDangXuLyStats(thuTuc: number) {
           workflow_cases.ma_ho_so,
           qua_han_ngay,
           ngay_nhan,
+          roles.trang_thai_ho_so,
+          NULLIF(TRIM(roles.cv_phoi_hop_name), '') AS cv_phoi_hop_name_raw,
           CASE
             WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN 'cho_phan_cong'
-            WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
-              AND roles.trang_thai_ho_so = 'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i'
-            THEN 'cho_nop_capa'
-            WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
-              AND roles.trang_thai_ho_so = 'H\u1ed3 s\u01a1 \u0111\u00e3 n\u1ed9p b\u00e1o c\u00e1o kh\u1eafc ph\u1ee5c'
-            THEN 'cho_danh_gia_capa'
             WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN 'dang_xu_ly'
             WHEN don_vi = 'Chuy\u00ean vi\u00ean'
               AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
@@ -595,13 +592,42 @@ export async function getDangXuLyStats(thuTuc: number) {
           ON roles.thu_tuc = $1
          AND roles.ma_ho_so = workflow_cases.ma_ho_so
         WHERE don_vi IN ('Ph\u00f2ng ban ph\u00e2n c\u00f4ng', 'Chuy\u00ean vi\u00ean', 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh')
-           OR (
-             NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
-             AND roles.trang_thai_ho_so IN (
-               'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i',
-               'H\u1ed3 s\u01a1 \u0111\u00e3 n\u1ed9p b\u00e1o c\u00e1o kh\u1eafc ph\u1ee5c'
-             )
-           )
+      ),
+      capa_base AS (
+        SELECT
+          REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i') AS cv_name,
+          roles.ma_ho_so,
+          CASE
+            WHEN cf.nhan_hen_tra IS NOT NULL THEN (CURRENT_DATE - ((cf.nhan_hen_tra AT TIME ZONE 'Asia/Ho_Chi_Minh')::date))::int
+            ELSE 0
+          END AS qua_han_ngay,
+          COALESCE(cf.ngay_nhan, roles.ngay_tiep_nhan) AS ngay_nhan,
+          CASE
+            WHEN roles.trang_thai_ho_so = 'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i' THEN 'cho_nop_capa'
+            ELSE 'cho_danh_gia_capa'
+          END AS buoc_tt47_46
+        FROM latest_tcc_roles roles
+        LEFT JOIN latest_case_facts cf
+          ON cf.ma_ho_so = roles.ma_ho_so
+        WHERE NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
+          AND roles.trang_thai_ho_so IN (
+            'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i',
+            'H\u1ed3 s\u01a1 \u0111\u00e3 n\u1ed9p b\u00e1o c\u00e1o kh\u1eafc ph\u1ee5c'
+          )
+      ),
+      base AS (
+        SELECT cv_name, ma_ho_so, qua_han_ngay, ngay_nhan, buoc_tt47_46
+        FROM workflow_base
+        WHERE NOT (
+          cv_phoi_hop_name_raw IS NOT NULL
+          AND trang_thai_ho_so IN (
+            'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i',
+            'H\u1ed3 s\u01a1 \u0111\u00e3 n\u1ed9p b\u00e1o c\u00e1o kh\u1eafc ph\u1ee5c'
+          )
+        )
+        UNION ALL
+        SELECT cv_name, ma_ho_so, qua_han_ngay, ngay_nhan, buoc_tt47_46
+        FROM capa_base
       ),
        stats AS (
          SELECT
@@ -1302,7 +1328,6 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
     })),
   };
 }
-
 
 
 
