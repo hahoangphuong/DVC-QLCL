@@ -107,7 +107,11 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            t.ma_ho_so,
            t.ngay_tiep_nhan AS ngay_nhan,
            t.ngay_hen_tra AS kq_hen_tra,
-           COALESCE(d.ngay_tra_ket_qua, t.ngay_hen_tra) AS resolved_at,
+           CASE
+             WHEN d.ngay_tra_ket_qua IS NOT NULL THEN d.ngay_tra_ket_qua
+             WHEN t.trang_thai_ho_so IN ('6', '7') AND t.ngay_hen_tra IS NOT NULL THEN LEAST(t.ngay_hen_tra, NOW())
+             ELSE NULL
+           END AS resolved_at,
            t.trang_thai_ho_so
          FROM latest_tcc_roles t
          LEFT JOIN latest_da_xu_ly d
