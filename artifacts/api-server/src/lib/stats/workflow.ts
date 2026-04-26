@@ -603,27 +603,21 @@ export async function getDangXuLyStats(thuTuc: number) {
           END AS qua_han_ngay,
           COALESCE(cf.ngay_nhan, roles.ngay_tiep_nhan) AS ngay_nhan,
           CASE
-            WHEN roles.trang_thai_ho_so = 'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i' THEN 'cho_nop_capa'
+            WHEN roles.trang_thai_ho_so = '220' THEN 'cho_nop_capa'
             ELSE 'cho_danh_gia_capa'
           END AS buoc_tt47_46
         FROM latest_tcc_roles roles
         LEFT JOIN latest_case_facts cf
           ON cf.ma_ho_so = roles.ma_ho_so
         WHERE NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
-          AND roles.trang_thai_ho_so IN (
-            'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i',
-            'H\u1ed3 s\u01a1 \u0111\u00e3 n\u1ed9p b\u00e1o c\u00e1o kh\u1eafc ph\u1ee5c'
-          )
+          AND roles.trang_thai_ho_so IN ('220', '210')
       ),
       base AS (
         SELECT cv_name, ma_ho_so, qua_han_ngay, ngay_nhan, buoc_tt47_46
         FROM workflow_base
         WHERE NOT (
           cv_phoi_hop_name_raw IS NOT NULL
-          AND trang_thai_ho_so IN (
-            'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i',
-            'H\u1ed3 s\u01a1 \u0111\u00e3 n\u1ed9p b\u00e1o c\u00e1o kh\u1eafc ph\u1ee5c'
-          )
+          AND trang_thai_ho_so IN ('220', '210')
         )
         UNION ALL
         SELECT cv_name, ma_ho_so, qua_han_ngay, ngay_nhan, buoc_tt47_46
@@ -1328,6 +1322,5 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
     })),
   };
 }
-
 
 
