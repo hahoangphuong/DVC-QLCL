@@ -105,6 +105,10 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
                WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
                ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
              END,
+             CASE
+               WHEN NULLIF(TRIM(roles.cv_thu_ly_name), '') IS NULL THEN NULL
+               ELSE REGEXP_REPLACE(TRIM(roles.cv_thu_ly_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
+             END,
              NULLIF(TRIM(d.data->>'nguoiXuLy'), ''),
              NULLIF(TRIM(d.data->>'chuyenVienPhoiHopName'), ''),
              NULLIF(TRIM(d.data->>'chuyenVienXuLyName'), ''),
