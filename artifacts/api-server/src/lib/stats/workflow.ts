@@ -260,6 +260,11 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            AND cv_name <> '__CHUA_PHAN__'
          GROUP BY cv_name
        ),
+       pending_ma_ho_so AS (
+         SELECT DISTINCT ma_ho_so
+         FROM pending_base
+         WHERE buoc_tt47_46 IN ('dang_tham_dinh', 'dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa')
+       ),
        stats AS (
          SELECT
            cv_name,
@@ -271,22 +276,42 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
                 )
            ) AS ton_truoc,
            COUNT(*) FILTER (WHERE ngay_nhan >= $2 AND ngay_nhan <= $3) AS da_nhan,
-           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3) AS gq_tong,
            COUNT(*) FILTER (
              WHERE ngay_tra >= $2 AND ngay_tra <= $3
+               AND ma_ho_so NOT IN (SELECT ma_ho_so FROM pending_ma_ho_so)
+           ) AS gq_tong,
+           COUNT(*) FILTER (
+             WHERE ngay_tra >= $2 AND ngay_tra <= $3
+               AND ma_ho_so NOT IN (SELECT ma_ho_so FROM pending_ma_ho_so)
                AND has_can_bo_sung = 1
            ) AS can_bo_sung,
            COUNT(*) FILTER (
              WHERE (ngay_tra >= $2 AND ngay_tra <= $3)
+               AND ma_ho_so NOT IN (SELECT ma_ho_so FROM pending_ma_ho_so)
                AND has_khong_dat = 1
            ) AS khong_dat,
            COUNT(*) FILTER (
              WHERE (ngay_tra >= $2 AND ngay_tra <= $3)
+               AND ma_ho_so NOT IN (SELECT ma_ho_so FROM pending_ma_ho_so)
                AND has_hoan_thanh = 1
            ) AS hoan_thanh,
-           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND kq_hen_tra IS NOT NULL AND ngay_tra <= kq_hen_tra) AS dung_han,
-           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND (kq_hen_tra IS NULL OR ngay_tra > kq_hen_tra)) AS qua_han,
-           ROUND(AVG(EXTRACT(EPOCH FROM (ngay_tra - ngay_nhan)) / 86400.0) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3))::int AS tg_tb
+           COUNT(*) FILTER (
+             WHERE ngay_tra >= $2 AND ngay_tra <= $3
+               AND ma_ho_so NOT IN (SELECT ma_ho_so FROM pending_ma_ho_so)
+               AND kq_hen_tra IS NOT NULL
+               AND ngay_tra <= kq_hen_tra
+           ) AS dung_han,
+           COUNT(*) FILTER (
+             WHERE ngay_tra >= $2 AND ngay_tra <= $3
+               AND ma_ho_so NOT IN (SELECT ma_ho_so FROM pending_ma_ho_so)
+               AND (kq_hen_tra IS NULL OR ngay_tra > kq_hen_tra)
+           ) AS qua_han,
+           ROUND(
+             AVG(EXTRACT(EPOCH FROM (ngay_tra - ngay_nhan)) / 86400.0) FILTER (
+               WHERE ngay_tra >= $2 AND ngay_tra <= $3
+                 AND ma_ho_so NOT IN (SELECT ma_ho_so FROM pending_ma_ho_so)
+             )
+           )::int AS tg_tb
          FROM tt47_46_case_facts
          GROUP BY cv_name
        ),
