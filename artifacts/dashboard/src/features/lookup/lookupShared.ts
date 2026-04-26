@@ -10,6 +10,8 @@ export type LookupTinhTrang =
   | "cho_phan_cong"
   | "cho_chuyen_vien"
   | "dang_tham_dinh"
+  | "cho_tham_dinh"
+  | "cho_quyet_dinh"
   | "dang_xu_ly"
   | "cho_nop_capa"
   | "cho_danh_gia_capa"
@@ -203,6 +205,8 @@ export const TRA_CUU_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang;
   { value: "cho_phan_cong", label: LOOKUP_TEXT.pendingAssignment },
   { value: "cho_chuyen_vien", label: LOOKUP_TEXT.pendingSpecialist },
   { value: "dang_tham_dinh", label: LOOKUP_TEXT.pendingReview },
+  { value: "cho_tham_dinh", label: LOOKUP_TEXT.pendingAppraisalWait },
+  { value: "cho_quyet_dinh", label: LOOKUP_TEXT.pendingDecisionWait },
   { value: "dang_xu_ly", label: LOOKUP_TEXT.pendingProcessing },
   { value: "cho_nop_capa", label: LOOKUP_TEXT.pendingCapaSubmit },
   { value: "cho_danh_gia_capa", label: LOOKUP_TEXT.pendingCapaReview },
@@ -227,6 +231,8 @@ export const LOOKUP_TINH_TRANG_LABELS: Record<LookupTinhTrang, string> = {
   cho_phan_cong: LOOKUP_TEXT.pendingAssignment,
   cho_chuyen_vien: LOOKUP_TEXT.pendingSpecialist,
   dang_tham_dinh: LOOKUP_TEXT.pendingReview,
+  cho_tham_dinh: LOOKUP_TEXT.pendingAppraisalWait,
+  cho_quyet_dinh: LOOKUP_TEXT.pendingDecisionWait,
   dang_xu_ly: LOOKUP_TEXT.pendingProcessing,
   cho_nop_capa: LOOKUP_TEXT.pendingCapaSubmit,
   cho_danh_gia_capa: LOOKUP_TEXT.pendingCapaReview,
@@ -247,20 +253,22 @@ export const LOOKUP_TINH_TRANG_SORT_ORDER: Record<LookupTinhTrang, number> = {
   cho_phan_cong: 1,
   cho_chuyen_vien: 2,
   dang_tham_dinh: 3,
-  dang_xu_ly: 4,
-  cho_nop_capa: 5,
-  cho_danh_gia_capa: 6,
-  chua_xu_ly: 7,
-  bi_tra_lai: 8,
-  cho_tong_hop: 9,
-  cho_chuyen_gia: 10,
-  cho_to_truong: 11,
-  cho_truong_phong: 12,
-  cho_cong_bo: 13,
-  cho_van_thu: 14,
-  can_bo_sung: 15,
-  khong_dat: 16,
-  da_hoan_thanh: 17,
+  cho_tham_dinh: 4,
+  cho_quyet_dinh: 5,
+  dang_xu_ly: 6,
+  cho_nop_capa: 7,
+  cho_danh_gia_capa: 8,
+  chua_xu_ly: 9,
+  bi_tra_lai: 10,
+  cho_tong_hop: 11,
+  cho_chuyen_gia: 12,
+  cho_to_truong: 13,
+  cho_truong_phong: 14,
+  cho_cong_bo: 15,
+  cho_van_thu: 16,
+  can_bo_sung: 17,
+  khong_dat: 18,
+  da_hoan_thanh: 19,
 };
 
 export function displayLookupTinhTrang(value: LookupTinhTrang): string {

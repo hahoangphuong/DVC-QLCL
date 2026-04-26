@@ -72,7 +72,8 @@ export function DangXuLyTab({
   const grandTotal = totCon + totQua;
 
   // Aggregate cho TT47/46
-  const totCv       = allRows.reduce((s, r) => s + r.cho_cv,        0);
+  const totChoThamDinh = allRows.reduce((s, r) => s + r.cho_tham_dinh, 0);
+  const totChoQuyetDinh = allRows.reduce((s, r) => s + r.cho_quyet_dinh, 0);
   const totCg       = allRows.reduce((s, r) => s + r.cho_cg,        0);
   const totChoNopCapa = allRows.reduce((s, r) => s + r.cho_nop_capa, 0);
   const totChoDanhGiaCapa = allRows.reduce((s, r) => s + r.cho_danh_gia_capa, 0);
@@ -92,7 +93,8 @@ export function DangXuLyTab({
         fill:  c.fill,
       })).filter(d => d.value > 0)
     : [
-        { name: "\u0110ang th\u1ea9m \u0111\u1ecbnh", value: totCv, fill: "#3b82f6" },
+        { name: "Ch\u1edd th\u1ea9m \u0111\u1ecbnh", value: totChoThamDinh, fill: "#3b82f6" },
+        { name: "Ch\u1edd Quy\u1ebft \u0111\u1ecbnh", value: totChoQuyetDinh, fill: "#0ea5e9" },
         { name: "\u0110ang x\u1eed l\u00fd", value: totCg, fill: "#22c55e" },
         { name: "Ch\u1edd n\u1ed9p CAPA", value: totChoNopCapa, fill: "#f59e0b" },
         { name: "Ch\u1edd \u0111\u00e1nh gi\u00e1 CAPA", value: totChoDanhGiaCapa, fill: "#8b5cf6" },
@@ -311,8 +313,11 @@ export function DangXuLyTab({
       <tr key={row.cv_name} className={`${bgRow} hover:bg-blue-50 transition-colors`}>
         {stickyBase}
         {totCell}
-        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_cv > 50 ? "bg-blue-100 text-blue-800 font-bold" : row.cho_cv > 0 ? "text-blue-700" : "text-slate-300"}`}>
-          {row.cho_cv || ""}
+        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_tham_dinh > 50 ? "bg-blue-100 text-blue-800 font-bold" : row.cho_tham_dinh > 0 ? "text-blue-700" : "text-slate-300"}`}>
+          {row.cho_tham_dinh || ""}
+        </td>
+        <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_quyet_dinh > 20 ? "bg-sky-100 text-sky-800 font-bold" : row.cho_quyet_dinh > 0 ? "text-sky-700" : "text-slate-300"}`}>
+          {row.cho_quyet_dinh || ""}
         </td>
         <td className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${row.cho_cg > 30 ? "bg-green-100 text-green-800 font-bold" : row.cho_cg > 0 ? "text-green-700" : "text-slate-300"}`}>
           {row.cho_cg || ""}
@@ -333,7 +338,8 @@ export function DangXuLyTab({
   const totRow      = [...allRows, ...(cpc ? [cpc] : [])];
   const sumN = (key: keyof DangXuLyRow) => totRow.reduce((s, r) => s + ((r[key] as number) || 0), 0);
   const sumTong     = sumN("tong");
-  const sumCv       = sumN("cho_cv");
+  const sumChoThamDinh = sumN("cho_tham_dinh");
+  const sumChoQuyetDinh = sumN("cho_quyet_dinh");
   const sumCg       = sumN("cho_cg");
   const sumChoNopCapa = sumN("cho_nop_capa");
   const sumChoDanhGiaCapa = sumN("cho_danh_gia_capa");
@@ -476,7 +482,7 @@ export function DangXuLyTab({
                     {showVanThu && <col />}
                     <col /><col /><col />
                   </>
-                 : <>{/* TT47/46: T\u1ed4NG + 4 b\u01b0\u1edbc + C\u00f2n h\u1ea1n + Qu\u00e1 h\u1ea1n + % */}<col /><col /><col /><col /><col /><col /><col /><col /></>
+                 : <>{/* TT47/46: T\u1ed4NG + 5 b\u01b0\u1edbc + C\u00f2n h\u1ea1n + Qu\u00e1 h\u1ea1n + % */}<col /><col /><col /><col /><col /><col /><col /><col /><col /></>
               }
               {/* 3 cột Hồ sơ chậm nhất */}
               <col style={{ width: 90 }} />
@@ -491,7 +497,7 @@ export function DangXuLyTab({
                   Chuyên viên
                 </th>
                 <th className="px-2 py-2 text-center text-xs bg-blue-600"
-                    colSpan={is48 ? 13 - (showPct ? 0 : 1) - (showVanThu ? 0 : 1) : 8}>
+                    colSpan={is48 ? 13 - (showPct ? 0 : 1) - (showVanThu ? 0 : 1) : 9}>
                   ĐANG GIẢI QUYẾT
                 </th>
                 <th className="px-2 py-2 text-center text-xs bg-rose-700" colSpan={3}>Hồ sơ chậm nhất</th>
@@ -519,7 +525,8 @@ export function DangXuLyTab({
                  ) : (
                   <tr className="bg-slate-600 text-white">
                     <th className="px-2 py-1 text-center text-xs bg-slate-600 font-bold">{"T\u1ed4NG"}</th>
-                    {renderTinhTrangHeader(<>{ "\u0110ang" }<br/>{ "th\u1ea9m \u0111\u1ecbnh" }</>, "dang_tham_dinh", "px-2 py-1 text-center text-xs bg-blue-700")}
+                    {renderTinhTrangHeader(<>{ "Ch\u1edd" }<br/>{ "th\u1ea9m \u0111\u1ecbnh" }</>, "cho_tham_dinh", "px-2 py-1 text-center text-xs bg-blue-700")}
+                    {renderTinhTrangHeader(<>{ "Ch\u1edd" }<br/>{ "Quy\u1ebft \u0111\u1ecbnh" }</>, "cho_quyet_dinh", "px-2 py-1 text-center text-xs bg-sky-600")}
                     {renderTinhTrangHeader(<>{ "\u0110ang" }<br/>{ "x\u1eed l\u00fd" }</>, "dang_xu_ly", "px-2 py-1 text-center text-xs bg-green-600")}
                     {renderTinhTrangHeader(<>{ "Ch\u1edd n\u1ed9p" }<br/>{ "CAPA" }</>, "cho_nop_capa", "px-2 py-1 text-center text-xs bg-amber-500")}
                     {renderTinhTrangHeader(<>{ "Ch\u1edd \u0111\u00e1nh gi\u00e1" }<br/>{ "CAPA" }</>, "cho_danh_gia_capa", "px-2 py-1 text-center text-xs bg-violet-600")}
@@ -571,7 +578,8 @@ export function DangXuLyTab({
                   </>
                  ) : (
                   <>
-                    <td className="px-2 py-2 text-center text-xs text-blue-700">{sumCv || ""}</td>
+                    <td className="px-2 py-2 text-center text-xs text-blue-700">{sumChoThamDinh || ""}</td>
+                    <td className="px-2 py-2 text-center text-xs text-sky-700">{sumChoQuyetDinh || ""}</td>
                     <td className="px-2 py-2 text-center text-xs text-green-700">{sumCg || ""}</td>
                     <td className="px-2 py-2 text-center text-xs text-amber-700">{sumChoNopCapa || ""}</td>
                     <td className="px-2 py-2 text-center text-xs text-violet-700">{sumChoDanhGiaCapa || ""}</td>

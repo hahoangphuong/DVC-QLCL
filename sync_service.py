@@ -200,6 +200,81 @@ class SyncService:
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Loi lay chi tiet ho so TT48: {exc}")
 
+    def get_tt47_46_cho_tham_dinh(self, thu_tuc: int, client: RemoteClient | None = None) -> dict:
+        if thu_tuc not in (46, 47):
+            raise HTTPException(status_code=400, detail="thu_tuc phai la 46 hoac 47")
+
+        base_url = os.environ.get("BASE_URL", "").rstrip("/")
+        if not base_url:
+            raise HTTPException(status_code=500, detail="Thieu cau hinh BASE_URL")
+
+        loai_ho_so_id_by_thu_tuc = {
+            46: 48,
+            47: 49,
+        }
+        loai_ho_so_id = loai_ho_so_id_by_thu_tuc[thu_tuc]
+        api_url = f"{base_url}/api/services/app/xuLyHoSoGridView{thu_tuc}/GetListHoSoPaging"
+        referer = f"{base_url}/Application"
+        body = {
+            "formId": 21,
+            "formCase": 2,
+            "formCase2": 0,
+            "page": 1,
+            "pageSize": 10000,
+            "keyword": None,
+            "ngayNopTu": None,
+            "ngayNopToi": None,
+            "loaiHoSoId": loai_ho_so_id,
+            "tinhId": None,
+            "doanhNghiepId": None,
+            "phongBanId": 5,
+            "isHoSoTaiCap": None,
+            "skipCount": 0,
+            "maxResultCount": 10000,
+            "sorting": None,
+        }
+
+        def _clean_cv_name(value: str | None) -> str | None:
+            if not isinstance(value, str):
+                return None
+            trimmed = value.strip()
+            if not trimmed:
+                return None
+            return trimmed
+
+        try:
+            active_client = client or self._login_remote_client()
+            items, _fetch_sec = self.fetch_all_paged(active_client, api_url, body, referer=referer)
+
+            rows = []
+            for item in items:
+                ma_ho_so = (item.get("maHoSo") or item.get("strSoHieuHoSo") or "").strip()
+                chuyen_vien_thu_ly = _clean_cv_name(item.get("chuyenVienThuLyName"))
+                chuyen_vien_phoi_hop = _clean_cv_name(item.get("chuyenVienPhoiHopName"))
+                if not ma_ho_so or not chuyen_vien_thu_ly or chuyen_vien_phoi_hop:
+                    continue
+                rows.append({
+                    "ma_ho_so": ma_ho_so,
+                    "chuyen_vien_thu_ly": chuyen_vien_thu_ly,
+                })
+
+            return {
+                "ok": True,
+                "thu_tuc": thu_tuc,
+                "total": len(rows),
+                "rows": rows,
+            }
+        except RemoteAuthError as exc:
+            raise HTTPException(status_code=401, detail=str(exc))
+        except EnvironmentError as exc:
+            raise HTTPException(status_code=500, detail=f"Thieu cau hinh: {exc}")
+        except requests.HTTPError as exc:
+            raise HTTPException(status_code=502, detail=f"Loi HTTP tu DAV: {exc}")
+        except ValueError as exc:
+            raise HTTPException(status_code=502, detail=str(exc))
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Loi lay danh sach cho tham dinh TT{thu_tuc}: {exc}")
+
     def get_dav_file(self, path_or_url: str, client: RemoteClient | None = None) -> StreamingResponse:
         base_url = os.environ.get("BASE_URL", "").rstrip("/")
         if not base_url:

@@ -27,6 +27,10 @@ const FAST_TTL_MS = 30 * 1000;
 const STATS_STALE_MS = 6 * 60 * 60 * 1000;
 const FAST_STALE_MS = 5 * 60 * 1000;
 const PYTHON_API = (process.env["PYTHON_API_BASE_URL"] ?? "http://localhost:8000").replace(/\/+$/, "");
+type DavChoThamDinhRow = {
+  ma_ho_so: string;
+  chuyen_vien_thu_ly: string | null;
+};
 type LookupExportSortKey =
   | "stt"
   | "ma_ho_so"
@@ -42,6 +46,37 @@ type LookupExportSortKey =
 function validateThuTuc(val: unknown): number | null {
   const n = Number(val);
   return [46, 47, 48].includes(n) ? n : null;
+}
+
+async function fetchDavChoThamDinhSet(thuTuc: number): Promise<Set<string>> {
+  if (thuTuc !== 46 && thuTuc !== 47) return new Set();
+
+  const pyRes = await fetch(`${PYTHON_API}/internal/dav/tt47-46/cho-tham-dinh?thu_tuc=${thuTuc}`);
+  const data = await pyRes.json();
+  if (!pyRes.ok) {
+    throw new Error(data?.detail ?? `Khong the tai danh sach cho tham dinh TT${thuTuc}`);
+  }
+
+  const rows = Array.isArray(data?.rows) ? (data.rows as DavChoThamDinhRow[]) : [];
+  return new Set(
+    rows
+      .map((row) => row.ma_ho_so?.trim() ? `${thuTuc}:${row.ma_ho_so.trim()}` : null)
+      .filter((value): value is string => Boolean(value))
+  );
+}
+
+async function fetchDavChoThamDinhSets(thuTuc: number | null): Promise<Set<string>> {
+  if (thuTuc === 46 || thuTuc === 47) {
+    return fetchDavChoThamDinhSet(thuTuc);
+  }
+  if (thuTuc === 48) {
+    return new Set();
+  }
+  const [tt46, tt47] = await Promise.all([
+    fetchDavChoThamDinhSet(46),
+    fetchDavChoThamDinhSet(47),
+  ]);
+  return new Set([...tt46, ...tt47]);
 }
 
 function parseOptionalThuTuc(val: unknown): number | null {
@@ -323,7 +358,10 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
       `stats:dang-xu-ly:${thuTuc}`,
       STATS_TTL_MS,
       STATS_STALE_MS,
-      () => getDangXuLyStats(thuTuc)
+      async () => {
+        const choThamDinhSet = await fetchDavChoThamDinhSets(thuTuc);
+        return getDangXuLyStats(thuTuc, choThamDinhSet);
+      }
     ));
   } catch (e: unknown) {
     res.status(500).json({ detail: String(e) });
@@ -369,7 +407,10 @@ router.get("/stats/tra-cuu-dang-xu-ly", async (req, res) => {
       `stats:tra-cuu-dang-xu-ly:${thuTuc ?? "all"}:${chuyenVien ?? ""}:${chuyenGia ?? ""}:${tinhTrang ?? ""}:${maHoSo ?? ""}`,
       FAST_TTL_MS,
       FAST_STALE_MS,
-      () => getDangXuLyLookup({ thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo })
+      async () => {
+        const choThamDinhSet = await fetchDavChoThamDinhSets(thuTuc);
+        return getDangXuLyLookup({ thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo }, choThamDinhSet);
+      }
     ));
   } catch (e: unknown) {
     res.status(500).json({ detail: String(e) });
@@ -398,7 +439,8 @@ router.get("/stats/tra-cuu-dang-xu-ly/export", async (req, res) => {
     ] as const).includes(sortByRaw as LookupExportSortKey) ? sortByRaw as LookupExportSortKey : "stt";
     const sortDir = sortDirRaw === "desc" ? "desc" : "asc";
 
-    const data = await getDangXuLyLookup({ thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo });
+    const choThamDinhSet = await fetchDavChoThamDinhSets(thuTuc);
+    const data = await getDangXuLyLookup({ thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo }, choThamDinhSet);
     const rows = sortLookupRows(data.rows, sortBy, sortDir);
 
     const filename = `Tra_cuu_dang_xu_ly_${new Date().toISOString().slice(0, 10)}.xlsx`;

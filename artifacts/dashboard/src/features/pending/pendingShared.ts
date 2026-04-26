@@ -8,6 +8,8 @@ export interface DangXuLyRow {
   cv_name: string;
   tong: number;
   cho_cv: number;
+  cho_tham_dinh: number;
+  cho_quyet_dinh: number;
   cho_cg: number;
   cho_nop_capa: number;
   cho_danh_gia_capa: number;
