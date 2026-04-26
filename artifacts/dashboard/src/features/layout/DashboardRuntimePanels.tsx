@@ -81,7 +81,11 @@ export function DashboardRuntimePanels({
 
   const renderPendingTab = (thuTuc: SupportedThuTuc) =>
     thuTuc !== 48 ? (
-      <PendingDangXuLyTab thuTuc={thuTuc} onCvLookup={openLookupByChuyenVien} />
+      <PendingDangXuLyTab
+        thuTuc={thuTuc}
+        onCvLookup={openLookupByChuyenVien}
+        onTinhTrangLookup={openLookupByTinhTrang}
+      />
     ) : (
       <PendingDangXuLyTab
         thuTuc={48}
