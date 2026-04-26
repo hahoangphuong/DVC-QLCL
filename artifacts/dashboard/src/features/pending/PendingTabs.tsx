@@ -383,7 +383,7 @@ export function DangXuLyTab({
         {/* Phân loại theo bước xử lý */}
         <div className="bg-white rounded-xl border border-slate-200 p-3">
           <p className="text-xs font-semibold text-slate-500 mb-2 text-center">Phân loại theo bước xử lý</p>
-          {is48 ? (
+          {(
             /* TT48: list dạng thanh ngang — rõ hơn donut khi có nhiều bước */
             <div className="flex flex-col gap-1.5 px-1" style={{ height: 180, overflowY: "auto" }}>
               {catData.map(d => {
@@ -425,18 +425,6 @@ export function DangXuLyTab({
                 </div>
               )}
             </div>
-          ) : (
-            /* TT47/46: giữ nguyên donut */
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie data={catData} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
-                  dataKey="value" labelLine={false} label={renderPieLabel} animationDuration={CHART_ANIMATION_MS}>
-                  {catData.map((d, i) => <Cell key={i} fill={d.fill} />)}
-                </Pie>
-                <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-                <Tooltip content={<CatTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
           )}
         </div>
 
