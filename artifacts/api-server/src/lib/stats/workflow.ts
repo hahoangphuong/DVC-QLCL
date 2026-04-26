@@ -260,10 +260,31 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            AND cv_name <> '__CHUA_PHAN__'
          GROUP BY cv_name
        ),
-       pending_ma_ho_so AS (
-         SELECT DISTINCT ma_ho_so
+       pending_dossiers AS (
+         SELECT DISTINCT ON (ma_ho_so)
+           ma_ho_so,
+           cv_name,
+           ngay_nhan
          FROM pending_base
          WHERE buoc_tt47_46 IN ('dang_tham_dinh', 'dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa')
+           AND cv_name IS NOT NULL
+           AND cv_name <> '__CHUA_PHAN__'
+         ORDER BY ma_ho_so, ngay_nhan DESC NULLS LAST
+       ),
+       dossier_index AS (
+         SELECT
+           COALESCE(p.cv_name, f.cv_name) AS cv_name,
+           COALESCE(f.ma_ho_so, p.ma_ho_so) AS ma_ho_so,
+           COALESCE(f.ngay_nhan, p.ngay_nhan) AS ngay_nhan,
+           f.ngay_tra,
+           f.kq_hen_tra,
+           f.has_can_bo_sung,
+           f.has_khong_dat,
+           f.has_hoan_thanh,
+           CASE WHEN p.ma_ho_so IS NOT NULL THEN 1 ELSE 0 END AS is_pending
+         FROM tt47_46_case_facts f
+         FULL OUTER JOIN pending_dossiers p
+           ON f.ma_ho_so = p.ma_ho_so
        ),
        stats AS (
          SELECT
@@ -272,47 +293,47 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
              WHERE ngay_nhan < $2
                 AND (
                   (ngay_tra IS NULL OR ngay_tra >= $2)
-                  OR is_cho_capa = 1
+                  OR is_pending = 1
                 )
            ) AS ton_truoc,
            COUNT(*) FILTER (WHERE ngay_nhan >= $2 AND ngay_nhan <= $3) AS da_nhan,
            COUNT(*) FILTER (
              WHERE ngay_tra >= $2 AND ngay_tra <= $3
-               AND ma_ho_so NOT IN (SELECT ma_ho_so FROM pending_ma_ho_so)
+               AND is_pending = 0
            ) AS gq_tong,
            COUNT(*) FILTER (
              WHERE ngay_tra >= $2 AND ngay_tra <= $3
-               AND ma_ho_so NOT IN (SELECT ma_ho_so FROM pending_ma_ho_so)
+               AND is_pending = 0
                AND has_can_bo_sung = 1
            ) AS can_bo_sung,
            COUNT(*) FILTER (
              WHERE (ngay_tra >= $2 AND ngay_tra <= $3)
-               AND ma_ho_so NOT IN (SELECT ma_ho_so FROM pending_ma_ho_so)
+               AND is_pending = 0
                AND has_khong_dat = 1
            ) AS khong_dat,
            COUNT(*) FILTER (
              WHERE (ngay_tra >= $2 AND ngay_tra <= $3)
-               AND ma_ho_so NOT IN (SELECT ma_ho_so FROM pending_ma_ho_so)
+               AND is_pending = 0
                AND has_hoan_thanh = 1
            ) AS hoan_thanh,
            COUNT(*) FILTER (
              WHERE ngay_tra >= $2 AND ngay_tra <= $3
-               AND ma_ho_so NOT IN (SELECT ma_ho_so FROM pending_ma_ho_so)
+               AND is_pending = 0
                AND kq_hen_tra IS NOT NULL
                AND ngay_tra <= kq_hen_tra
            ) AS dung_han,
            COUNT(*) FILTER (
              WHERE ngay_tra >= $2 AND ngay_tra <= $3
-               AND ma_ho_so NOT IN (SELECT ma_ho_so FROM pending_ma_ho_so)
+               AND is_pending = 0
                AND (kq_hen_tra IS NULL OR ngay_tra > kq_hen_tra)
            ) AS qua_han,
            ROUND(
              AVG(EXTRACT(EPOCH FROM (ngay_tra - ngay_nhan)) / 86400.0) FILTER (
                WHERE ngay_tra >= $2 AND ngay_tra <= $3
-                 AND ma_ho_so NOT IN (SELECT ma_ho_so FROM pending_ma_ho_so)
+                 AND is_pending = 0
              )
            )::int AS tg_tb
-         FROM tt47_46_case_facts
+         FROM dossier_index
          GROUP BY cv_name
        ),
        treo_by_cv AS (
