@@ -9,6 +9,10 @@ export type LookupThuTuc = 46 | 47 | 48;
 export type LookupTinhTrang =
   | "cho_phan_cong"
   | "cho_chuyen_vien"
+  | "dang_tham_dinh"
+  | "dang_xu_ly"
+  | "cho_nop_capa"
+  | "cho_danh_gia_capa"
   | "chua_xu_ly"
   | "bi_tra_lai"
   | "cho_tong_hop"
@@ -198,6 +202,10 @@ export const TRA_CUU_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang;
   { value: "all", label: LOOKUP_TEXT.all },
   { value: "cho_phan_cong", label: LOOKUP_TEXT.pendingAssignment },
   { value: "cho_chuyen_vien", label: LOOKUP_TEXT.pendingSpecialist },
+  { value: "dang_tham_dinh", label: LOOKUP_TEXT.pendingReview },
+  { value: "dang_xu_ly", label: LOOKUP_TEXT.pendingProcessing },
+  { value: "cho_nop_capa", label: LOOKUP_TEXT.pendingCapaSubmit },
+  { value: "cho_danh_gia_capa", label: LOOKUP_TEXT.pendingCapaReview },
   { value: "chua_xu_ly", label: LOOKUP_TEXT.notProcessed },
   { value: "bi_tra_lai", label: LOOKUP_TEXT.returned },
   { value: "cho_tong_hop", label: LOOKUP_TEXT.pendingSummary },
@@ -218,6 +226,10 @@ export const TRA_CUU_DA_XU_LY_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupT
 export const LOOKUP_TINH_TRANG_LABELS: Record<LookupTinhTrang, string> = {
   cho_phan_cong: LOOKUP_TEXT.pendingAssignment,
   cho_chuyen_vien: LOOKUP_TEXT.pendingSpecialist,
+  dang_tham_dinh: LOOKUP_TEXT.pendingReview,
+  dang_xu_ly: LOOKUP_TEXT.pendingProcessing,
+  cho_nop_capa: LOOKUP_TEXT.pendingCapaSubmit,
+  cho_danh_gia_capa: LOOKUP_TEXT.pendingCapaReview,
   chua_xu_ly: LOOKUP_TEXT.notProcessed,
   bi_tra_lai: LOOKUP_TEXT.returned,
   cho_tong_hop: LOOKUP_TEXT.pendingSummary,
@@ -234,17 +246,21 @@ export const LOOKUP_TINH_TRANG_LABELS: Record<LookupTinhTrang, string> = {
 export const LOOKUP_TINH_TRANG_SORT_ORDER: Record<LookupTinhTrang, number> = {
   cho_phan_cong: 1,
   cho_chuyen_vien: 2,
-  chua_xu_ly: 3,
-  bi_tra_lai: 4,
-  cho_tong_hop: 5,
-  cho_chuyen_gia: 6,
-  cho_to_truong: 7,
-  cho_truong_phong: 8,
-  cho_cong_bo: 9,
-  cho_van_thu: 10,
-  can_bo_sung: 11,
-  khong_dat: 12,
-  da_hoan_thanh: 13,
+  dang_tham_dinh: 3,
+  dang_xu_ly: 4,
+  cho_nop_capa: 5,
+  cho_danh_gia_capa: 6,
+  chua_xu_ly: 7,
+  bi_tra_lai: 8,
+  cho_tong_hop: 9,
+  cho_chuyen_gia: 10,
+  cho_to_truong: 11,
+  cho_truong_phong: 12,
+  cho_cong_bo: 13,
+  cho_van_thu: 14,
+  can_bo_sung: 15,
+  khong_dat: 16,
+  da_hoan_thanh: 17,
 };
 
 export function displayLookupTinhTrang(value: LookupTinhTrang): string {

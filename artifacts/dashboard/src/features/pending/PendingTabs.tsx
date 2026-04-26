@@ -531,10 +531,10 @@ export function DangXuLyTab({
                  ) : (
                   <tr className="bg-slate-600 text-white">
                     <th className="px-2 py-1 text-center text-xs bg-slate-600 font-bold">{"T\u1ed4NG"}</th>
-                    <th className="px-2 py-1 text-center text-xs bg-blue-700">{"\u0110ang"}<br/>{"th\u1ea9m \u0111\u1ecbnh"}</th>
-                    <th className="px-2 py-1 text-center text-xs bg-green-600">{"\u0110ang"}<br/>{"x\u1eed l\u00fd"}</th>
-                    <th className="px-2 py-1 text-center text-xs bg-amber-500">{"Ch\u1edd n\u1ed9p"}<br/>{"CAPA"}</th>
-                    <th className="px-2 py-1 text-center text-xs bg-violet-600">{"Ch\u1edd \u0111\u00e1nh gi\u00e1"}<br/>{"CAPA"}</th>
+                    {renderTinhTrangHeader(<>{ "\u0110ang" }<br/>{ "th\u1ea9m \u0111\u1ecbnh" }</>, "dang_tham_dinh", "px-2 py-1 text-center text-xs bg-blue-700")}
+                    {renderTinhTrangHeader(<>{ "\u0110ang" }<br/>{ "x\u1eed l\u00fd" }</>, "dang_xu_ly", "px-2 py-1 text-center text-xs bg-green-600")}
+                    {renderTinhTrangHeader(<>{ "Ch\u1edd n\u1ed9p" }<br/>{ "CAPA" }</>, "cho_nop_capa", "px-2 py-1 text-center text-xs bg-amber-500")}
+                    {renderTinhTrangHeader(<>{ "Ch\u1edd \u0111\u00e1nh gi\u00e1" }<br/>{ "CAPA" }</>, "cho_danh_gia_capa", "px-2 py-1 text-center text-xs bg-violet-600")}
                     <th className="px-2 py-1 text-center text-xs bg-green-700">{"C\u00f2n"}<br/>{"h\u1ea1n"}</th>
                     <th className="px-2 py-1 text-center text-xs bg-orange-600">{"Qu\u00e1"}<br/>{"h\u1ea1n"}</th>
                     <th className="px-2 py-1 text-center text-xs bg-orange-700">% {"qu\u00e1"}<br/>{"h\u1ea1n"}</th>

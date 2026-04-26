@@ -918,7 +918,13 @@ workflow_rows AS (
     cf.submission_kind,
     CASE
       WHEN w.don_vi = 'Phòng ban phân công' THEN 'cho_phan_cong'
-      WHEN w.thu_tuc IN (46, 47) AND w.don_vi IN ('Chuyên viên', 'Chuyên viên phối hợp thẩm định') THEN 'cho_chuyen_vien'
+      WHEN w.thu_tuc IN (46, 47)
+        AND w.don_vi = 'Chuyên viên phối hợp thẩm định'
+      THEN 'dang_xu_ly'
+      WHEN w.thu_tuc IN (46, 47)
+        AND w.don_vi = 'Chuyên viên'
+        AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
+      THEN 'dang_tham_dinh'
       WHEN w.thu_tuc = 48 AND w.buoc = 'chua_xu_ly' THEN 'chua_xu_ly'
       WHEN w.thu_tuc = 48 AND w.buoc = 'bi_tra_lai' THEN 'bi_tra_lai'
       WHEN w.thu_tuc = 48 AND w.buoc = 'cho_tong_hop' THEN 'cho_tong_hop'
@@ -993,7 +999,11 @@ capa_base AS (
     cf.nhan_hen_tra AS ngay_hen_tra,
     cf.loai_ho_so,
     cf.submission_kind,
-    'cho_chuyen_vien' AS tinh_trang,
+    CASE
+      WHEN roles.trang_thai_ho_so = '210' THEN 'cho_nop_capa'
+      WHEN roles.trang_thai_ho_so = '220' THEN 'cho_danh_gia_capa'
+      ELSE 'cho_chuyen_vien'
+    END AS tinh_trang,
     REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i') AS chuyen_vien,
     NULL::text AS chuyen_gia,
     CASE
