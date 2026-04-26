@@ -152,17 +152,16 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            cv_name,
            COUNT(*) FILTER (
              WHERE ngay_nhan < $2
-               AND is_cho_capa = 0
-               AND (ngay_tra IS NULL OR ngay_tra >= $2)
+                AND (
+                  (ngay_tra IS NULL OR ngay_tra >= $2)
+                  OR is_cho_capa = 1
+                )
            ) AS ton_truoc,
            COUNT(*) FILTER (WHERE ngay_nhan >= $2 AND ngay_nhan <= $3) AS da_nhan,
+           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3) AS gq_tong,
            COUNT(*) FILTER (
-             WHERE (ngay_tra >= $2 AND ngay_tra <= $3)
-                OR is_cho_capa = 1
-           ) AS gq_tong,
-           COUNT(*) FILTER (
-             WHERE ((ngay_tra >= $2 AND ngay_tra <= $3) OR is_cho_capa = 1)
-               AND (has_can_bo_sung = 1 OR is_cho_capa = 1)
+             WHERE ngay_tra >= $2 AND ngay_tra <= $3
+               AND has_can_bo_sung = 1
            ) AS can_bo_sung,
            COUNT(*) FILTER (
              WHERE (ngay_tra >= $2 AND ngay_tra <= $3)
@@ -177,21 +176,27 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            ROUND(AVG(EXTRACT(EPOCH FROM (ngay_tra - ngay_nhan)) / 86400.0) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3))::int AS tg_tb,
            COUNT(*) FILTER (
              WHERE ngay_nhan <= $3
-               AND is_cho_capa = 0
-               AND (ngay_tra IS NULL OR ngay_tra > $3)
+                AND (
+                  (ngay_tra IS NULL OR ngay_tra > $3)
+                  OR is_cho_capa = 1
+                )
            ) AS ton_sau_tong,
            COUNT(*) FILTER (
              WHERE ngay_nhan <= $3
-               AND is_cho_capa = 0
-               AND (ngay_tra IS NULL OR ngay_tra > $3)
-               AND nhan_hen_tra IS NOT NULL
-               AND nhan_hen_tra > $3
+                AND (
+                  (ngay_tra IS NULL OR ngay_tra > $3)
+                  OR is_cho_capa = 1
+                )
+                AND nhan_hen_tra IS NOT NULL
+                AND nhan_hen_tra > $3
            ) AS ton_sau_con_han,
            COUNT(*) FILTER (
              WHERE ngay_nhan <= $3
-               AND is_cho_capa = 0
-               AND (ngay_tra IS NULL OR ngay_tra > $3)
-               AND (nhan_hen_tra IS NULL OR nhan_hen_tra <= $3)
+                AND (
+                  (ngay_tra IS NULL OR ngay_tra > $3)
+                  OR is_cho_capa = 1
+                )
+                AND (nhan_hen_tra IS NULL OR nhan_hen_tra <= $3)
            ) AS ton_sau_qua_han
          FROM tt47_46_case_facts
          GROUP BY cv_name

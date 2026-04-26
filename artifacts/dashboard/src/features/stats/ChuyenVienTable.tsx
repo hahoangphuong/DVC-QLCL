@@ -63,7 +63,8 @@ export function ChuyenVienTable({
     totals.ton_truoc + totals.da_nhan > 0
       ? Math.round((totals.gq_tong / (totals.ton_truoc + totals.da_nhan)) * 100)
       : 0;
-  const pendingCapaLabel = thuTuc === 48 ? "\u0043\u1ea7n b\u1ed5 sung" : "\u0043h\u1edd CAPA";
+  const showResolvedSupplementColumn = thuTuc === 48;
+  const pendingCapaLabel = "\u0043\u1ea7n b\u1ed5 sung";
   function topThresh(vals: (number | null)[]): number {
     const sorted = vals
       .filter((v): v is number => typeof v === "number" && v > 0)
@@ -121,7 +122,9 @@ export function ChuyenVienTable({
         <td className={hiTd(hiThresh.ton_truoc, row.ton_truoc, tonTruocBg)}><Num v={row.ton_truoc} color="#be185d" bold /></td>
         <td className={hiTd(hiThresh.da_nhan, row.da_nhan, daNhanBg)}><Num v={row.da_nhan} color="#1d4ed8" bold /></td>
         <td className={hiTd(hiThresh.gq_tong, row.gq_tong, `${giaiQuyetBg} font-bold text-slate-700`)}><Num v={row.gq_tong} /></td>
-        <td className={`${tdC} ${giaiQuyetBg}`}><Num v={row.can_bo_sung} color="#b45309" /></td>
+        {showResolvedSupplementColumn ? (
+          <td className={`${tdC} ${giaiQuyetBg}`}><Num v={row.can_bo_sung} color="#b45309" /></td>
+        ) : null}
         <td className={`${tdC} ${giaiQuyetBg}`}><Num v={row.khong_dat} color="#dc2626" /></td>
         <td className={hiTd(hiThresh.hoan_thanh, row.hoan_thanh, giaiQuyetBg)}><Num v={row.hoan_thanh} color="#15803d" /></td>
         <td className={`${tdC} ${giaiQuyetBg}`}><Num v={row.dung_han} color="#15803d" /></td>
@@ -137,7 +140,8 @@ export function ChuyenVienTable({
     );
   }
 
-  const colSpan = 17;
+  const doneColumnCount = showResolvedSupplementColumn ? 9 : 8;
+  const colSpan = showResolvedSupplementColumn ? 17 : 16;
   const renderDoneHeader = (
     label: string,
     tinhTrang: "can_bo_sung" | "khong_dat" | "da_hoan_thanh",
@@ -195,13 +199,13 @@ export function ChuyenVienTable({
               </th>
               <th className={`${thC} bg-pink-700 text-white`} rowSpan={2}>{"Tồn"}<br />{"trước"}</th>
               <th className={`${thC} bg-blue-700 text-white`} rowSpan={2}>{"Đã"}<br />{"nhận"}</th>
-              <th className={`${thC} bg-green-700 text-white`} colSpan={9}>{"Đã giải quyết"}</th>
+              <th className={`${thC} bg-green-700 text-white`} colSpan={doneColumnCount}>{"Đã giải quyết"}</th>
               <th className={`${thC} bg-amber-700 text-white`} colSpan={3}>{"Tồn sau"}</th>
               <th className={`${thC} bg-orange-600 text-white`} rowSpan={2}>TREO</th>
             </tr>
             <tr className="bg-slate-100">
               <th className={`${thC} bg-green-50`}>{"Tổng"}</th>
-              {renderDoneHeader(pendingCapaLabel, "can_bo_sung", `${thS} bg-amber-50`)}
+              {showResolvedSupplementColumn ? renderDoneHeader(pendingCapaLabel, "can_bo_sung", `${thS} bg-amber-50`) : null}
               {renderDoneHeader("Không đạt", "khong_dat", `${thS} bg-red-50`)}
               {renderDoneHeader("Hoàn thành", "da_hoan_thanh", `${thS} bg-green-50`)}
               <th className={`${thS} bg-green-50 text-green-700`}>{"Đúng hạn"}</th>
@@ -247,7 +251,7 @@ export function ChuyenVienTable({
                     <td className={tdC}></td>
                     <td className={tdC}><Num v={cpc.da_nhan} color="#1d4ed8" bold /></td>
                     <td className={tdC}></td>
-                    <td className={tdC}></td>
+                    {showResolvedSupplementColumn ? <td className={tdC}></td> : null}
                     <td className={tdC}></td>
                     <td className={tdC}></td>
                     <td className={tdC}></td>
@@ -281,7 +285,7 @@ export function ChuyenVienTable({
                 <td className={tdC}><Num v={totals.ton_truoc} color="#be185d" bold /></td>
                 <td className={tdC}><Num v={totals.da_nhan} color="#1d4ed8" bold /></td>
                 <td className={tdC}><Num v={totals.gq_tong} bold /></td>
-                <td className={tdC}><Num v={totals.can_bo_sung} color="#b45309" bold /></td>
+                {showResolvedSupplementColumn ? <td className={tdC}><Num v={totals.can_bo_sung} color="#b45309" bold /></td> : null}
                 <td className={tdC}><Num v={totals.khong_dat} color="#dc2626" bold /></td>
                 <td className={tdC}><Num v={totals.hoan_thanh} color="#15803d" bold /></td>
                 <td className={tdC}><Num v={totals.dung_han} color="#15803d" bold /></td>
