@@ -142,7 +142,17 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            MAX(CASE WHEN trang_thai = '7' THEN 1 ELSE 0 END) AS has_khong_dat,
            MAX(CASE WHEN trang_thai = '6' THEN 1 ELSE 0 END) AS has_hoan_thanh,
            MAX(CASE WHEN is_active THEN 1 ELSE 0 END) AS is_active,
-           MAX(CASE WHEN trang_thai_ho_so = 'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i' THEN 1 ELSE 0 END) AS is_cho_capa
+           MAX(
+             CASE
+               WHEN trang_thai_ho_so IN (
+                 '210',
+                 '220',
+                 'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i',
+                 'H\u1ed3 s\u01a1 \u0111\u00e3 n\u1ed9p b\u00e1o c\u00e1o kh\u1eafc ph\u1ee5c'
+               ) THEN 1
+               ELSE 0
+             END
+           ) AS is_cho_capa
          FROM tt47_46_case_facts_raw
          WHERE cv_name IS NOT NULL
          GROUP BY ma_ho_so
