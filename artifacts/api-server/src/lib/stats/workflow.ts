@@ -251,7 +251,7 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            AND cv_name <> '__CHUA_PHAN__'
          ORDER BY ma_ho_so, ngay_nhan DESC NULLS LAST
        ),
-       lookup_fallback_dossiers AS (
+       lookup_resolved_dossiers AS (
          SELECT
            roles.ma_ho_so,
            REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i') AS cv_name,
@@ -260,22 +260,13 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            roles.ngay_hen_tra AS kq_hen_tra,
            CASE WHEN roles.trang_thai_ho_so = '4' THEN 1 ELSE 0 END AS has_can_bo_sung,
            CASE WHEN roles.trang_thai_ho_so = '7' THEN 1 ELSE 0 END AS has_khong_dat,
-           CASE WHEN roles.trang_thai_ho_so = '6' THEN 1 ELSE 0 END AS has_hoan_thanh
+           CASE WHEN roles.trang_thai_ho_so = '6' THEN 1 ELSE 0 END AS has_hoan_thanh,
+           0 AS source_priority
          FROM latest_tcc_roles roles
          WHERE roles.trang_thai_ho_so IN ('4', '6', '7')
            AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
-           AND NOT EXISTS (
-             SELECT 1
-             FROM tt47_46_case_facts f
-             WHERE f.ma_ho_so = roles.ma_ho_so
-               AND (
-                 (roles.trang_thai_ho_so = '4' AND COALESCE(f.has_can_bo_sung, 0) = 1)
-                 OR (roles.trang_thai_ho_so = '7' AND COALESCE(f.has_khong_dat, 0) = 1)
-                 OR (roles.trang_thai_ho_so = '6' AND COALESCE(f.has_hoan_thanh, 0) = 1)
-               )
-           )
        ),
-       base_dossiers AS (
+       base_dossiers_raw AS (
          SELECT
            cv_name,
            ma_ho_so,
@@ -292,7 +283,8 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            kq_hen_tra,
            has_can_bo_sung,
            has_khong_dat,
-           has_hoan_thanh
+           has_hoan_thanh,
+           1 AS source_priority
          FROM tt47_46_case_facts
          UNION ALL
          SELECT
@@ -304,8 +296,27 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            kq_hen_tra,
            has_can_bo_sung,
            has_khong_dat,
+           has_hoan_thanh,
+           source_priority
+         FROM lookup_resolved_dossiers
+       ),
+       base_dossiers AS (
+         SELECT DISTINCT ON (ma_ho_so)
+           cv_name,
+           ma_ho_so,
+           ngay_nhan,
+           ngay_tra,
+           resolved_at,
+           kq_hen_tra,
+           has_can_bo_sung,
+           has_khong_dat,
            has_hoan_thanh
-         FROM lookup_fallback_dossiers
+         FROM base_dossiers_raw
+         ORDER BY
+           ma_ho_so,
+           source_priority ASC,
+           resolved_at DESC NULLS LAST,
+           ngay_nhan DESC NULLS LAST
        ),
        dossier_index AS (
          SELECT
