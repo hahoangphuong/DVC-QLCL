@@ -240,6 +240,33 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            AND cv_name <> '__CHUA_PHAN__'
          GROUP BY cv_name
        ),
+       resolved_lookup_stats AS (
+         SELECT
+           REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i') AS cv_name,
+           COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3) AS gq_tong,
+           COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND trang_thai_ho_so = '4') AS can_bo_sung,
+           COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND trang_thai_ho_so = '7') AS khong_dat,
+           COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND trang_thai_ho_so = '6') AS hoan_thanh,
+           COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND ngay_hen_tra IS NOT NULL AND resolved_at <= ngay_hen_tra) AS dung_han,
+           COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND (ngay_hen_tra IS NULL OR resolved_at > ngay_hen_tra)) AS qua_han,
+           ROUND(
+             AVG(EXTRACT(EPOCH FROM (resolved_at - ngay_tiep_nhan)) / 86400.0) FILTER (
+               WHERE resolved_at >= $2 AND resolved_at <= $3
+             )
+           )::int AS tg_tb
+         FROM (
+           SELECT
+             cv_phoi_hop_name,
+             trang_thai_ho_so,
+             ngay_tiep_nhan,
+             ngay_hen_tra,
+             COALESCE(ngay_tra_ket_qua, ngay_hen_tra, ngay_tiep_nhan) AS resolved_at
+           FROM latest_tcc_roles
+           WHERE NULLIF(TRIM(cv_phoi_hop_name), '') IS NOT NULL
+             AND trang_thai_ho_so IN ('4', '6', '7')
+         ) roles
+         GROUP BY REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
+       ),
        pending_dossiers AS (
          SELECT DISTINCT ON (ma_ho_so)
            ma_ho_so,
@@ -388,27 +415,38 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
          SELECT cv_name, treo
          FROM mv_stats_treo_by_cv
          WHERE thu_tuc = $1
+       ),
+       all_cv_names AS (
+         SELECT cv_name FROM stats
+         UNION
+         SELECT cv_name FROM pending_stats
+         UNION
+         SELECT cv_name FROM resolved_lookup_stats
        )
        SELECT
-         COALESCE(s.cv_name, p.cv_name) AS cv_name,
+         n.cv_name,
          COALESCE(s.ton_truoc, 0) AS ton_truoc,
          COALESCE(s.da_nhan, 0) AS da_nhan,
-         COALESCE(s.gq_tong, 0) AS gq_tong,
-         COALESCE(s.can_bo_sung, 0) AS can_bo_sung,
-         COALESCE(s.khong_dat, 0) AS khong_dat,
-         COALESCE(s.hoan_thanh, 0) AS hoan_thanh,
-         COALESCE(s.dung_han, 0) AS dung_han,
-         COALESCE(s.qua_han, 0) AS qua_han,
-         s.tg_tb,
+         COALESCE(r.gq_tong, s.gq_tong, 0) AS gq_tong,
+         COALESCE(r.can_bo_sung, s.can_bo_sung, 0) AS can_bo_sung,
+         COALESCE(r.khong_dat, s.khong_dat, 0) AS khong_dat,
+         COALESCE(r.hoan_thanh, s.hoan_thanh, 0) AS hoan_thanh,
+         COALESCE(r.dung_han, s.dung_han, 0) AS dung_han,
+         COALESCE(r.qua_han, s.qua_han, 0) AS qua_han,
+         COALESCE(r.tg_tb, s.tg_tb) AS tg_tb,
          COALESCE(p.ton_sau_tong, 0) AS ton_sau_tong,
          COALESCE(p.ton_sau_con_han, 0) AS ton_sau_con_han,
          COALESCE(p.ton_sau_qua_han, 0) AS ton_sau_qua_han,
          COALESCE(t.treo, 0) AS treo
-       FROM stats s
-       FULL OUTER JOIN pending_stats p
-         ON s.cv_name = p.cv_name
+       FROM all_cv_names n
+       LEFT JOIN stats s
+         ON n.cv_name = s.cv_name
+       LEFT JOIN pending_stats p
+         ON n.cv_name = p.cv_name
+       LEFT JOIN resolved_lookup_stats r
+         ON n.cv_name = r.cv_name
        LEFT JOIN treo_by_cv t
-         ON COALESCE(s.cv_name, p.cv_name) = t.cv_name`,
+         ON n.cv_name = t.cv_name`,
       [thuTuc, fromDt, toDt]
     );
 
