@@ -60,6 +60,7 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            (data->>'thuTucId')::int AS thu_tuc,
            data->>'maHoSo' AS ma_ho_so,
            NULLIF(TRIM(data->>'trangThaiHoSo'), '') AS trang_thai_ho_so,
+           NULLIF(TRIM(data->>'chuyenVienThuLyName'), '') AS cv_thu_ly_name,
            NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name,
            CASE
              WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz
@@ -119,6 +120,17 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
           AND d.ma_ho_so = t.ma_ho_so
          WHERE NULLIF(TRIM(t.cv_phoi_hop_name), '') IS NOT NULL
        ),
+       appraisal_snapshot AS (
+         SELECT
+           REGEXP_REPLACE(TRIM(t.cv_thu_ly_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i') AS cv_name,
+           t.ma_ho_so,
+           t.ngay_tiep_nhan AS ngay_nhan,
+           t.ngay_hen_tra AS kq_hen_tra
+         FROM latest_tcc_roles t
+         WHERE NULLIF(TRIM(t.cv_thu_ly_name), '') IS NOT NULL
+           AND NULLIF(TRIM(t.cv_phoi_hop_name), '') IS NULL
+           AND COALESCE(t.trang_thai_ho_so, '') NOT IN ('6', '7')
+       ),
        stats AS (
          SELECT
            cv_name,
@@ -143,6 +155,35 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            )::int AS tg_tb
          FROM coordinator_snapshot
          GROUP BY cv_name
+         UNION ALL
+         SELECT
+           cv_name,
+           COUNT(*) FILTER (WHERE ngay_nhan < $2) AS ton_truoc,
+           COUNT(*) FILTER (WHERE ngay_nhan >= $2 AND ngay_nhan <= $3) AS da_nhan,
+           0::bigint AS gq_tong,
+           0::bigint AS can_bo_sung,
+           0::bigint AS khong_dat,
+           0::bigint AS hoan_thanh,
+           0::bigint AS dung_han,
+           0::bigint AS qua_han,
+           NULL::int AS tg_tb
+         FROM appraisal_snapshot
+         GROUP BY cv_name
+       ),
+       stats_by_cv AS (
+         SELECT
+           cv_name,
+           SUM(ton_truoc) AS ton_truoc,
+           SUM(da_nhan) AS da_nhan,
+           SUM(gq_tong) AS gq_tong,
+           SUM(can_bo_sung) AS can_bo_sung,
+           SUM(khong_dat) AS khong_dat,
+           SUM(hoan_thanh) AS hoan_thanh,
+           SUM(dung_han) AS dung_han,
+           SUM(qua_han) AS qua_han,
+           MAX(tg_tb) AS tg_tb
+         FROM stats
+         GROUP BY cv_name
        ),
        pending_stats AS (
          SELECT
@@ -152,6 +193,24 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND trang_thai_ho_so IN ('2', '210', '220') AND (kq_hen_tra IS NULL OR kq_hen_tra <= CURRENT_DATE)) AS ton_sau_qua_han
          FROM coordinator_snapshot
          GROUP BY cv_name
+         UNION ALL
+         SELECT
+           cv_name,
+           COUNT(*) AS ton_sau_tong,
+           COUNT(*) FILTER (WHERE kq_hen_tra IS NOT NULL AND kq_hen_tra > CURRENT_DATE) AS ton_sau_con_han,
+           COUNT(*) FILTER (WHERE kq_hen_tra IS NULL OR kq_hen_tra <= CURRENT_DATE) AS ton_sau_qua_han
+         FROM appraisal_snapshot
+         WHERE ngay_nhan <= $3
+         GROUP BY cv_name
+       ),
+       pending_by_cv AS (
+         SELECT
+           cv_name,
+           SUM(ton_sau_tong) AS ton_sau_tong,
+           SUM(ton_sau_con_han) AS ton_sau_con_han,
+           SUM(ton_sau_qua_han) AS ton_sau_qua_han
+         FROM pending_stats
+         GROUP BY cv_name
        ),
        treo_by_cv AS (
          SELECT cv_name, treo
@@ -159,9 +218,9 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
          WHERE thu_tuc = $1
        ),
        all_cv_names AS (
-         SELECT cv_name FROM stats
+         SELECT cv_name FROM stats_by_cv
          UNION
-         SELECT cv_name FROM pending_stats
+         SELECT cv_name FROM pending_by_cv
        )
        SELECT
          n.cv_name,
@@ -179,9 +238,9 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
          COALESCE(p.ton_sau_qua_han, 0) AS ton_sau_qua_han,
          COALESCE(t.treo, 0) AS treo
        FROM all_cv_names n
-       LEFT JOIN stats s
+       LEFT JOIN stats_by_cv s
          ON n.cv_name = s.cv_name
-       LEFT JOIN pending_stats p
+       LEFT JOIN pending_by_cv p
          ON n.cv_name = p.cv_name
        LEFT JOIN treo_by_cv t
          ON n.cv_name = t.cv_name`,
