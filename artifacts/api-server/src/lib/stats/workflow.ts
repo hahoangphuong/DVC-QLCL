@@ -35,10 +35,6 @@ function normalizeLookupExpertText(value: string | null | undefined): string | n
   return trimmed.replace(/^CG\s*:\s*/i, "").trim() || null;
 }
 
-function sqlNormalizeCoordinatorName(expr: string): string {
-  return `NULLIF(BTRIM(REPLACE(REGEXP_REPLACE(TRIM(${expr}), '^CV\\\\s*(phối hợp|thụ lý)\\\\s*:\\\\s*', '', 'i'), CHR(160), ' ')), '')`;
-}
-
 export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDate: string) {
   const { fromDt, toDt } = toDateRange(fromDate, toDate);
   if (thuTuc === 46 || thuTuc === 47) {
@@ -112,7 +108,10 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
        tt47_46_case_facts_raw AS (
          SELECT
            cf.ma_ho_so,
-           ${sqlNormalizeCoordinatorName("roles.cv_phoi_hop_name")} AS cv_name,
+           CASE
+             WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+             ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
+           END AS cv_name,
            cf.ngay_nhan,
            cf.nhan_hen_tra,
            cf.ngay_tra,
@@ -164,7 +163,10 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
          SELECT
            CASE
              WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN '__CHUA_PHAN__'
-             WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN ${sqlNormalizeCoordinatorName("roles.cv_phoi_hop_name")}
+             WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN CASE
+               WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+               ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
+             END
              WHEN don_vi = 'Chuy\u00ean vi\u00ean'
                AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
              THEN COALESCE(
@@ -197,7 +199,7 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
        ),
        capa_base AS (
          SELECT
-           ${sqlNormalizeCoordinatorName("roles.cv_phoi_hop_name")} AS cv_name,
+           REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i') AS cv_name,
            roles.ma_ho_so,
            CASE
              WHEN cf.nhan_hen_tra IS NOT NULL THEN (CURRENT_DATE - ((cf.nhan_hen_tra AT TIME ZONE 'Asia/Ho_Chi_Minh')::date))::int
@@ -240,7 +242,7 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
        ),
        resolved_lookup_stats AS (
          SELECT
-           ${sqlNormalizeCoordinatorName("roles.cv_phoi_hop_name")} AS cv_name,
+           REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i') AS cv_name,
            COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3) AS gq_tong,
            COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND trang_thai_ho_so = '4') AS can_bo_sung,
            COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND trang_thai_ho_so = '7') AS khong_dat,
@@ -263,7 +265,7 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            WHERE NULLIF(TRIM(cv_phoi_hop_name), '') IS NOT NULL
              AND trang_thai_ho_so IN ('4', '6', '7')
          ) roles
-         GROUP BY ${sqlNormalizeCoordinatorName("roles.cv_phoi_hop_name")}
+         GROUP BY REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
        ),
        pending_dossiers AS (
          SELECT DISTINCT ON (ma_ho_so)
