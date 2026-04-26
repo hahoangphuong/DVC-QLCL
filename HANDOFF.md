@@ -488,6 +488,7 @@ These rules should be treated as mandatory.
 ### Required rules
 
 - Always preserve files as `UTF-8` without BOM.
+- Repo default is now enforced in [`D:\DVC-QLCL\.editorconfig`](/D:/DVC-QLCL/.editorconfig). New and edited code files must stay `UTF-8`.
 - Prefer minimal diffs. Do not rewrite a whole file when only one component or block needs to change.
 - Avoid bulk PowerShell replacements on Vietnamese-heavy files unless there is no safer option.
 - Do not use PowerShell line-array rewrite flows such as `Get-Content` -> mutate array -> `WriteAllLines` on TSX/JSX files; this has repeatedly introduced mojibake into Vietnamese UI text.
@@ -539,6 +540,7 @@ If a scripted write is unavoidable:
 - read with UTF-8
 - write with UTF-8 **without BOM**
 - immediately re-check the diff to ensure no BOM or mojibake was introduced
+- if a touched code file is not UTF-8, normalize it in the same patch instead of leaving mixed encodings in the tree
 
 ### Recovery procedure
 
