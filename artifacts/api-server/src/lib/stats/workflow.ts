@@ -82,16 +82,38 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
            NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
        ),
+       latest_da_xu_ly AS (
+         SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
+           (data->>'thuTucId')::int AS thu_tuc,
+           data->>'maHoSo' AS ma_ho_so,
+           CASE
+             WHEN NULLIF(data->>'ngayTraKetQua', '') IS NOT NULL THEN (data->>'ngayTraKetQua')::timestamptz
+             ELSE NULL
+           END AS ngay_tra_ket_qua
+         FROM da_xu_ly
+         WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
+           AND NULLIF(data->>'maHoSo', '') IS NOT NULL
+           AND (data->>'thuTucId')::int = $1
+         ORDER BY
+           (data->>'thuTucId')::int,
+           data->>'maHoSo',
+           CASE WHEN NULLIF(data->>'ngayTraKetQua', '') IS NOT NULL THEN (data->>'ngayTraKetQua')::timestamptz END DESC NULLS LAST,
+           CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
+           NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
+       ),
        coordinator_snapshot AS (
          SELECT
-           REGEXP_REPLACE(TRIM(cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i') AS cv_name,
-           ma_ho_so,
-           ngay_tiep_nhan AS ngay_nhan,
-           ngay_hen_tra AS kq_hen_tra,
-           COALESCE(ngay_tra_ket_qua, ngay_hen_tra, ngay_tiep_nhan) AS resolved_at,
-           trang_thai_ho_so
-         FROM latest_tcc_roles
-         WHERE NULLIF(TRIM(cv_phoi_hop_name), '') IS NOT NULL
+           REGEXP_REPLACE(TRIM(t.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i') AS cv_name,
+           t.ma_ho_so,
+           t.ngay_tiep_nhan AS ngay_nhan,
+           t.ngay_hen_tra AS kq_hen_tra,
+           COALESCE(d.ngay_tra_ket_qua, t.ngay_hen_tra) AS resolved_at,
+           t.trang_thai_ho_so
+         FROM latest_tcc_roles t
+         LEFT JOIN latest_da_xu_ly d
+           ON d.thu_tuc = t.thu_tuc
+          AND d.ma_ho_so = t.ma_ho_so
+         WHERE NULLIF(TRIM(t.cv_phoi_hop_name), '') IS NOT NULL
        ),
        stats AS (
          SELECT
