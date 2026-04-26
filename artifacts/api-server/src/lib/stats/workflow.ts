@@ -56,6 +56,7 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
     }>(
       `WITH
        ${buildCaseFactsCte("$1")},
+       ${buildWorkflowCasesCte("$1")},
        latest_dang_xu_ly AS (
          SELECT DISTINCT ON (thu_tuc, ma_ho_so)
            thu_tuc,
