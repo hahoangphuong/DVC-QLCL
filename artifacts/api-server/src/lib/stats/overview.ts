@@ -25,7 +25,6 @@ export async function getEarliestDate(thuTuc: number): Promise<string | null> {
        FROM tra_cuu_chung
        WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
          AND (data->>'thuTucId')::int = $1
-         AND NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') IS NOT NULL
          AND NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL`,
       [thuTuc]
     );
