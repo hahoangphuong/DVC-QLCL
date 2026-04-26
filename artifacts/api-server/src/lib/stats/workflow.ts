@@ -118,7 +118,13 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
        stats AS (
          SELECT
            cv_name,
-           COUNT(*) FILTER (WHERE ngay_nhan < $2 AND ngay_nhan <= $3) AS ton_truoc,
+           COUNT(*) FILTER (
+             WHERE ngay_nhan < $2
+               AND (
+                 trang_thai_ho_so IN ('2', '210', '220')
+                 OR (trang_thai_ho_so IN ('6', '7') AND resolved_at >= $2)
+               )
+           ) AS ton_truoc,
            COUNT(*) FILTER (WHERE ngay_nhan >= $2 AND ngay_nhan <= $3) AS da_nhan,
            COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND trang_thai_ho_so IN ('6', '7')) AS gq_tong,
            0::bigint AS can_bo_sung,
