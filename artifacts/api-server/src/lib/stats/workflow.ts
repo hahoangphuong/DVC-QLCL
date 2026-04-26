@@ -108,25 +108,10 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
        tt47_46_case_facts_raw AS (
          SELECT
            cf.ma_ho_so,
-           COALESCE(
-             CASE
-               WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
-               ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
-             END,
-             NULLIF(TRIM(d.data->>'nguoiXuLy'), ''),
-             NULLIF(TRIM(d.data->>'chuyenVienPhoiHopName'), ''),
-             CASE
-               WHEN dx.don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh'
-               THEN COALESCE(
-                 dx.nguoi_xu_ly,
-                 CASE
-                   WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
-                   ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
-                 END
-               )
-               ELSE NULL
-             END
-           ) AS cv_name,
+           CASE
+             WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+             ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
+           END AS cv_name,
            cf.ngay_nhan,
            cf.nhan_hen_tra,
            cf.ngay_tra,
@@ -178,14 +163,10 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
          SELECT
            CASE
              WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN '__CHUA_PHAN__'
-             WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN COALESCE(
-               NULLIF(TRIM(nguoi_xu_ly), ''),
-               CASE
-                 WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
-                 ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
-               END,
-               NULLIF(TRIM(cv_name), '')
-             )
+             WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN CASE
+               WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+               ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
+             END
              WHEN don_vi = 'Chuy\u00ean vi\u00ean'
                AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
              THEN COALESCE(
