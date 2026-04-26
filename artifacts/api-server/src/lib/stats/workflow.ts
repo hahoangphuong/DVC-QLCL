@@ -72,6 +72,7 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            data->>'maHoSo' AS ma_ho_so,
            NULLIF(TRIM(data->>'id'), '') AS tcc_id,
            NULLIF(TRIM(data->>'hoSoXuLyId_Active'), '') AS ho_so_xu_ly_id,
+           NULLIF(TRIM(data->>'trangThaiHoSo'), '') AS trang_thai_ho_so,
            NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name
          FROM tra_cuu_chung
          WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
@@ -82,23 +83,24 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
            NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
        ),
-       tt47_46_case_facts AS (
+       tt47_46_case_facts_raw AS (
          SELECT
+           cf.ma_ho_so,
            COALESCE(
              CASE
                WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
-               ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i')
+               ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
              END,
              NULLIF(TRIM(d.data->>'nguoiXuLy'), ''),
              NULLIF(TRIM(d.data->>'chuyenVienPhoiHopName'), ''),
              NULLIF(TRIM(d.data->>'chuyenVienXuLyName'), ''),
              CASE
-               WHEN dx.don_vi = 'Chuyên viên phối hợp thẩm định'
+               WHEN dx.don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh'
                THEN COALESCE(
                  dx.nguoi_xu_ly,
                  CASE
                    WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
-                   ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i')
+                   ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
                  END
                )
                WHEN dx.don_vi = 'Chuy\u00ean vi\u00ean'
@@ -112,7 +114,9 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            cf.nhan_hen_tra,
            cf.ngay_tra,
            cf.kq_hen_tra,
-           cf.trang_thai
+           cf.trang_thai,
+           cf.is_active,
+           roles.trang_thai_ho_so
          FROM case_facts cf
          LEFT JOIN da_xu_ly d
            ON d.thu_tuc = $1
@@ -126,23 +130,70 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
           AND (roles.tcc_id = cf.tcc_id OR roles.ma_ho_so = cf.ma_ho_so)
          WHERE is_active OR da_xu_ly_id IS NOT NULL
        ),
+       tt47_46_case_facts AS (
+         SELECT
+           ma_ho_so,
+           MAX(cv_name) AS cv_name,
+           MIN(ngay_nhan) AS ngay_nhan,
+           MAX(nhan_hen_tra) AS nhan_hen_tra,
+           MAX(ngay_tra) AS ngay_tra,
+           MAX(kq_hen_tra) AS kq_hen_tra,
+           MAX(CASE WHEN trang_thai = '4' THEN 1 ELSE 0 END) AS has_can_bo_sung,
+           MAX(CASE WHEN trang_thai = '7' THEN 1 ELSE 0 END) AS has_khong_dat,
+           MAX(CASE WHEN trang_thai = '6' THEN 1 ELSE 0 END) AS has_hoan_thanh,
+           MAX(CASE WHEN is_active THEN 1 ELSE 0 END) AS is_active,
+           MAX(CASE WHEN trang_thai_ho_so = 'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i' THEN 1 ELSE 0 END) AS is_cho_capa
+         FROM tt47_46_case_facts_raw
+         WHERE cv_name IS NOT NULL
+         GROUP BY ma_ho_so
+       ),
        stats AS (
          SELECT
            cv_name,
-           COUNT(*) FILTER (WHERE ngay_nhan < $2 AND (ngay_tra IS NULL OR ngay_tra >= $2)) AS ton_truoc,
+           COUNT(*) FILTER (
+             WHERE ngay_nhan < $2
+               AND is_cho_capa = 0
+               AND (ngay_tra IS NULL OR ngay_tra >= $2)
+           ) AS ton_truoc,
            COUNT(*) FILTER (WHERE ngay_nhan >= $2 AND ngay_nhan <= $3) AS da_nhan,
-           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3) AS gq_tong,
-           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND trang_thai = '4') AS can_bo_sung,
-           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND trang_thai = '7') AS khong_dat,
-           COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND trang_thai = '6') AS hoan_thanh,
+           COUNT(*) FILTER (
+             WHERE (ngay_tra >= $2 AND ngay_tra <= $3)
+                OR is_cho_capa = 1
+           ) AS gq_tong,
+           COUNT(*) FILTER (
+             WHERE ((ngay_tra >= $2 AND ngay_tra <= $3) OR is_cho_capa = 1)
+               AND (has_can_bo_sung = 1 OR is_cho_capa = 1)
+           ) AS can_bo_sung,
+           COUNT(*) FILTER (
+             WHERE (ngay_tra >= $2 AND ngay_tra <= $3)
+               AND has_khong_dat = 1
+           ) AS khong_dat,
+           COUNT(*) FILTER (
+             WHERE (ngay_tra >= $2 AND ngay_tra <= $3)
+               AND has_hoan_thanh = 1
+           ) AS hoan_thanh,
            COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND kq_hen_tra IS NOT NULL AND ngay_tra <= kq_hen_tra) AS dung_han,
            COUNT(*) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3 AND (kq_hen_tra IS NULL OR ngay_tra > kq_hen_tra)) AS qua_han,
            ROUND(AVG(EXTRACT(EPOCH FROM (ngay_tra - ngay_nhan)) / 86400.0) FILTER (WHERE ngay_tra >= $2 AND ngay_tra <= $3))::int AS tg_tb,
-           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3)) AS ton_sau_tong,
-           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3) AND nhan_hen_tra IS NOT NULL AND nhan_hen_tra > $3) AS ton_sau_con_han,
-           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (ngay_tra IS NULL OR ngay_tra > $3) AND (nhan_hen_tra IS NULL OR nhan_hen_tra <= $3)) AS ton_sau_qua_han
+           COUNT(*) FILTER (
+             WHERE ngay_nhan <= $3
+               AND is_cho_capa = 0
+               AND (ngay_tra IS NULL OR ngay_tra > $3)
+           ) AS ton_sau_tong,
+           COUNT(*) FILTER (
+             WHERE ngay_nhan <= $3
+               AND is_cho_capa = 0
+               AND (ngay_tra IS NULL OR ngay_tra > $3)
+               AND nhan_hen_tra IS NOT NULL
+               AND nhan_hen_tra > $3
+           ) AS ton_sau_con_han,
+           COUNT(*) FILTER (
+             WHERE ngay_nhan <= $3
+               AND is_cho_capa = 0
+               AND (ngay_tra IS NULL OR ngay_tra > $3)
+               AND (nhan_hen_tra IS NULL OR nhan_hen_tra <= $3)
+           ) AS ton_sau_qua_han
          FROM tt47_46_case_facts
-         WHERE cv_name IS NOT NULL
          GROUP BY cv_name
        ),
        treo_by_cv AS (
