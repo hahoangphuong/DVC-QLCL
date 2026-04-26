@@ -57,6 +57,7 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
       `WITH
        latest_tcc_roles AS (
          SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
+           (data->>'thuTucId')::int AS thu_tuc,
            data->>'maHoSo' AS ma_ho_so,
            NULLIF(TRIM(data->>'trangThaiHoSo'), '') AS trang_thai_ho_so,
            NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name,
@@ -76,6 +77,7 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
          WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
            AND (data->>'thuTucId')::int = $1
          ORDER BY
+           (data->>'thuTucId')::int,
            data->>'maHoSo',
            CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
            NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
