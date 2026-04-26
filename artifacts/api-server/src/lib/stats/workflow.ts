@@ -55,27 +55,11 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
       treo: string;
     }>(
       `WITH
-       ${buildCaseFactsCte("$1")},
-       ${buildWorkflowCasesCte("$1")},
-       latest_dang_xu_ly AS (
-         SELECT DISTINCT ON (thu_tuc, ma_ho_so)
-           thu_tuc,
-           ma_ho_so,
-           don_vi,
-           NULLIF(TRIM(nguoi_xu_ly), '') AS nguoi_xu_ly
-         FROM mv_stats_workflow_cases
-         WHERE thu_tuc = $1
-         ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
-       ),
        latest_tcc_roles AS (
          SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
-           (data->>'thuTucId')::int AS thu_tuc,
            data->>'maHoSo' AS ma_ho_so,
-           NULLIF(TRIM(data->>'id'), '') AS tcc_id,
-           NULLIF(TRIM(data->>'hoSoXuLyId_Active'), '') AS ho_so_xu_ly_id,
            NULLIF(TRIM(data->>'trangThaiHoSo'), '') AS trang_thai_ho_so,
            NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name,
-           NULLIF(TRIM(data->>'chuyenVienThuLyName'), '') AS cv_thu_ly_name,
            CASE
              WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz
              ELSE NULL
@@ -92,323 +76,47 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
          WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
            AND (data->>'thuTucId')::int = $1
          ORDER BY
-           (data->>'thuTucId')::int,
            data->>'maHoSo',
            CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
            NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
        ),
-       latest_case_facts AS (
-         SELECT DISTINCT ON (ma_ho_so)
+       coordinator_snapshot AS (
+         SELECT
+           REGEXP_REPLACE(TRIM(cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i') AS cv_name,
            ma_ho_so,
-           nhan_hen_tra,
-           ngay_nhan
-         FROM case_facts
-         ORDER BY ma_ho_so, ngay_nhan DESC NULLS LAST
-       ),
-       tt47_46_case_facts_raw AS (
-         SELECT
-           cf.ma_ho_so,
-           CASE
-             WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
-             ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
-           END AS cv_name,
-           cf.ngay_nhan,
-           cf.nhan_hen_tra,
-           cf.ngay_tra,
-           cf.kq_hen_tra,
-           cf.trang_thai,
-           cf.is_active,
-           roles.trang_thai_ho_so
-         FROM case_facts cf
-         LEFT JOIN da_xu_ly d
-           ON d.thu_tuc = $1
-          AND cf.da_xu_ly_id IS NOT NULL
-          AND d.data->>'id' = cf.da_xu_ly_id
-         LEFT JOIN latest_dang_xu_ly dx
-           ON dx.thu_tuc = $1
-          AND dx.ma_ho_so = cf.ma_ho_so
-         LEFT JOIN latest_tcc_roles roles
-           ON roles.thu_tuc = $1
-          AND (roles.tcc_id = cf.tcc_id OR roles.ma_ho_so = cf.ma_ho_so)
-         WHERE is_active OR da_xu_ly_id IS NOT NULL
-       ),
-       tt47_46_case_facts AS (
-         SELECT
-           ma_ho_so,
-           MAX(cv_name) AS cv_name,
-           MIN(ngay_nhan) AS ngay_nhan,
-           MAX(nhan_hen_tra) AS nhan_hen_tra,
-           MAX(ngay_tra) AS ngay_tra,
-           MAX(kq_hen_tra) AS kq_hen_tra,
-           MAX(CASE WHEN trang_thai = '4' OR trang_thai_ho_so = '4' THEN 1 ELSE 0 END) AS has_can_bo_sung,
-           MAX(CASE WHEN trang_thai = '7' OR trang_thai_ho_so = '7' THEN 1 ELSE 0 END) AS has_khong_dat,
-           MAX(CASE WHEN trang_thai = '6' OR trang_thai_ho_so = '6' THEN 1 ELSE 0 END) AS has_hoan_thanh,
-           MAX(CASE WHEN is_active THEN 1 ELSE 0 END) AS is_active,
-           MAX(
-             CASE
-               WHEN trang_thai_ho_so IN (
-                 '210',
-                 '220',
-                 'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i',
-                 'H\u1ed3 s\u01a1 \u0111\u00e3 n\u1ed9p b\u00e1o c\u00e1o kh\u1eafc ph\u1ee5c'
-               ) THEN 1
-               ELSE 0
-             END
-           ) AS is_cho_capa
-         FROM tt47_46_case_facts_raw
-         WHERE cv_name IS NOT NULL
-         GROUP BY ma_ho_so
-       ),
-       workflow_base AS (
-         SELECT
-           CASE
-             WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN '__CHUA_PHAN__'
-             WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN CASE
-               WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
-               ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
-             END
-             WHEN don_vi = 'Chuy\u00ean vi\u00ean'
-               AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
-             THEN COALESCE(
-               CASE
-                 WHEN NULLIF(TRIM(roles.cv_thu_ly_name), '') IS NULL THEN NULL
-                 ELSE REGEXP_REPLACE(TRIM(roles.cv_thu_ly_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
-               END,
-               NULLIF(TRIM(cv_name), '')
-             )
-             ELSE cv_name
-           END AS cv_name,
-           workflow_cases.ma_ho_so,
-           qua_han_ngay,
-           ngay_nhan,
-           roles.trang_thai_ho_so,
-           NULLIF(TRIM(roles.cv_phoi_hop_name), '') AS cv_phoi_hop_name_raw,
-           CASE
-             WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN 'cho_phan_cong'
-             WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN 'dang_xu_ly'
-             WHEN don_vi = 'Chuy\u00ean vi\u00ean'
-               AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
-             THEN 'dang_tham_dinh'
-             ELSE NULL
-           END AS buoc_tt47_46
-         FROM workflow_cases
-         LEFT JOIN latest_tcc_roles roles
-           ON roles.thu_tuc = $1
-          AND roles.ma_ho_so = workflow_cases.ma_ho_so
-         WHERE don_vi IN ('Ph\u00f2ng ban ph\u00e2n c\u00f4ng', 'Chuy\u00ean vi\u00ean', 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh')
-       ),
-       capa_base AS (
-         SELECT
-           REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i') AS cv_name,
-           roles.ma_ho_so,
-           CASE
-             WHEN cf.nhan_hen_tra IS NOT NULL THEN (CURRENT_DATE - ((cf.nhan_hen_tra AT TIME ZONE 'Asia/Ho_Chi_Minh')::date))::int
-             ELSE 0
-           END AS qua_han_ngay,
-           COALESCE(cf.ngay_nhan, roles.ngay_tiep_nhan) AS ngay_nhan,
-           CASE
-             WHEN roles.trang_thai_ho_so = '210' THEN 'cho_nop_capa'
-             WHEN roles.trang_thai_ho_so = '220' THEN 'cho_danh_gia_capa'
-             ELSE NULL
-           END AS buoc_tt47_46
-         FROM latest_tcc_roles roles
-         LEFT JOIN latest_case_facts cf
-           ON cf.ma_ho_so = roles.ma_ho_so
-         WHERE NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
-           AND roles.trang_thai_ho_so IN ('220', '210')
-       ),
-       pending_base AS (
-         SELECT cv_name, ma_ho_so, qua_han_ngay, ngay_nhan, buoc_tt47_46
-         FROM workflow_base
-         WHERE NOT (
-           cv_phoi_hop_name_raw IS NOT NULL
-           AND trang_thai_ho_so IN ('220', '210')
-         )
-         UNION ALL
-         SELECT cv_name, ma_ho_so, qua_han_ngay, ngay_nhan, buoc_tt47_46
-         FROM capa_base
-       ),
-       pending_stats AS (
-         SELECT
-           cv_name,
-           COUNT(*) FILTER (WHERE buoc_tt47_46 IN ('dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa')) AS ton_sau_tong,
-           COUNT(*) FILTER (WHERE buoc_tt47_46 IN ('dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa') AND qua_han_ngay <= 0) AS ton_sau_con_han,
-           COUNT(*) FILTER (WHERE buoc_tt47_46 IN ('dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa') AND qua_han_ngay > 0) AS ton_sau_qua_han
-         FROM pending_base
-         WHERE buoc_tt47_46 IS NOT NULL
-           AND cv_name IS NOT NULL
-           AND cv_name <> '__CHUA_PHAN__'
-         GROUP BY cv_name
-       ),
-       resolved_lookup_stats AS (
-         SELECT
-           REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i') AS cv_name,
-           COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3) AS gq_tong,
-           COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND trang_thai_ho_so = '4') AS can_bo_sung,
-           COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND trang_thai_ho_so = '7') AS khong_dat,
-           COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND trang_thai_ho_so = '6') AS hoan_thanh,
-           COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND ngay_hen_tra IS NOT NULL AND resolved_at <= ngay_hen_tra) AS dung_han,
-           COUNT(*) FILTER (WHERE resolved_at >= $2 AND resolved_at <= $3 AND (ngay_hen_tra IS NULL OR resolved_at > ngay_hen_tra)) AS qua_han,
-           ROUND(
-             AVG(EXTRACT(EPOCH FROM (resolved_at - ngay_tiep_nhan)) / 86400.0) FILTER (
-               WHERE resolved_at >= $2 AND resolved_at <= $3
-             )
-           )::int AS tg_tb
-         FROM (
-           SELECT
-             cv_phoi_hop_name,
-             trang_thai_ho_so,
-             ngay_tiep_nhan,
-             ngay_hen_tra,
-             COALESCE(ngay_tra_ket_qua, ngay_hen_tra, ngay_tiep_nhan) AS resolved_at
-           FROM latest_tcc_roles
-           WHERE NULLIF(TRIM(cv_phoi_hop_name), '') IS NOT NULL
-             AND trang_thai_ho_so IN ('4', '6', '7')
-         ) roles
-         GROUP BY REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
-       ),
-       pending_dossiers AS (
-         SELECT DISTINCT ON (ma_ho_so)
-           ma_ho_so,
-           cv_name,
-           ngay_nhan
-         FROM pending_base
-         WHERE buoc_tt47_46 IN ('dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa')
-           AND cv_name IS NOT NULL
-           AND cv_name <> '__CHUA_PHAN__'
-         ORDER BY ma_ho_so, ngay_nhan DESC NULLS LAST
-       ),
-       lookup_resolved_dossiers AS (
-         SELECT
-           roles.ma_ho_so,
-           REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i') AS cv_name,
-           roles.ngay_tiep_nhan AS ngay_nhan,
-           COALESCE(roles.ngay_tra_ket_qua, roles.ngay_hen_tra, roles.ngay_tiep_nhan) AS resolved_at,
-           roles.ngay_hen_tra AS kq_hen_tra,
-           CASE WHEN roles.trang_thai_ho_so = '4' THEN 1 ELSE 0 END AS has_can_bo_sung,
-           CASE WHEN roles.trang_thai_ho_so = '7' THEN 1 ELSE 0 END AS has_khong_dat,
-           CASE WHEN roles.trang_thai_ho_so = '6' THEN 1 ELSE 0 END AS has_hoan_thanh,
-           0 AS source_priority
-         FROM latest_tcc_roles roles
-         WHERE roles.trang_thai_ho_so IN ('4', '6', '7')
-           AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
-       ),
-       base_dossiers_raw AS (
-         SELECT
-           cv_name,
-           ma_ho_so,
-           ngay_nhan,
-           ngay_tra,
-           CASE
-             WHEN ngay_tra IS NOT NULL THEN ngay_tra
-             WHEN COALESCE(has_can_bo_sung, 0) = 1
-               OR COALESCE(has_khong_dat, 0) = 1
-               OR COALESCE(has_hoan_thanh, 0) = 1
-             THEN COALESCE(kq_hen_tra, nhan_hen_tra, ngay_nhan)
-             ELSE NULL
-           END AS resolved_at,
-           kq_hen_tra,
-           has_can_bo_sung,
-           has_khong_dat,
-           has_hoan_thanh,
-           1 AS source_priority
-         FROM tt47_46_case_facts
-         UNION ALL
-         SELECT
-           cv_name,
-           ma_ho_so,
-           ngay_nhan,
-           NULL::timestamptz AS ngay_tra,
-           resolved_at,
-           kq_hen_tra,
-           has_can_bo_sung,
-           has_khong_dat,
-           has_hoan_thanh,
-           source_priority
-         FROM lookup_resolved_dossiers
-       ),
-       base_dossiers AS (
-         SELECT DISTINCT ON (ma_ho_so)
-           cv_name,
-           ma_ho_so,
-           ngay_nhan,
-           ngay_tra,
-           resolved_at,
-           kq_hen_tra,
-           has_can_bo_sung,
-           has_khong_dat,
-           has_hoan_thanh
-         FROM base_dossiers_raw
-         ORDER BY
-           ma_ho_so,
-           source_priority ASC,
-           resolved_at DESC NULLS LAST,
-           ngay_nhan DESC NULLS LAST
-       ),
-       dossier_index AS (
-         SELECT
-           COALESCE(p.cv_name, b.cv_name) AS cv_name,
-           COALESCE(b.ma_ho_so, p.ma_ho_so) AS ma_ho_so,
-           COALESCE(b.ngay_nhan, p.ngay_nhan) AS ngay_nhan,
-           b.ngay_tra,
-           b.resolved_at,
-           b.kq_hen_tra,
-           b.has_can_bo_sung,
-           b.has_khong_dat,
-           b.has_hoan_thanh,
-           CASE WHEN p.ma_ho_so IS NOT NULL THEN 1 ELSE 0 END AS is_pending
-         FROM base_dossiers b
-         FULL OUTER JOIN pending_dossiers p
-           ON b.ma_ho_so = p.ma_ho_so
+           ngay_tiep_nhan AS ngay_nhan,
+           ngay_hen_tra AS kq_hen_tra,
+           COALESCE(ngay_tra_ket_qua, ngay_hen_tra, ngay_tiep_nhan) AS resolved_at,
+           trang_thai_ho_so
+         FROM latest_tcc_roles
+         WHERE NULLIF(TRIM(cv_phoi_hop_name), '') IS NOT NULL
        ),
        stats AS (
          SELECT
            cv_name,
-           COUNT(*) FILTER (
-             WHERE ngay_nhan < $2
-                AND (
-                  (ngay_tra IS NULL OR ngay_tra >= $2)
-                  OR is_pending = 1
-                )
-           ) AS ton_truoc,
+           COUNT(*) FILTER (WHERE ngay_nhan < $2 AND ngay_nhan <= $3) AS ton_truoc,
            COUNT(*) FILTER (WHERE ngay_nhan >= $2 AND ngay_nhan <= $3) AS da_nhan,
-           COUNT(*) FILTER (
-             WHERE resolved_at >= $2 AND resolved_at <= $3
-               AND is_pending = 0
-           ) AS gq_tong,
-           COUNT(*) FILTER (
-             WHERE resolved_at >= $2 AND resolved_at <= $3
-               AND is_pending = 0
-               AND has_can_bo_sung = 1
-           ) AS can_bo_sung,
-           COUNT(*) FILTER (
-             WHERE (resolved_at >= $2 AND resolved_at <= $3)
-               AND is_pending = 0
-               AND has_khong_dat = 1
-           ) AS khong_dat,
-           COUNT(*) FILTER (
-             WHERE (resolved_at >= $2 AND resolved_at <= $3)
-               AND is_pending = 0
-               AND has_hoan_thanh = 1
-           ) AS hoan_thanh,
-           COUNT(*) FILTER (
-             WHERE resolved_at >= $2 AND resolved_at <= $3
-               AND is_pending = 0
-               AND kq_hen_tra IS NOT NULL
-               AND resolved_at <= kq_hen_tra
-           ) AS dung_han,
-           COUNT(*) FILTER (
-             WHERE resolved_at >= $2 AND resolved_at <= $3
-               AND is_pending = 0
-               AND (kq_hen_tra IS NULL OR resolved_at > kq_hen_tra)
-           ) AS qua_han,
+           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND trang_thai_ho_so IN ('6', '7')) AS gq_tong,
+           0::bigint AS can_bo_sung,
+           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND trang_thai_ho_so = '7') AS khong_dat,
+           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND trang_thai_ho_so = '6') AS hoan_thanh,
+           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND trang_thai_ho_so IN ('6', '7') AND kq_hen_tra IS NOT NULL AND resolved_at <= kq_hen_tra) AS dung_han,
+           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND trang_thai_ho_so IN ('6', '7') AND (kq_hen_tra IS NULL OR resolved_at > kq_hen_tra)) AS qua_han,
            ROUND(
              AVG(EXTRACT(EPOCH FROM (resolved_at - ngay_nhan)) / 86400.0) FILTER (
-               WHERE resolved_at >= $2 AND resolved_at <= $3
-                 AND is_pending = 0
+               WHERE ngay_nhan <= $3 AND trang_thai_ho_so IN ('6', '7')
              )
            )::int AS tg_tb
-         FROM dossier_index
+         FROM coordinator_snapshot
+         GROUP BY cv_name
+       ),
+       pending_stats AS (
+         SELECT
+           cv_name,
+           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND trang_thai_ho_so IN ('2', '210', '220')) AS ton_sau_tong,
+           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND trang_thai_ho_so IN ('2', '210', '220') AND kq_hen_tra IS NOT NULL AND kq_hen_tra > CURRENT_DATE) AS ton_sau_con_han,
+           COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND trang_thai_ho_so IN ('2', '210', '220') AND (kq_hen_tra IS NULL OR kq_hen_tra <= CURRENT_DATE)) AS ton_sau_qua_han
+         FROM coordinator_snapshot
          GROUP BY cv_name
        ),
        treo_by_cv AS (
@@ -420,20 +128,18 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
          SELECT cv_name FROM stats
          UNION
          SELECT cv_name FROM pending_stats
-         UNION
-         SELECT cv_name FROM resolved_lookup_stats
        )
        SELECT
          n.cv_name,
          COALESCE(s.ton_truoc, 0) AS ton_truoc,
          COALESCE(s.da_nhan, 0) AS da_nhan,
-         COALESCE(r.gq_tong, s.gq_tong, 0) AS gq_tong,
-         COALESCE(r.can_bo_sung, s.can_bo_sung, 0) AS can_bo_sung,
-         COALESCE(r.khong_dat, s.khong_dat, 0) AS khong_dat,
-         COALESCE(r.hoan_thanh, s.hoan_thanh, 0) AS hoan_thanh,
-         COALESCE(r.dung_han, s.dung_han, 0) AS dung_han,
-         COALESCE(r.qua_han, s.qua_han, 0) AS qua_han,
-         COALESCE(r.tg_tb, s.tg_tb) AS tg_tb,
+         COALESCE(s.gq_tong, 0) AS gq_tong,
+         COALESCE(s.can_bo_sung, 0) AS can_bo_sung,
+         COALESCE(s.khong_dat, 0) AS khong_dat,
+         COALESCE(s.hoan_thanh, 0) AS hoan_thanh,
+         COALESCE(s.dung_han, 0) AS dung_han,
+         COALESCE(s.qua_han, 0) AS qua_han,
+         s.tg_tb,
          COALESCE(p.ton_sau_tong, 0) AS ton_sau_tong,
          COALESCE(p.ton_sau_con_han, 0) AS ton_sau_con_han,
          COALESCE(p.ton_sau_qua_han, 0) AS ton_sau_qua_han,
@@ -443,8 +149,6 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
          ON n.cv_name = s.cv_name
        LEFT JOIN pending_stats p
          ON n.cv_name = p.cv_name
-       LEFT JOIN resolved_lookup_stats r
-         ON n.cv_name = r.cv_name
        LEFT JOIN treo_by_cv t
          ON n.cv_name = t.cv_name`,
       [thuTuc, fromDt, toDt]
