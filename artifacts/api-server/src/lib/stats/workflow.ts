@@ -541,14 +541,23 @@ export async function getDangXuLyStats(thuTuc: number) {
          CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
          NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
      ),
-     base AS (
-       SELECT
-         CASE
-           WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN '__CHUA_PHAN__'
-           WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN COALESCE(
-             NULLIF(TRIM(nguoi_xu_ly), ''),
-             CASE
-               WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+      base AS (
+        SELECT
+          CASE
+            WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
+              AND roles.trang_thai_ho_so IN (
+                'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i',
+                'H\u1ed3 s\u01a1 \u0111\u00e3 n\u1ed9p b\u00e1o c\u00e1o kh\u1eafc ph\u1ee5c'
+              )
+            THEN CASE
+              WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+              ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
+            END
+            WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN '__CHUA_PHAN__'
+            WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN COALESCE(
+              NULLIF(TRIM(nguoi_xu_ly), ''),
+              CASE
+                WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
                ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
              END,
              NULLIF(TRIM(cv_name), '')
@@ -564,29 +573,36 @@ export async function getDangXuLyStats(thuTuc: number) {
            )
            ELSE cv_name
          END AS cv_name,
-           workflow_cases.ma_ho_so,
-           qua_han_ngay,
-           ngay_nhan,
-           CASE
-             WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN 'cho_phan_cong'
-             WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh'
-               AND roles.trang_thai_ho_so = 'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i'
-             THEN 'cho_nop_capa'
-             WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh'
-               AND roles.trang_thai_ho_so = 'H\u1ed3 s\u01a1 \u0111\u00e3 n\u1ed9p b\u00e1o c\u00e1o kh\u1eafc ph\u1ee5c'
-             THEN 'cho_danh_gia_capa'
-             WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN 'dang_xu_ly'
-             WHEN don_vi = 'Chuy\u00ean vi\u00ean'
-               AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
-             THEN 'dang_tham_dinh'
-             ELSE NULL
-           END AS buoc_tt47_46
-       FROM workflow_cases
-       LEFT JOIN latest_tcc_roles roles
-         ON roles.thu_tuc = $1
-        AND roles.ma_ho_so = workflow_cases.ma_ho_so
-       WHERE don_vi IN ('Ph\u00f2ng ban ph\u00e2n c\u00f4ng', 'Chuy\u00ean vi\u00ean', 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh')
-     ),
+          workflow_cases.ma_ho_so,
+          qua_han_ngay,
+          ngay_nhan,
+          CASE
+            WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN 'cho_phan_cong'
+            WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
+              AND roles.trang_thai_ho_so = 'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i'
+            THEN 'cho_nop_capa'
+            WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
+              AND roles.trang_thai_ho_so = 'H\u1ed3 s\u01a1 \u0111\u00e3 n\u1ed9p b\u00e1o c\u00e1o kh\u1eafc ph\u1ee5c'
+            THEN 'cho_danh_gia_capa'
+            WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN 'dang_xu_ly'
+            WHEN don_vi = 'Chuy\u00ean vi\u00ean'
+              AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
+            THEN 'dang_tham_dinh'
+            ELSE NULL
+          END AS buoc_tt47_46
+        FROM workflow_cases
+        LEFT JOIN latest_tcc_roles roles
+          ON roles.thu_tuc = $1
+         AND roles.ma_ho_so = workflow_cases.ma_ho_so
+        WHERE don_vi IN ('Ph\u00f2ng ban ph\u00e2n c\u00f4ng', 'Chuy\u00ean vi\u00ean', 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh')
+           OR (
+             NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
+             AND roles.trang_thai_ho_so IN (
+               'H\u1ed3 s\u01a1 c\u1ea7n n\u1ed9p b\u00e1o c\u00e1o thu h\u1ed3i',
+               'H\u1ed3 s\u01a1 \u0111\u00e3 n\u1ed9p b\u00e1o c\u00e1o kh\u1eafc ph\u1ee5c'
+             )
+           )
+      ),
        stats AS (
          SELECT
            cv_name,
@@ -1286,7 +1302,6 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
     })),
   };
 }
-
 
 
 
