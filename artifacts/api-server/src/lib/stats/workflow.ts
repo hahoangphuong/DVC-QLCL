@@ -156,9 +156,9 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            MAX(nhan_hen_tra) AS nhan_hen_tra,
            MAX(ngay_tra) AS ngay_tra,
            MAX(kq_hen_tra) AS kq_hen_tra,
-           MAX(CASE WHEN trang_thai = '4' THEN 1 ELSE 0 END) AS has_can_bo_sung,
-           MAX(CASE WHEN trang_thai = '7' THEN 1 ELSE 0 END) AS has_khong_dat,
-           MAX(CASE WHEN trang_thai = '6' THEN 1 ELSE 0 END) AS has_hoan_thanh,
+           MAX(CASE WHEN trang_thai = '4' OR trang_thai_ho_so = '4' THEN 1 ELSE 0 END) AS has_can_bo_sung,
+           MAX(CASE WHEN trang_thai = '7' OR trang_thai_ho_so = '7' THEN 1 ELSE 0 END) AS has_khong_dat,
+           MAX(CASE WHEN trang_thai = '6' OR trang_thai_ho_so = '6' THEN 1 ELSE 0 END) AS has_hoan_thanh,
            MAX(CASE WHEN is_active THEN 1 ELSE 0 END) AS is_active,
            MAX(
              CASE
