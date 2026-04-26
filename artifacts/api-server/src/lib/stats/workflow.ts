@@ -113,13 +113,8 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
                WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
                ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
              END,
-             CASE
-               WHEN NULLIF(TRIM(roles.cv_thu_ly_name), '') IS NULL THEN NULL
-               ELSE REGEXP_REPLACE(TRIM(roles.cv_thu_ly_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
-             END,
              NULLIF(TRIM(d.data->>'nguoiXuLy'), ''),
              NULLIF(TRIM(d.data->>'chuyenVienPhoiHopName'), ''),
-             NULLIF(TRIM(d.data->>'chuyenVienXuLyName'), ''),
              CASE
                WHEN dx.don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh'
                THEN COALESCE(
@@ -129,10 +124,6 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
                    ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
                  END
                )
-               WHEN dx.don_vi = 'Chuy\u00ean vi\u00ean'
-                 AND dx.nguoi_xu_ly IS NOT NULL
-                 AND dx.nguoi_xu_ly <> cf.cv_name_raw
-               THEN dx.nguoi_xu_ly
                ELSE NULL
              END
            ) AS cv_name,
@@ -259,9 +250,9 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
        pending_stats AS (
          SELECT
            cv_name,
-           COUNT(*) FILTER (WHERE buoc_tt47_46 IN ('dang_tham_dinh', 'dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa')) AS ton_sau_tong,
-           COUNT(*) FILTER (WHERE buoc_tt47_46 IN ('dang_tham_dinh', 'dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa') AND qua_han_ngay <= 0) AS ton_sau_con_han,
-           COUNT(*) FILTER (WHERE buoc_tt47_46 IN ('dang_tham_dinh', 'dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa') AND qua_han_ngay > 0) AS ton_sau_qua_han
+           COUNT(*) FILTER (WHERE buoc_tt47_46 IN ('dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa')) AS ton_sau_tong,
+           COUNT(*) FILTER (WHERE buoc_tt47_46 IN ('dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa') AND qua_han_ngay <= 0) AS ton_sau_con_han,
+           COUNT(*) FILTER (WHERE buoc_tt47_46 IN ('dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa') AND qua_han_ngay > 0) AS ton_sau_qua_han
          FROM pending_base
          WHERE buoc_tt47_46 IS NOT NULL
            AND cv_name IS NOT NULL
@@ -274,7 +265,7 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            cv_name,
            ngay_nhan
          FROM pending_base
-         WHERE buoc_tt47_46 IN ('dang_tham_dinh', 'dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa')
+         WHERE buoc_tt47_46 IN ('dang_xu_ly', 'cho_nop_capa', 'cho_danh_gia_capa')
            AND cv_name IS NOT NULL
            AND cv_name <> '__CHUA_PHAN__'
          ORDER BY ma_ho_so, ngay_nhan DESC NULLS LAST
@@ -282,16 +273,7 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
        lookup_fallback_dossiers AS (
          SELECT
            roles.ma_ho_so,
-           COALESCE(
-             CASE
-               WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
-               ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
-             END,
-             CASE
-               WHEN NULLIF(TRIM(roles.cv_thu_ly_name), '') IS NULL THEN NULL
-               ELSE REGEXP_REPLACE(TRIM(roles.cv_thu_ly_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
-             END
-           ) AS cv_name,
+           REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i') AS cv_name,
            roles.ngay_tiep_nhan AS ngay_nhan,
            COALESCE(roles.ngay_tra_ket_qua, roles.ngay_hen_tra, roles.ngay_tiep_nhan) AS resolved_at,
            roles.ngay_hen_tra AS kq_hen_tra,
@@ -300,10 +282,7 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            CASE WHEN roles.trang_thai_ho_so = '6' THEN 1 ELSE 0 END AS has_hoan_thanh
          FROM latest_tcc_roles roles
          WHERE roles.trang_thai_ho_so IN ('4', '6', '7')
-           AND (
-             NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
-             OR NULLIF(TRIM(roles.cv_thu_ly_name), '') IS NOT NULL
-           )
+           AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
            AND NOT EXISTS (
              SELECT 1
              FROM tt47_46_case_facts f
