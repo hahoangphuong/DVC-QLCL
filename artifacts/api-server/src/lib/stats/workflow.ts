@@ -603,8 +603,9 @@ export async function getDangXuLyStats(thuTuc: number) {
           END AS qua_han_ngay,
           COALESCE(cf.ngay_nhan, roles.ngay_tiep_nhan) AS ngay_nhan,
           CASE
-            WHEN roles.trang_thai_ho_so = '220' THEN 'cho_nop_capa'
-            ELSE 'cho_danh_gia_capa'
+            WHEN roles.trang_thai_ho_so = '210' THEN 'cho_nop_capa'
+            WHEN roles.trang_thai_ho_so = '220' THEN 'cho_danh_gia_capa'
+            ELSE NULL
           END AS buoc_tt47_46
         FROM latest_tcc_roles roles
         LEFT JOIN latest_case_facts cf
@@ -869,6 +870,7 @@ const PENDING_LOOKUP_BASE_CTE = `WITH latest_case_facts AS (
     ma_ho_so,
     loai_ho_so,
     submission_kind,
+    ngay_nhan,
     nhan_hen_tra,
     chuyen_gia_name
   FROM mv_stats_case_facts
@@ -882,7 +884,7 @@ latest_workflow_experts AS (
     REGEXP_REPLACE(TRIM(nguoi_xu_ly), '^CG\\s*:\\s*', '', 'i') AS chuyen_gia_name
   FROM mv_stats_workflow_cases
   WHERE ($1::int IS NULL OR thu_tuc = $1)
-    AND don_vi = 'Chuy\u00ean gia th\u1ea9m \u0111\u1ecbnh'
+    AND don_vi = 'Chuyên gia thẩm định'
     AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
   ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
 ),
@@ -890,6 +892,11 @@ latest_tcc_roles AS (
   SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
     (data->>'thuTucId')::int AS thu_tuc,
     data->>'maHoSo' AS ma_ho_so,
+    CASE
+      WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz
+      ELSE NULL
+    END AS ngay_tiep_nhan,
+    NULLIF(TRIM(data->>'trangThaiHoSo'), '') AS trang_thai_ho_so,
     NULLIF(TRIM(data->>'chuyenVienThuLyName'), '') AS cv_thu_ly_name,
     NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name
   FROM tra_cuu_chung
@@ -901,7 +908,7 @@ latest_tcc_roles AS (
     CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
     NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
 ),
-workflow_base AS (
+workflow_rows AS (
   SELECT
     w.thu_tuc,
     w.ma_ho_so,
@@ -910,48 +917,48 @@ workflow_base AS (
     cf.loai_ho_so,
     cf.submission_kind,
     CASE
-      WHEN w.don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN 'cho_phan_cong'
-      WHEN w.thu_tuc IN (46, 47) AND w.don_vi IN ('Chuy\u00ean vi\u00ean', 'Chuyên viên phối hợp thẩm định') THEN 'cho_chuyen_vien'
+      WHEN w.don_vi = 'Phòng ban phân công' THEN 'cho_phan_cong'
+      WHEN w.thu_tuc IN (46, 47) AND w.don_vi IN ('Chuyên viên', 'Chuyên viên phối hợp thẩm định') THEN 'cho_chuyen_vien'
       WHEN w.thu_tuc = 48 AND w.buoc = 'chua_xu_ly' THEN 'chua_xu_ly'
       WHEN w.thu_tuc = 48 AND w.buoc = 'bi_tra_lai' THEN 'bi_tra_lai'
       WHEN w.thu_tuc = 48 AND w.buoc = 'cho_tong_hop' THEN 'cho_tong_hop'
-      WHEN w.don_vi = 'Chuy\u00ean gia th\u1ea9m \u0111\u1ecbnh' THEN 'cho_chuyen_gia'
-      WHEN w.don_vi = 'T\u1ed5 tr\u01b0\u1edfng chuy\u00ean gia' THEN 'cho_to_truong'
-      WHEN w.don_vi = 'Tr\u01b0\u1edfng ph\u00f2ng' THEN 'cho_truong_phong'
-      WHEN w.don_vi LIKE 'V\u0103n th\u01b0%' THEN 'cho_van_thu'
-      WHEN w.buoc = 'cho_ket_thuc' OR w.don_vi = 'Ph\u00f3 C\u1ee5c tr\u01b0\u1edfng' THEN 'cho_cong_bo'
+      WHEN w.don_vi = 'Chuyên gia thẩm định' THEN 'cho_chuyen_gia'
+      WHEN w.don_vi = 'Tổ trưởng chuyên gia' THEN 'cho_to_truong'
+      WHEN w.don_vi = 'Trưởng phòng' THEN 'cho_truong_phong'
+      WHEN w.don_vi LIKE 'Văn thư%' THEN 'cho_van_thu'
+      WHEN w.buoc = 'cho_ket_thuc' OR w.don_vi = 'Phó Cục trưởng' THEN 'cho_cong_bo'
       WHEN w.buoc IN ('chua_xu_ly', 'bi_tra_lai', 'cho_tong_hop')
-        OR w.don_vi IN ('Chuy\u00ean vi\u00ean')
+        OR w.don_vi IN ('Chuyên viên')
       THEN 'cho_chuyen_vien'
       ELSE 'cho_chuyen_vien'
     END AS tinh_trang,
     CASE
-            WHEN w.don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN NULL
-             WHEN w.thu_tuc IN (46, 47)
-              AND w.don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh'
-             THEN COALESCE(
-               NULLIF(TRIM(w.nguoi_xu_ly), ''),
-               CASE
-                 WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
-                 ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
-               END,
-               NULLIF(TRIM(w.cv_name), '')
-             )
-             WHEN w.thu_tuc IN (46, 47)
-              AND w.don_vi = 'Chuy\u00ean vi\u00ean'
-              AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
-             THEN COALESCE(
-               CASE
-                 WHEN NULLIF(TRIM(roles.cv_thu_ly_name), '') IS NULL THEN NULL
-                 ELSE REGEXP_REPLACE(TRIM(roles.cv_thu_ly_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
-               END,
-               NULLIF(TRIM(w.cv_name), '')
-             )
-             WHEN NULLIF(TRIM(w.cv_name), '') IS NULL OR w.cv_name = '__CHUA_PHAN__' THEN NULL
-             ELSE TRIM(w.cv_name)
-           END AS chuyen_vien,
+      WHEN w.don_vi = 'Phòng ban phân công' THEN NULL
+      WHEN w.thu_tuc IN (46, 47)
+        AND w.don_vi = 'Chuyên viên phối hợp thẩm định'
+      THEN COALESCE(
+        NULLIF(TRIM(w.nguoi_xu_ly), ''),
+        CASE
+          WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+          ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i')
+        END,
+        NULLIF(TRIM(w.cv_name), '')
+      )
+      WHEN w.thu_tuc IN (46, 47)
+        AND w.don_vi = 'Chuyên viên'
+        AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
+      THEN COALESCE(
+        CASE
+          WHEN NULLIF(TRIM(roles.cv_thu_ly_name), '') IS NULL THEN NULL
+          ELSE REGEXP_REPLACE(TRIM(roles.cv_thu_ly_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i')
+        END,
+        NULLIF(TRIM(w.cv_name), '')
+      )
+      WHEN NULLIF(TRIM(w.cv_name), '') IS NULL OR w.cv_name = '__CHUA_PHAN__' THEN NULL
+      ELSE TRIM(w.cv_name)
+    END AS chuyen_vien,
     CASE
-      WHEN w.don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN NULL
+      WHEN w.don_vi = 'Phòng ban phân công' THEN NULL
       WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN REGEXP_REPLACE(TRIM(cf.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
       WHEN NULLIF(TRIM(we.chuyen_gia_name), '') IS NOT NULL THEN we.chuyen_gia_name
       ELSE NULL
@@ -977,6 +984,44 @@ workflow_base AS (
     ON we.thu_tuc = w.thu_tuc
    AND we.ma_ho_so = w.ma_ho_so
   WHERE ($1::int IS NULL OR w.thu_tuc = $1)
+),
+capa_base AS (
+  SELECT
+    roles.thu_tuc,
+    roles.ma_ho_so,
+    COALESCE(cf.ngay_nhan, roles.ngay_tiep_nhan) AS ngay_tiep_nhan,
+    cf.nhan_hen_tra AS ngay_hen_tra,
+    cf.loai_ho_so,
+    cf.submission_kind,
+    'cho_chuyen_vien' AS tinh_trang,
+    REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i') AS chuyen_vien,
+    NULL::text AS chuyen_gia,
+    CASE
+      WHEN cf.nhan_hen_tra IS NOT NULL THEN (CURRENT_DATE - ((cf.nhan_hen_tra AT TIME ZONE 'Asia/Ho_Chi_Minh')::date))::int
+      WHEN COALESCE(cf.ngay_nhan, roles.ngay_tiep_nhan) IS NOT NULL THEN GREATEST(
+        0,
+        CURRENT_DATE - ((COALESCE(cf.ngay_nhan, roles.ngay_tiep_nhan) AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
+      )::int
+      ELSE 0
+    END AS thoi_gian_cho_ngay
+  FROM latest_tcc_roles roles
+  LEFT JOIN latest_case_facts cf
+    ON cf.thu_tuc = roles.thu_tuc
+   AND cf.ma_ho_so = roles.ma_ho_so
+  WHERE roles.thu_tuc IN (46, 47)
+    AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
+    AND roles.trang_thai_ho_so IN ('210', '220')
+),
+workflow_base AS (
+  SELECT *
+  FROM workflow_rows
+  WHERE NOT (
+    thu_tuc IN (46, 47)
+    AND ma_ho_so IN (SELECT ma_ho_so FROM capa_base)
+  )
+  UNION ALL
+  SELECT *
+  FROM capa_base
 )`;
 
 export async function getDangXuLyLookup(filters: PendingLookupFilters) {
@@ -988,73 +1033,9 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
 
   const [optionRows, rows] = await Promise.all([
     query<PendingLookupOptionRow>(
-      `WITH latest_case_facts AS (
-         SELECT DISTINCT ON (thu_tuc, ma_ho_so)
-           thu_tuc,
-           ma_ho_so,
-           chuyen_gia_name
-         FROM mv_stats_case_facts
-         WHERE ($1::int IS NULL OR thu_tuc = $1)
-         ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
-       ),
-       latest_workflow_experts AS (
-         SELECT DISTINCT ON (thu_tuc, ma_ho_so)
-           thu_tuc,
-           ma_ho_so,
-           REGEXP_REPLACE(TRIM(nguoi_xu_ly), '^CG\\s*:\\s*', '', 'i') AS chuyen_gia_name
-         FROM mv_stats_workflow_cases
-         WHERE ($1::int IS NULL OR thu_tuc = $1)
-          AND don_vi = 'Chuy\u00ean gia th\u1ea9m \u0111\u1ecbnh'
-           AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
-         ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
-       ),
-       option_rows AS (
-         SELECT
-           CASE
-            WHEN w.don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN NULL
-             WHEN w.thu_tuc IN (46, 47)
-              AND w.don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh'
-             THEN COALESCE(
-               NULLIF(TRIM(w.nguoi_xu_ly), ''),
-               CASE
-                 WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
-                 ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
-               END,
-               NULLIF(TRIM(w.cv_name), '')
-             )
-             WHEN w.thu_tuc IN (46, 47)
-              AND w.don_vi = 'Chuy\u00ean vi\u00ean'
-              AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
-             THEN COALESCE(
-               CASE
-                 WHEN NULLIF(TRIM(roles.cv_thu_ly_name), '') IS NULL THEN NULL
-                 ELSE REGEXP_REPLACE(TRIM(roles.cv_thu_ly_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
-               END,
-               NULLIF(TRIM(w.cv_name), '')
-             )
-             WHEN NULLIF(TRIM(w.cv_name), '') IS NULL OR w.cv_name = '__CHUA_PHAN__' THEN NULL
-             ELSE TRIM(w.cv_name)
-           END AS chuyen_vien,
-           CASE
-            WHEN w.don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN NULL
-             WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN REGEXP_REPLACE(TRIM(cf.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
-             WHEN NULLIF(TRIM(we.chuyen_gia_name), '') IS NOT NULL THEN we.chuyen_gia_name
-             ELSE NULL
-           END AS chuyen_gia
-         FROM mv_stats_workflow_cases w
-         LEFT JOIN latest_case_facts cf
-           ON cf.thu_tuc = w.thu_tuc
-          AND cf.ma_ho_so = w.ma_ho_so
-         LEFT JOIN latest_tcc_roles roles
-           ON roles.thu_tuc = w.thu_tuc
-          AND roles.ma_ho_so = w.ma_ho_so
-         LEFT JOIN latest_workflow_experts we
-           ON we.thu_tuc = w.thu_tuc
-          AND we.ma_ho_so = w.ma_ho_so
-         WHERE ($1::int IS NULL OR w.thu_tuc = $1)
-       )
+      `${PENDING_LOOKUP_BASE_CTE}
        SELECT DISTINCT chuyen_vien, chuyen_gia
-       FROM option_rows
+       FROM workflow_base
        ORDER BY chuyen_vien NULLS LAST, chuyen_gia NULLS LAST`,
       [thuTuc]
     ),
