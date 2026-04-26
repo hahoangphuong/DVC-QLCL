@@ -79,7 +79,15 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            CASE
              WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz
              ELSE NULL
-           END AS ngay_tiep_nhan
+           END AS ngay_tiep_nhan,
+           CASE
+             WHEN NULLIF(data->>'ngayHenTra', '') IS NOT NULL THEN (data->>'ngayHenTra')::timestamptz
+             ELSE NULL
+           END AS ngay_hen_tra,
+           CASE
+             WHEN NULLIF(data->>'ngayTraKetQua', '') IS NOT NULL THEN (data->>'ngayTraKetQua')::timestamptz
+             ELSE NULL
+           END AS ngay_tra_ket_qua
          FROM tra_cuu_chung
          WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
            AND (data->>'thuTucId')::int = $1
@@ -271,28 +279,84 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
            AND cv_name <> '__CHUA_PHAN__'
          ORDER BY ma_ho_so, ngay_nhan DESC NULLS LAST
        ),
-       dossier_index AS (
+       lookup_fallback_dossiers AS (
          SELECT
-           COALESCE(p.cv_name, f.cv_name) AS cv_name,
-           COALESCE(f.ma_ho_so, p.ma_ho_so) AS ma_ho_so,
-           COALESCE(f.ngay_nhan, p.ngay_nhan) AS ngay_nhan,
-           f.ngay_tra,
+           roles.ma_ho_so,
+           COALESCE(
+             CASE
+               WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+               ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
+             END,
+             CASE
+               WHEN NULLIF(TRIM(roles.cv_thu_ly_name), '') IS NULL THEN NULL
+               ELSE REGEXP_REPLACE(TRIM(roles.cv_thu_ly_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
+             END
+           ) AS cv_name,
+           roles.ngay_tiep_nhan AS ngay_nhan,
+           COALESCE(roles.ngay_tra_ket_qua, roles.ngay_hen_tra, roles.ngay_tiep_nhan) AS resolved_at,
+           roles.ngay_hen_tra AS kq_hen_tra,
+           CASE WHEN roles.trang_thai_ho_so = '4' THEN 1 ELSE 0 END AS has_can_bo_sung,
+           CASE WHEN roles.trang_thai_ho_so = '7' THEN 1 ELSE 0 END AS has_khong_dat,
+           CASE WHEN roles.trang_thai_ho_so = '6' THEN 1 ELSE 0 END AS has_hoan_thanh
+         FROM latest_tcc_roles roles
+         WHERE roles.trang_thai_ho_so IN ('4', '6', '7')
+           AND (
+             NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
+             OR NULLIF(TRIM(roles.cv_thu_ly_name), '') IS NOT NULL
+           )
+           AND NOT EXISTS (
+             SELECT 1
+             FROM tt47_46_case_facts f
+             WHERE f.ma_ho_so = roles.ma_ho_so
+           )
+       ),
+       base_dossiers AS (
+         SELECT
+           cv_name,
+           ma_ho_so,
+           ngay_nhan,
+           ngay_tra,
            CASE
-             WHEN f.ngay_tra IS NOT NULL THEN f.ngay_tra
-             WHEN COALESCE(f.has_can_bo_sung, 0) = 1
-               OR COALESCE(f.has_khong_dat, 0) = 1
-               OR COALESCE(f.has_hoan_thanh, 0) = 1
-             THEN COALESCE(f.kq_hen_tra, f.nhan_hen_tra, f.ngay_nhan)
+             WHEN ngay_tra IS NOT NULL THEN ngay_tra
+             WHEN COALESCE(has_can_bo_sung, 0) = 1
+               OR COALESCE(has_khong_dat, 0) = 1
+               OR COALESCE(has_hoan_thanh, 0) = 1
+             THEN COALESCE(kq_hen_tra, nhan_hen_tra, ngay_nhan)
              ELSE NULL
            END AS resolved_at,
-           f.kq_hen_tra,
-           f.has_can_bo_sung,
-           f.has_khong_dat,
-           f.has_hoan_thanh,
+           kq_hen_tra,
+           has_can_bo_sung,
+           has_khong_dat,
+           has_hoan_thanh
+         FROM tt47_46_case_facts
+         UNION ALL
+         SELECT
+           cv_name,
+           ma_ho_so,
+           ngay_nhan,
+           NULL::timestamptz AS ngay_tra,
+           resolved_at,
+           kq_hen_tra,
+           has_can_bo_sung,
+           has_khong_dat,
+           has_hoan_thanh
+         FROM lookup_fallback_dossiers
+       ),
+       dossier_index AS (
+         SELECT
+           COALESCE(p.cv_name, b.cv_name) AS cv_name,
+           COALESCE(b.ma_ho_so, p.ma_ho_so) AS ma_ho_so,
+           COALESCE(b.ngay_nhan, p.ngay_nhan) AS ngay_nhan,
+           b.ngay_tra,
+           b.resolved_at,
+           b.kq_hen_tra,
+           b.has_can_bo_sung,
+           b.has_khong_dat,
+           b.has_hoan_thanh,
            CASE WHEN p.ma_ho_so IS NOT NULL THEN 1 ELSE 0 END AS is_pending
-         FROM tt47_46_case_facts f
+         FROM base_dossiers b
          FULL OUTER JOIN pending_dossiers p
-           ON f.ma_ho_so = p.ma_ho_so
+           ON b.ma_ho_so = p.ma_ho_so
        ),
        stats AS (
          SELECT
