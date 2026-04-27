@@ -101,3 +101,14 @@ class Tt48CvBuoc(Base):
     __tablename__ = "tt48_cv_buoc"
     ma_ho_so = Column(String(100), primary_key=True)
     buoc     = Column(String(50),  nullable=False)
+
+
+class Tt47Tt46DangXuLyStatus(Base):
+    """
+    Bảng phụ TT46/TT47: lưu sub-status của nhóm "Đang xử lý" theo mã hồ sơ.
+    Dùng cho dashboard stats đọc dữ liệu đã sync định kỳ.
+    """
+    __tablename__ = "tt47_46_dang_xu_ly_status"
+    thu_tuc = Column(Integer, primary_key=True)
+    ma_ho_so = Column(String(100), primary_key=True)
+    trang_thai_xu_ly = Column(Integer, nullable=False)

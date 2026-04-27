@@ -125,6 +125,14 @@ def migrate_schema(engine):
             "CREATE INDEX IF NOT EXISTS idx_tt48_buoc "
             "ON tt48_cv_buoc (buoc)"
         ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_tt47_46_dxly_status_thu_tuc "
+            "ON tt47_46_dang_xu_ly_status (thu_tuc)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_tt47_46_dxly_status_trang_thai "
+            "ON tt47_46_dang_xu_ly_status (thu_tuc, trang_thai_xu_ly)"
+        ))
 
 
 def migrate_stats_schema(engine):
