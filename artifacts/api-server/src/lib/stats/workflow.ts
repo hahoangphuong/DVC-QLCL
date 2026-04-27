@@ -614,6 +614,7 @@ export async function getDangXuLyStats(
        SELECT
          CASE
            WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN '__CHUA_PHAN__'
+           WHEN NULLIF(TRIM(roles.cv_thu_ly_name), '') IS NULL THEN '__CHUA_PHAN__'
            WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN COALESCE(
              NULLIF(TRIM(nguoi_xu_ly), ''),
              CASE
@@ -640,6 +641,7 @@ export async function getDangXuLyStats(
          NULLIF(TRIM(roles.cv_phoi_hop_name), '') AS cv_phoi_hop_name_raw,
          CASE
            WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN 'cho_phan_cong'
+           WHEN NULLIF(TRIM(roles.cv_thu_ly_name), '') IS NULL THEN 'cho_phan_cong'
            WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN 'dang_xu_ly'
            WHEN don_vi = 'Chuy\u00ean vi\u00ean'
              AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
@@ -745,10 +747,6 @@ export async function getDangXuLyStats(
     const appraisalMappedStatus = mapTt47Tt46PendingStatus(thuTuc, rawStatus, row.ma_ho_so, choThamDinhMaHoSoSet);
     const pendingStatus = mapTt47Tt46DangXuLyStatus(thuTuc, appraisalMappedStatus, row.ma_ho_so, tt47Tt46DangXuLyStatusMap);
     const quaHanNgay = toCount(row.qua_han_ngay);
-
-    if (pendingStatus === "cho_phan_cong") {
-      continue;
-    }
 
     target.tong += 1;
     if (quaHanNgay > 0) target.qua_han += 1;
