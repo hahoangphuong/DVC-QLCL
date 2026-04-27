@@ -49,6 +49,19 @@ function mapTt47Tt46PendingStatus(
   return choThamDinhMaHoSoSet?.has(buildTt47Tt46PendingKey(thuTuc, maHoSo)) ? "cho_tham_dinh" : "cho_quyet_dinh";
 }
 
+function mapTt47Tt46DangXuLyStatus(
+  thuTuc: number,
+  rawStatus: string,
+  maHoSo: string,
+  tt47Tt46DangXuLyStatusMap?: ReadonlyMap<string, number>,
+): string {
+  if ((thuTuc !== 46 && thuTuc !== 47) || rawStatus !== "dang_xu_ly") return rawStatus;
+  const trangThaiXuLy = tt47Tt46DangXuLyStatusMap?.get(buildTt47Tt46PendingKey(thuTuc, maHoSo));
+  if (trangThaiXuLy === 30) return "cho_ke_hoach";
+  if (trangThaiXuLy === 40) return "cho_bao_cao";
+  return rawStatus;
+}
+
 export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDate: string) {
   const { fromDt, toDt } = toDateRange(fromDate, toDate);
   if (thuTuc === 46 || thuTuc === 47) {
@@ -397,7 +410,11 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
   };
 }
 
-export async function getDangXuLyStats(thuTuc: number, choThamDinhMaHoSoSet?: ReadonlySet<string>) {
+export async function getDangXuLyStats(
+  thuTuc: number,
+  choThamDinhMaHoSoSet?: ReadonlySet<string>,
+  tt47Tt46DangXuLyStatusMap?: ReadonlyMap<string, number>,
+) {
   const monthRows = await query<{ yr: string; mo: string; cnt: string }>(
     buildMonthlyAggregateSql("mv_stats_inflight_monthly"),
     [thuTuc]
@@ -672,6 +689,8 @@ export async function getDangXuLyStats(thuTuc: number, choThamDinhMaHoSoSet?: Re
     cho_cv: number;
     cho_tham_dinh: number;
     cho_quyet_dinh: number;
+    cho_ke_hoach: number;
+    cho_bao_cao: number;
     cho_cg: number;
     cho_nop_capa: number;
     cho_danh_gia_capa: number;
@@ -696,6 +715,8 @@ export async function getDangXuLyStats(thuTuc: number, choThamDinhMaHoSoSet?: Re
       cho_cv: 0,
       cho_tham_dinh: 0,
       cho_quyet_dinh: 0,
+      cho_ke_hoach: 0,
+      cho_bao_cao: 0,
       cho_cg: 0,
       cho_nop_capa: 0,
       cho_danh_gia_capa: 0,
@@ -718,7 +739,8 @@ export async function getDangXuLyStats(thuTuc: number, choThamDinhMaHoSoSet?: Re
     if (!cvName) continue;
     const target = ensureRow(cvName);
     const rawStatus = row.buoc_tt47_46 ?? "";
-    const pendingStatus = mapTt47Tt46PendingStatus(thuTuc, rawStatus, row.ma_ho_so, choThamDinhMaHoSoSet);
+    const appraisalMappedStatus = mapTt47Tt46PendingStatus(thuTuc, rawStatus, row.ma_ho_so, choThamDinhMaHoSoSet);
+    const pendingStatus = mapTt47Tt46DangXuLyStatus(thuTuc, appraisalMappedStatus, row.ma_ho_so, tt47Tt46DangXuLyStatusMap);
     const quaHanNgay = toCount(row.qua_han_ngay);
 
     if (pendingStatus === "cho_phan_cong") {
@@ -737,6 +759,12 @@ export async function getDangXuLyStats(thuTuc: number, choThamDinhMaHoSoSet?: Re
       case "cho_quyet_dinh":
         target.cho_cv += 1;
         target.cho_quyet_dinh += 1;
+        break;
+      case "cho_ke_hoach":
+        target.cho_ke_hoach += 1;
+        break;
+      case "cho_bao_cao":
+        target.cho_bao_cao += 1;
         break;
       case "dang_xu_ly":
         target.cho_cg += 1;
@@ -1124,6 +1152,7 @@ workflow_base AS (
 export async function getDangXuLyLookup(
   filters: PendingLookupFilters,
   choThamDinhMaHoSoSet?: ReadonlySet<string>,
+  tt47Tt46DangXuLyStatusMap?: ReadonlyMap<string, number>,
 ) {
   const thuTuc = filters.thuTuc ?? null;
   const chuyenVien = normalizeLookupText(filters.chuyenVien);
@@ -1176,7 +1205,12 @@ export async function getDangXuLyLookup(
   const mappedRows = rows.map((row) => {
     const mappedTinhTrang =
       (row.thu_tuc === 46 || row.thu_tuc === 47)
-        ? mapTt47Tt46PendingStatus(row.thu_tuc, row.tinh_trang, row.ma_ho_so, choThamDinhMaHoSoSet)
+        ? mapTt47Tt46DangXuLyStatus(
+            row.thu_tuc,
+            mapTt47Tt46PendingStatus(row.thu_tuc, row.tinh_trang, row.ma_ho_so, choThamDinhMaHoSoSet),
+            row.ma_ho_so,
+            tt47Tt46DangXuLyStatusMap,
+          )
         : row.tinh_trang;
 
     return {
@@ -1198,11 +1232,14 @@ export async function getDangXuLyLookup(
     if (tinhTrang === "cho_chuyen_vien") {
       return ["cho_chuyen_vien", "chua_xu_ly", "bi_tra_lai", "cho_tong_hop", "cho_tham_dinh", "cho_quyet_dinh"].includes(row.tinh_trang);
     }
-    if (tinhTrang === "dang_tham_dinh") {
-      return row.tinh_trang === "cho_tham_dinh" || row.tinh_trang === "cho_quyet_dinh";
-    }
-    return row.tinh_trang === tinhTrang;
-  });
+      if (tinhTrang === "dang_tham_dinh") {
+        return row.tinh_trang === "cho_tham_dinh" || row.tinh_trang === "cho_quyet_dinh";
+      }
+      if (tinhTrang === "dang_xu_ly") {
+        return row.tinh_trang === "dang_xu_ly" || row.tinh_trang === "cho_ke_hoach" || row.tinh_trang === "cho_bao_cao";
+      }
+      return row.tinh_trang === tinhTrang;
+    });
 
   return {
     filters: {

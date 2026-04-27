@@ -275,6 +275,72 @@ class SyncService:
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Loi lay danh sach cho tham dinh TT{thu_tuc}: {exc}")
 
+    def get_tt47_46_dang_xu_ly_sub_statuses(self, thu_tuc: int, client: RemoteClient | None = None) -> dict:
+        if thu_tuc not in (46, 47):
+            raise HTTPException(status_code=400, detail="thu_tuc phai la 46 hoac 47")
+
+        base_url = os.environ.get("BASE_URL", "").rstrip("/")
+        if not base_url:
+            raise HTTPException(status_code=500, detail="Thieu cau hinh BASE_URL")
+
+        loai_ho_so_id_by_thu_tuc = {
+            46: 48,
+            47: 49,
+        }
+
+        api_url = f"{base_url}/api/services/app/xuLyHoSoGridView{thu_tuc}/GetListHoSoPaging"
+        referer = f"{base_url}/Application"
+        body = {
+            "formId": 21,
+            "formCase": 3,
+            "formCase2": 0,
+            "page": 1,
+            "pageSize": 10000,
+            "keyword": None,
+            "ngayNopTu": None,
+            "ngayNopToi": None,
+            "loaiHoSoId": loai_ho_so_id_by_thu_tuc[thu_tuc],
+            "tinhId": None,
+            "doanhNghiepId": None,
+            "phongBanId": 5,
+            "isHoSoTaiCap": None,
+            "skipCount": 0,
+            "maxResultCount": 10000,
+            "sorting": None,
+        }
+
+        try:
+            active_client = client or self._login_remote_client()
+            items, _fetch_sec = self.fetch_all_paged(active_client, api_url, body, referer=referer)
+
+            rows = []
+            for item in items:
+                ma_ho_so = (item.get("maHoSo") or item.get("strSoHieuHoSo") or "").strip()
+                trang_thai_xu_ly = item.get("trangThaiXuLy")
+                if not ma_ho_so or trang_thai_xu_ly not in (30, 40):
+                    continue
+                rows.append({
+                    "ma_ho_so": ma_ho_so,
+                    "trang_thai_xu_ly": int(trang_thai_xu_ly),
+                })
+
+            return {
+                "ok": True,
+                "thu_tuc": thu_tuc,
+                "total": len(rows),
+                "rows": rows,
+            }
+        except RemoteAuthError as exc:
+            raise HTTPException(status_code=401, detail=str(exc))
+        except EnvironmentError as exc:
+            raise HTTPException(status_code=500, detail=f"Thieu cau hinh: {exc}")
+        except requests.HTTPError as exc:
+            raise HTTPException(status_code=502, detail=f"Loi HTTP tu DAV: {exc}")
+        except ValueError as exc:
+            raise HTTPException(status_code=502, detail=str(exc))
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Loi lay danh sach dang xu ly TT{thu_tuc}: {exc}")
+
     def get_dav_file(self, path_or_url: str, client: RemoteClient | None = None) -> StreamingResponse:
         base_url = os.environ.get("BASE_URL", "").rstrip("/")
         if not base_url:

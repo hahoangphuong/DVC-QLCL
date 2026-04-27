@@ -31,6 +31,10 @@ type DavChoThamDinhRow = {
   ma_ho_so: string;
   chuyen_vien_thu_ly: string | null;
 };
+type DavTt47Tt46DangXuLyRow = {
+  ma_ho_so: string;
+  trang_thai_xu_ly: number;
+};
 type LookupExportSortKey =
   | "stt"
   | "ma_ho_so"
@@ -79,6 +83,34 @@ async function fetchDavChoThamDinhSets(thuTuc: number | null): Promise<Set<strin
   return new Set([...tt46, ...tt47]);
 }
 
+async function fetchDavTt47Tt46DangXuLyStatusMap(thuTuc: number | null): Promise<Map<string, number>> {
+  if (thuTuc === 48) return new Map();
+
+  const thuTucs = thuTuc === null ? [46, 47] : [thuTuc];
+  const maps = await Promise.all(
+    thuTucs.map(async (currentThuTuc) => {
+      const pyRes = await fetch(`${PYTHON_API}/internal/dav/tt47-46/dang-xu-ly?thu_tuc=${currentThuTuc}`);
+      const data = await pyRes.json();
+      if (!pyRes.ok) {
+        throw new Error(data?.detail ?? `Khong the tai danh sach dang xu ly TT${currentThuTuc}`);
+      }
+
+      const rows = Array.isArray(data?.rows) ? (data.rows as DavTt47Tt46DangXuLyRow[]) : [];
+      return rows
+        .map((row) => {
+          const maHoSo = row.ma_ho_so?.trim();
+          if (!maHoSo || (row.trang_thai_xu_ly !== 30 && row.trang_thai_xu_ly !== 40)) {
+            return null;
+          }
+          return [`${currentThuTuc}:${maHoSo}`, row.trang_thai_xu_ly] as const;
+        })
+        .filter((entry): entry is readonly [string, number] => Boolean(entry));
+    })
+  );
+
+  return new Map(maps.flat());
+}
+
 function parseOptionalThuTuc(val: unknown): number | null {
   if (val === undefined || val === null) return null;
   const raw = String(val).trim();
@@ -98,6 +130,14 @@ function displayLookupCg(raw: string | null): string {
 }
 
 function displayLookupTinhTrang(value: string): string {
+  if (value === "dang_tham_dinh") return "Đang thẩm định";
+  if (value === "cho_tham_dinh") return "Chờ thẩm định";
+  if (value === "cho_quyet_dinh") return "Chờ Quyết định";
+  if (value === "cho_ke_hoach") return "Chờ Kế hoạch";
+  if (value === "cho_bao_cao") return "Chờ báo cáo";
+  if (value === "dang_xu_ly") return "Đang xử lý";
+  if (value === "cho_nop_capa") return "Chờ nộp CAPA";
+  if (value === "cho_danh_gia_capa") return "Chờ đánh giá CAPA";
   switch (value) {
     case "cho_phan_cong": return "Chờ phân công";
     case "cho_chuyen_vien": return "Chờ chuyên viên";
@@ -152,13 +192,22 @@ async function sendXlsx(
 const LOOKUP_STATUS_SORT_ORDER: Record<string, number> = {
   cho_phan_cong: 1,
   cho_chuyen_vien: 2,
-  chua_xu_ly: 3,
-  bi_tra_lai: 4,
-  cho_tong_hop: 5,
-  cho_chuyen_gia: 6,
-  cho_to_truong: 7,
-  cho_truong_phong: 8,
-  cho_cong_bo: 9,
+  dang_tham_dinh: 3,
+  cho_tham_dinh: 4,
+  cho_quyet_dinh: 5,
+  cho_ke_hoach: 6,
+  cho_bao_cao: 7,
+  dang_xu_ly: 8,
+  cho_nop_capa: 9,
+  cho_danh_gia_capa: 10,
+  chua_xu_ly: 11,
+  bi_tra_lai: 12,
+  cho_tong_hop: 13,
+  cho_chuyen_gia: 14,
+  cho_to_truong: 15,
+  cho_truong_phong: 16,
+  cho_cong_bo: 17,
+  cho_van_thu: 18,
 };
 
 function sortLookupRows(
@@ -360,7 +409,9 @@ router.get("/stats/dang-xu-ly", async (req, res) => {
       STATS_STALE_MS,
       async () => {
         const choThamDinhSet = await fetchDavChoThamDinhSets(thuTuc);
-        return getDangXuLyStats(thuTuc, choThamDinhSet);
+        const tt47Tt46DangXuLyStatusMap =
+          thuTuc === 46 || thuTuc === 47 ? await fetchDavTt47Tt46DangXuLyStatusMap(thuTuc) : undefined;
+        return getDangXuLyStats(thuTuc, choThamDinhSet, tt47Tt46DangXuLyStatusMap);
       }
     ));
   } catch (e: unknown) {
@@ -409,7 +460,15 @@ router.get("/stats/tra-cuu-dang-xu-ly", async (req, res) => {
       FAST_STALE_MS,
       async () => {
         const choThamDinhSet = await fetchDavChoThamDinhSets(thuTuc);
-        return getDangXuLyLookup({ thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo }, choThamDinhSet);
+        const tt47Tt46DangXuLyStatusMap =
+          thuTuc === null || thuTuc === 46 || thuTuc === 47
+            ? await fetchDavTt47Tt46DangXuLyStatusMap(thuTuc)
+            : undefined;
+        return getDangXuLyLookup(
+          { thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo },
+          choThamDinhSet,
+          tt47Tt46DangXuLyStatusMap,
+        );
       }
     ));
   } catch (e: unknown) {
@@ -440,7 +499,15 @@ router.get("/stats/tra-cuu-dang-xu-ly/export", async (req, res) => {
     const sortDir = sortDirRaw === "desc" ? "desc" : "asc";
 
     const choThamDinhSet = await fetchDavChoThamDinhSets(thuTuc);
-    const data = await getDangXuLyLookup({ thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo }, choThamDinhSet);
+    const tt47Tt46DangXuLyStatusMap =
+      thuTuc === null || thuTuc === 46 || thuTuc === 47
+        ? await fetchDavTt47Tt46DangXuLyStatusMap(thuTuc)
+        : undefined;
+    const data = await getDangXuLyLookup(
+      { thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo },
+      choThamDinhSet,
+      tt47Tt46DangXuLyStatusMap,
+    );
     const rows = sortLookupRows(data.rows, sortBy, sortDir);
 
     const filename = `Tra_cuu_dang_xu_ly_${new Date().toISOString().slice(0, 10)}.xlsx`;

@@ -112,6 +112,12 @@ def create_internal_router(sync_service, runtime, engine=None, migrate_stats_sch
             raise HTTPException(status_code=400, detail="thu_tuc phai la 46 hoac 47")
         return sync_service.get_tt47_46_cho_tham_dinh(thu_tuc)
 
+    @router.get("/internal/dav/tt47-46/dang-xu-ly")
+    def internal_dav_tt47_46_dang_xu_ly(thu_tuc: int):
+        if thu_tuc not in (46, 47):
+            raise HTTPException(status_code=400, detail="thu_tuc phai la 46 hoac 47")
+        return sync_service.get_tt47_46_dang_xu_ly_sub_statuses(thu_tuc)
+
     @router.get("/internal/dav/file")
     def internal_dav_file(path: str):
         return sync_service.get_dav_file(path)
