@@ -55,18 +55,23 @@ function validateThuTuc(val: unknown): number | null {
 async function fetchDavChoThamDinhSet(thuTuc: number): Promise<Set<string>> {
   if (thuTuc !== 46 && thuTuc !== 47) return new Set();
 
-  const pyRes = await fetch(`${PYTHON_API}/internal/dav/tt47-46/cho-tham-dinh?thu_tuc=${thuTuc}`);
-  const data = await pyRes.json();
-  if (!pyRes.ok) {
-    throw new Error(data?.detail ?? `Khong the tai danh sach cho tham dinh TT${thuTuc}`);
-  }
+  try {
+    const pyRes = await fetch(`${PYTHON_API}/internal/dav/tt47-46/cho-tham-dinh?thu_tuc=${thuTuc}`);
+    const data = await pyRes.json();
+    if (!pyRes.ok) {
+      throw new Error(data?.detail ?? `Khong the tai danh sach cho tham dinh TT${thuTuc}`);
+    }
 
-  const rows = Array.isArray(data?.rows) ? (data.rows as DavChoThamDinhRow[]) : [];
-  return new Set(
-    rows
-      .map((row) => row.ma_ho_so?.trim() ? `${thuTuc}:${row.ma_ho_so.trim()}` : null)
-      .filter((value): value is string => Boolean(value))
-  );
+    const rows = Array.isArray(data?.rows) ? (data.rows as DavChoThamDinhRow[]) : [];
+    return new Set(
+      rows
+        .map((row) => row.ma_ho_so?.trim() ? `${thuTuc}:${row.ma_ho_so.trim()}` : null)
+        .filter((value): value is string => Boolean(value))
+    );
+  } catch (error) {
+    console.warn(`[stats] fallback empty cho-tham-dinh set for TT${thuTuc}:`, error);
+    return new Set();
+  }
 }
 
 async function fetchDavChoThamDinhSets(thuTuc: number | null): Promise<Set<string>> {
@@ -89,22 +94,27 @@ async function fetchDavTt47Tt46DangXuLyStatusMap(thuTuc: number | null): Promise
   const thuTucs = thuTuc === null ? [46, 47] : [thuTuc];
   const maps = await Promise.all(
     thuTucs.map(async (currentThuTuc) => {
-      const pyRes = await fetch(`${PYTHON_API}/internal/dav/tt47-46/dang-xu-ly?thu_tuc=${currentThuTuc}`);
-      const data = await pyRes.json();
-      if (!pyRes.ok) {
-        throw new Error(data?.detail ?? `Khong the tai danh sach dang xu ly TT${currentThuTuc}`);
-      }
+      try {
+        const pyRes = await fetch(`${PYTHON_API}/internal/dav/tt47-46/dang-xu-ly?thu_tuc=${currentThuTuc}`);
+        const data = await pyRes.json();
+        if (!pyRes.ok) {
+          throw new Error(data?.detail ?? `Khong the tai danh sach dang xu ly TT${currentThuTuc}`);
+        }
 
-      const rows = Array.isArray(data?.rows) ? (data.rows as DavTt47Tt46DangXuLyRow[]) : [];
-      return rows
-        .map((row) => {
-          const maHoSo = row.ma_ho_so?.trim();
-          if (!maHoSo || (row.trang_thai_xu_ly !== 30 && row.trang_thai_xu_ly !== 40)) {
-            return null;
-          }
-          return [`${currentThuTuc}:${maHoSo}`, row.trang_thai_xu_ly] as const;
-        })
-        .filter((entry): entry is readonly [string, number] => Boolean(entry));
+        const rows = Array.isArray(data?.rows) ? (data.rows as DavTt47Tt46DangXuLyRow[]) : [];
+        return rows
+          .map((row) => {
+            const maHoSo = row.ma_ho_so?.trim();
+            if (!maHoSo || (row.trang_thai_xu_ly !== 30 && row.trang_thai_xu_ly !== 40)) {
+              return null;
+            }
+            return [`${currentThuTuc}:${maHoSo}`, row.trang_thai_xu_ly] as const;
+          })
+          .filter((entry): entry is readonly [string, number] => Boolean(entry));
+      } catch (error) {
+        console.warn(`[stats] fallback empty dang-xu-ly map for TT${currentThuTuc}:`, error);
+        return [];
+      }
     })
   );
 

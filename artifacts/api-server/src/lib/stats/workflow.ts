@@ -1184,9 +1184,9 @@ export async function getDangXuLyLookup(
        FROM workflow_base
        WHERE ($2::text IS NULL OR chuyen_vien = $2)
          AND ($3::text IS NULL OR chuyen_gia = $3)
-         AND ($5::text IS NULL OR LOWER(ma_ho_so) LIKE '%' || LOWER($5) || '%')
+         AND ($4::text IS NULL OR LOWER(ma_ho_so) LIKE '%' || LOWER($4) || '%')
        ORDER BY thu_tuc DESC, thoi_gian_cho_ngay DESC, ma_ho_so ASC`,
-      [thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo]
+      [thuTuc, chuyenVien, chuyenGia, maHoSo]
     ),
   ]);
 
