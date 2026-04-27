@@ -461,7 +461,10 @@ export async function getDangXuLyStats(
        ${buildWorkflowCasesCte("48")},
        base AS (
          SELECT
-           cv_name,
+           CASE
+             WHEN don_vi = 'Phòng ban phân công' THEN '__CHUA_PHAN__'
+             ELSE cv_name
+           END AS cv_name,
            don_vi,
            ma_ho_so,
            qua_han_ngay,
