@@ -462,7 +462,7 @@ export async function getDangXuLyStats(
        base AS (
          SELECT
            CASE
-             WHEN don_vi = 'Phòng ban phân công' THEN '__CHUA_PHAN__'
+             WHEN TRIM(don_vi) LIKE 'Phòng ban phân công%' THEN '__CHUA_PHAN__'
              ELSE cv_name
            END AS cv_name,
            don_vi,
@@ -1033,7 +1033,7 @@ workflow_rows AS (
     cf.loai_ho_so,
     cf.submission_kind,
     CASE
-      WHEN w.don_vi = 'Phòng ban phân công' THEN 'cho_phan_cong'
+      WHEN TRIM(w.don_vi) LIKE 'Phòng ban phân công%' THEN 'cho_phan_cong'
       WHEN w.thu_tuc IN (46, 47)
         AND w.don_vi = 'Chuyên viên phối hợp thẩm định'
       THEN 'dang_xu_ly'
@@ -1055,7 +1055,7 @@ workflow_rows AS (
       ELSE 'cho_chuyen_vien'
     END AS tinh_trang,
     CASE
-      WHEN w.don_vi = 'Phòng ban phân công' THEN NULL
+      WHEN TRIM(w.don_vi) LIKE 'Phòng ban phân công%' THEN NULL
       WHEN w.thu_tuc IN (46, 47)
         AND w.don_vi = 'Chuyên viên phối hợp thẩm định'
       THEN COALESCE(
@@ -1080,7 +1080,7 @@ workflow_rows AS (
       ELSE TRIM(w.cv_name)
     END AS chuyen_vien,
     CASE
-      WHEN w.don_vi = 'Phòng ban phân công' THEN NULL
+      WHEN TRIM(w.don_vi) LIKE 'Phòng ban phân công%' THEN NULL
       WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN REGEXP_REPLACE(TRIM(cf.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
       WHEN NULLIF(TRIM(we.chuyen_gia_name), '') IS NOT NULL THEN we.chuyen_gia_name
       ELSE NULL
