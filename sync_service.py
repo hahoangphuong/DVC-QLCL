@@ -423,7 +423,29 @@ class SyncService:
                 ],
             }
         except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Loi doc danh sach dang xu ly TT{thu_tuc}: {exc}")
+            self.runtime.sync_log.warning(
+                f"[tt{thu_tuc}_dang_xu_ly_sub_statuses] fallback fetch trực tiếp từ DAV "
+                f"do lỗi đọc cache DB: {type(exc).__name__}: {exc}"
+            )
+            try:
+                rows, _fetch_sec = self._fetch_tt47_46_dang_xu_ly_sub_status_rows(thu_tuc)
+                return {
+                    "ok": True,
+                    "thu_tuc": thu_tuc,
+                    "total": len(rows),
+                    "rows": rows,
+                    "source": "dav_fallback",
+                }
+            except HTTPException:
+                raise
+            except Exception as fallback_exc:
+                raise HTTPException(
+                    status_code=500,
+                    detail=(
+                        f"Loi doc danh sach dang xu ly TT{thu_tuc}: {exc}; "
+                        f"fallback DAV that bai: {fallback_exc}"
+                    ),
+                )
         finally:
             db.close()
 
