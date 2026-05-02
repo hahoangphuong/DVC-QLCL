@@ -19,6 +19,11 @@ RE_ISO_TS = re.compile(
     r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[+-]\d{2}:\d{2}|Z))"
 )
 RE_DDMMYYYY = re.compile(r"(\d{2}/\d{2}/\d{4})")
+RE_JSON_STRING_FIELDS = {
+    "tenCoSoSanXuat": re.compile(r'"tenCoSoSanXuat"\s*:\s*"((?:\\.|[^"\\])*)"'),
+    "tenCoSo": re.compile(r'"tenCoSo"\s*:\s*"((?:\\.|[^"\\])*)"'),
+    "tenCoSoSX": re.compile(r'"tenCoSoSX"\s*:\s*"((?:\\.|[^"\\])*)"'),
+}
 
 
 def clean_date_value(val: str) -> str | None:
@@ -63,6 +68,19 @@ def normalize_text(value) -> str | None:
     return trimmed or None
 
 
+def _extract_json_string_field(raw: str, field_name: str) -> str | None:
+    pattern = RE_JSON_STRING_FIELDS[field_name]
+    match = pattern.search(raw)
+    if not match:
+        return None
+    captured = match.group(1)
+    try:
+        decoded = _json.loads(f'"{captured}"')
+    except Exception:
+        decoded = captured.replace('\\"', '"').replace("\\\\", "\\")
+    return normalize_text(decoded)
+
+
 def extract_tra_cuu_chung_facility_fields(item: dict) -> dict[str, str | None]:
     co_so_dang_ky = normalize_text(item.get("tenDoanhNghiep"))
     co_so_san_xuat = None
@@ -74,7 +92,17 @@ def extract_tra_cuu_chung_facility_fields(item: dict) -> dict[str, str | None]:
         except Exception:
             parsed = None
         if isinstance(parsed, dict):
-            co_so_san_xuat = normalize_text(parsed.get("tenCoSoSanXuat"))
+            co_so_san_xuat = (
+                normalize_text(parsed.get("tenCoSoSanXuat"))
+                or normalize_text(parsed.get("tenCoSo"))
+                or normalize_text(parsed.get("tenCoSoSX"))
+            )
+        else:
+            co_so_san_xuat = (
+                _extract_json_string_field(json_don_hang, "tenCoSoSanXuat")
+                or _extract_json_string_field(json_don_hang, "tenCoSo")
+                or _extract_json_string_field(json_don_hang, "tenCoSoSX")
+            )
 
     return {
         "co_so_dang_ky": co_so_dang_ky,
