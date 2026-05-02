@@ -21,6 +21,7 @@ from models import (
 )
 from stats_views import refresh_stats_materialized_views
 from sync_utils import batched_insert, calc_batch_size, clean_record, den_ngay_now
+from sync_utils import extract_tra_cuu_chung_facility_fields
 
 
 class SyncService:
@@ -148,6 +149,12 @@ class SyncService:
             return json.loads(value)
         except Exception:
             return None
+
+    def _build_tra_cuu_chung_row(self, item: dict) -> dict:
+        return {
+            "data": item,
+            **extract_tra_cuu_chung_facility_fields(item),
+        }
 
     def get_tt48_hoso_detail(self, ho_so_id: int, client: RemoteClient | None = None) -> dict:
         base_url = os.environ.get("BASE_URL", "").rstrip("/")
@@ -672,6 +679,7 @@ class SyncService:
         referer: str | None = None,
         client: RemoteClient | None = None,
         refresh_views: bool = True,
+        row_builder=None,
     ) -> dict:
         db = self.session_factory()
         try:
@@ -706,7 +714,7 @@ class SyncService:
             db.execute(text(f'TRUNCATE TABLE "{table_name}" RESTART IDENTITY'))
             if items:
                 batch_size = calc_batch_size(items)
-                rows = [{"data": item} for item in items]
+                rows = [row_builder(item) if row_builder else {"data": item} for item in items]
                 batched_insert(db, model_class.__table__, rows, batch_size)
             self._upsert_sync_meta(
                 db, table_name, synced_at, len(items),
@@ -778,7 +786,15 @@ class SyncService:
             "ChuyenVienThuLyId": "",
             "thuTucId": "",
         }
-        return self.do_sync(TraCuuChung, api_url, body, "tra_cuu_chung", client=client, refresh_views=refresh_views)
+        return self.do_sync(
+            TraCuuChung,
+            api_url,
+            body,
+            "tra_cuu_chung",
+            client=client,
+            refresh_views=refresh_views,
+            row_builder=self._build_tra_cuu_chung_row,
+        )
 
     def _dashboard_body(self, thu_tuc: int, is_done: bool) -> dict:
         today = datetime.now(timezone.utc).strftime("%d/%m/%Y")

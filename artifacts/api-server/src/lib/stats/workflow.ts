@@ -77,12 +77,8 @@ latest_tcc_roles AS (
     NULLIF(TRIM(data->>'trangThaiHoSo'), '') AS trang_thai_ho_so,
     NULLIF(TRIM(data->>'chuyenVienThuLyName'), '') AS cv_thu_ly_name,
     NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name,
-    NULLIF(TRIM(data->>'tenDoanhNghiep'), '') AS co_so_dang_ky,
-    CASE
-      WHEN NULLIF(TRIM(data->>'jsonDonHang'), '') IS NULL THEN NULL
-      WHEN LEFT(TRIM(data->>'jsonDonHang'), 1) <> '{' THEN NULL
-      ELSE NULLIF(TRIM(((data->>'jsonDonHang')::jsonb->>'tenCoSoSanXuat')), '')
-    END AS co_so_san_xuat
+    co_so_dang_ky,
+    co_so_san_xuat
   FROM tra_cuu_chung
   WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
   ORDER BY
@@ -1187,12 +1183,8 @@ latest_tcc_roles AS (
     NULLIF(TRIM(data->>'trangThaiHoSo'), '') AS trang_thai_ho_so,
     NULLIF(TRIM(data->>'chuyenVienThuLyName'), '') AS cv_thu_ly_name,
     NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name,
-    NULLIF(TRIM(data->>'tenDoanhNghiep'), '') AS co_so_dang_ky,
-    CASE
-      WHEN NULLIF(TRIM(data->>'jsonDonHang'), '') IS NULL THEN NULL
-      WHEN LEFT(TRIM(data->>'jsonDonHang'), 1) <> '{' THEN NULL
-      ELSE NULLIF(TRIM(((data->>'jsonDonHang')::jsonb->>'tenCoSoSanXuat')), '')
-    END AS co_so_san_xuat
+    co_so_dang_ky,
+    co_so_san_xuat
   FROM tra_cuu_chung
   WHERE ($1::int IS NULL OR (data->>'thuTucId')::int = $1)
     AND NULLIF(data->>'thuTucId', '') IS NOT NULL
@@ -1356,12 +1348,8 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
          SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
            (data->>'thuTucId')::int AS thu_tuc,
            data->>'maHoSo' AS ma_ho_so,
-           NULLIF(TRIM(data->>'tenDoanhNghiep'), '') AS co_so_dang_ky,
-           CASE
-             WHEN NULLIF(TRIM(data->>'jsonDonHang'), '') IS NULL THEN NULL
-             WHEN LEFT(TRIM(data->>'jsonDonHang'), 1) <> '{' THEN NULL
-             ELSE NULLIF(TRIM(((data->>'jsonDonHang')::jsonb->>'tenCoSoSanXuat')), '')
-           END AS co_so_san_xuat
+           co_so_dang_ky,
+           co_so_san_xuat
          FROM tra_cuu_chung
          WHERE ($1::int IS NULL OR (data->>'thuTucId')::int = $1)
            AND NULLIF(data->>'thuTucId', '') IS NOT NULL
@@ -1474,12 +1462,8 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
            NULLIF(TRIM(data->>'id'), '') AS tcc_id,
            data->>'maHoSo' AS ma_ho_so,
            NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name,
-           NULLIF(TRIM(data->>'tenDoanhNghiep'), '') AS co_so_dang_ky,
-           CASE
-             WHEN NULLIF(TRIM(data->>'jsonDonHang'), '') IS NULL THEN NULL
-             WHEN LEFT(TRIM(data->>'jsonDonHang'), 1) <> '{' THEN NULL
-             ELSE NULLIF(TRIM(((data->>'jsonDonHang')::jsonb->>'tenCoSoSanXuat')), '')
-           END AS co_so_san_xuat
+           co_so_dang_ky,
+           co_so_san_xuat
          FROM tra_cuu_chung
          WHERE ($1::int IS NULL OR (data->>'thuTucId')::int = $1)
            AND NULLIF(data->>'thuTucId', '') IS NOT NULL
@@ -1551,12 +1535,8 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
            NULLIF(TRIM(data->>'id'), '') AS tcc_id,
            data->>'maHoSo' AS ma_ho_so,
            NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name,
-           NULLIF(TRIM(data->>'tenDoanhNghiep'), '') AS co_so_dang_ky,
-           CASE
-             WHEN NULLIF(TRIM(data->>'jsonDonHang'), '') IS NULL THEN NULL
-             WHEN LEFT(TRIM(data->>'jsonDonHang'), 1) <> '{' THEN NULL
-             ELSE NULLIF(TRIM(((data->>'jsonDonHang')::jsonb->>'tenCoSoSanXuat')), '')
-           END AS co_so_san_xuat
+           co_so_dang_ky,
+           co_so_san_xuat
          FROM tra_cuu_chung
          WHERE ($1::int IS NULL OR (data->>'thuTucId')::int = $1)
            AND NULLIF(data->>'thuTucId', '') IS NOT NULL
@@ -1687,12 +1667,8 @@ export async function getDaXuLyLookupMaterialized(filters: PendingLookupFilters)
          SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
            (data->>'thuTucId')::int AS thu_tuc,
            data->>'maHoSo' AS ma_ho_so,
-           NULLIF(TRIM(data->>'tenDoanhNghiep'), '') AS co_so_dang_ky,
-           CASE
-             WHEN NULLIF(TRIM(data->>'jsonDonHang'), '') IS NULL THEN NULL
-             WHEN LEFT(TRIM(data->>'jsonDonHang'), 1) <> '{' THEN NULL
-             ELSE NULLIF(TRIM(((data->>'jsonDonHang')::jsonb->>'tenCoSoSanXuat')), '')
-           END AS co_so_san_xuat
+           co_so_dang_ky,
+           co_so_san_xuat
          FROM tra_cuu_chung
          WHERE ($1::int IS NULL OR (data->>'thuTucId')::int = $1)
            AND NULLIF(data->>'thuTucId', '') IS NOT NULL

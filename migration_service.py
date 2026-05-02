@@ -6,6 +6,7 @@ from country_classification import (
     build_nuoc_so_tai_expr,
 )
 from stats_views import STATS_MATERIALIZED_VIEWS
+from sync_utils import extract_tra_cuu_chung_facility_fields
 
 
 DATA_TABLES = [
@@ -13,6 +14,41 @@ DATA_TABLES = [
     "dang_xu_ly",
     "da_xu_ly",
 ]
+
+
+def _backfill_tra_cuu_chung_facilities(conn):
+    result = conn.execute(text("SELECT id, data FROM tra_cuu_chung"))
+    updates = []
+    for row in result.mappings():
+        data = row.get("data")
+        if not isinstance(data, dict):
+            continue
+        updates.append({
+            "id": row["id"],
+            **extract_tra_cuu_chung_facility_fields(data),
+        })
+        if len(updates) >= 1000:
+            conn.execute(
+                text(
+                    "UPDATE tra_cuu_chung "
+                    "SET co_so_dang_ky = :co_so_dang_ky, "
+                    "co_so_san_xuat = :co_so_san_xuat "
+                    "WHERE id = :id"
+                ),
+                updates,
+            )
+            updates.clear()
+
+    if updates:
+        conn.execute(
+            text(
+                "UPDATE tra_cuu_chung "
+                "SET co_so_dang_ky = :co_so_dang_ky, "
+                "co_so_san_xuat = :co_so_san_xuat "
+                "WHERE id = :id"
+            ),
+            updates,
+        )
 
 
 def migrate_schema(engine):
@@ -30,6 +66,15 @@ def migrate_schema(engine):
             "ALTER TABLE IF EXISTS sync_meta "
             "ADD COLUMN IF NOT EXISTS insert_sec FLOAT"
         ))
+        conn.execute(text(
+            "ALTER TABLE IF EXISTS tra_cuu_chung "
+            "ADD COLUMN IF NOT EXISTS co_so_dang_ky TEXT"
+        ))
+        conn.execute(text(
+            "ALTER TABLE IF EXISTS tra_cuu_chung "
+            "ADD COLUMN IF NOT EXISTS co_so_san_xuat TEXT"
+        ))
+        _backfill_tra_cuu_chung_facilities(conn)
 
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_dxly_ma_ho_so "
@@ -87,6 +132,10 @@ def migrate_schema(engine):
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_tcc_cv_thu_ly "
             "ON tra_cuu_chung ((data->>'chuyenVienThuLyName'))"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_tcc_co_so_dang_ky "
+            "ON tra_cuu_chung (co_so_dang_ky)"
         ))
 
         conn.execute(text(

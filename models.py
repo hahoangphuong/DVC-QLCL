@@ -70,6 +70,8 @@ class _HoSoBase:
 class TraCuuChung(_HoSoBase, Base):
     """Tra cứu chung tất cả hồ sơ (TT46 + TT47 + TT48)."""
     __tablename__ = "tra_cuu_chung"
+    co_so_dang_ky = Column(Text, nullable=True)
+    co_so_san_xuat = Column(Text, nullable=True)
 
 
 class DaXuLy(_HoSoBase, Base):

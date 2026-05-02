@@ -56,6 +56,32 @@ def clean_record(item: dict) -> dict:
     return item
 
 
+def normalize_text(value) -> str | None:
+    if not isinstance(value, str):
+        return None
+    trimmed = value.strip()
+    return trimmed or None
+
+
+def extract_tra_cuu_chung_facility_fields(item: dict) -> dict[str, str | None]:
+    co_so_dang_ky = normalize_text(item.get("tenDoanhNghiep"))
+    co_so_san_xuat = None
+
+    json_don_hang = normalize_text(item.get("jsonDonHang"))
+    if json_don_hang and json_don_hang.startswith("{"):
+        try:
+            parsed = _json.loads(json_don_hang)
+        except Exception:
+            parsed = None
+        if isinstance(parsed, dict):
+            co_so_san_xuat = normalize_text(parsed.get("tenCoSoSanXuat"))
+
+    return {
+        "co_so_dang_ky": co_so_dang_ky,
+        "co_so_san_xuat": co_so_san_xuat,
+    }
+
+
 def get_free_ram_mb() -> int:
     try:
         with open("/proc/meminfo") as handle:
@@ -82,4 +108,3 @@ def batched_insert(db, table, rows: list, batch_size: int) -> None:
     for index in range(0, len(rows), batch_size):
         db.execute(table.insert(), rows[index:index + batch_size])
         db.flush()
-
