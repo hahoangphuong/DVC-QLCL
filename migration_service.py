@@ -133,11 +133,21 @@ def migrate_schema(engine):
             "CREATE INDEX IF NOT EXISTS idx_tt47_46_dxly_status_trang_thai "
             "ON tt47_46_dang_xu_ly_status (thu_tuc, trang_thai_xu_ly)"
         ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_tt47_46_cho_tham_dinh_thu_tuc "
+            "ON tt47_46_cho_tham_dinh (thu_tuc)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_tt47_46_cho_tham_dinh_cv "
+            "ON tt47_46_cho_tham_dinh (thu_tuc, chuyen_vien_thu_ly)"
+        ))
 
 
 def migrate_stats_schema(engine):
     with engine.begin() as conn:
         for view_name in (
+            STATS_MATERIALIZED_VIEWS["resolved_lookup"],
+            STATS_MATERIALIZED_VIEWS["pending_lookup"],
             STATS_MATERIALIZED_VIEWS["tt48_treo_by_loai"],
             STATS_MATERIALIZED_VIEWS["treo_by_cv"],
             STATS_MATERIALIZED_VIEWS["workflow_cases"],
@@ -438,6 +448,293 @@ def migrate_stats_schema(engine):
         conn.execute(text(
             f"CREATE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['workflow_cases']}_buoc "
             f"ON {STATS_MATERIALIZED_VIEWS['workflow_cases']} (thu_tuc, buoc)"
+        ))
+
+        conn.execute(text(f"""
+            CREATE MATERIALIZED VIEW IF NOT EXISTS {STATS_MATERIALIZED_VIEWS["pending_lookup"]} AS
+            WITH latest_case_facts AS (
+                SELECT DISTINCT ON (thu_tuc, ma_ho_so)
+                    thu_tuc,
+                    ma_ho_so,
+                    loai_ho_so,
+                    submission_kind,
+                    ngay_nhan,
+                    nhan_hen_tra,
+                    chuyen_gia_name
+                FROM {STATS_MATERIALIZED_VIEWS["case_facts"]}
+                ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
+            ),
+            latest_workflow_experts AS (
+                SELECT DISTINCT ON (thu_tuc, ma_ho_so)
+                    thu_tuc,
+                    ma_ho_so,
+                    REGEXP_REPLACE(TRIM(nguoi_xu_ly), '^CG\\s*:\\s*', '', 'i') AS chuyen_gia_name
+                FROM {STATS_MATERIALIZED_VIEWS["workflow_cases"]}
+                WHERE don_vi = 'Chuyên gia thẩm định'
+                  AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
+                ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
+            ),
+            latest_tcc_roles AS (
+                SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
+                    (data->>'thuTucId')::int AS thu_tuc,
+                    data->>'maHoSo' AS ma_ho_so,
+                    CASE
+                        WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz
+                        ELSE NULL
+                    END AS ngay_tiep_nhan,
+                    NULLIF(TRIM(data->>'trangThaiHoSo'), '') AS trang_thai_ho_so,
+                    NULLIF(TRIM(data->>'chuyenVienThuLyName'), '') AS cv_thu_ly_name,
+                    NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name
+                FROM tra_cuu_chung
+                WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
+                ORDER BY
+                    (data->>'thuTucId')::int,
+                    data->>'maHoSo',
+                    CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
+                    NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
+            ),
+            workflow_rows AS (
+                SELECT
+                    w.thu_tuc,
+                    w.ma_ho_so,
+                    w.ngay_nhan AS ngay_tiep_nhan,
+                    cf.nhan_hen_tra AS ngay_hen_tra,
+                    cf.loai_ho_so,
+                    cf.submission_kind,
+                    CASE
+                        WHEN w.cv_name = '__CHUA_PHAN__' THEN 'cho_phan_cong'
+                        WHEN w.thu_tuc IN (46, 47)
+                          AND w.don_vi = 'Chuyên viên phối hợp thẩm định'
+                        THEN CASE
+                          WHEN dxs.trang_thai_xu_ly = 30 THEN 'cho_ke_hoach'
+                          WHEN dxs.trang_thai_xu_ly = 40 THEN 'cho_bao_cao'
+                          ELSE 'dang_xu_ly'
+                        END
+                        WHEN w.thu_tuc IN (46, 47)
+                          AND w.don_vi = 'Chuyên viên'
+                          AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
+                        THEN CASE
+                          WHEN ctd.ma_ho_so IS NOT NULL THEN 'cho_tham_dinh'
+                          ELSE 'cho_quyet_dinh'
+                        END
+                        WHEN w.thu_tuc = 48 AND w.buoc = 'chua_xu_ly' THEN 'chua_xu_ly'
+                        WHEN w.thu_tuc = 48 AND w.buoc = 'bi_tra_lai' THEN 'bi_tra_lai'
+                        WHEN w.thu_tuc = 48 AND w.buoc = 'cho_tong_hop' THEN 'cho_tong_hop'
+                        WHEN w.don_vi = 'Chuyên gia thẩm định' THEN 'cho_chuyen_gia'
+                        WHEN w.don_vi = 'Tổ trưởng chuyên gia' THEN 'cho_to_truong'
+                        WHEN w.don_vi = 'Trưởng phòng' THEN 'cho_truong_phong'
+                        WHEN w.don_vi LIKE 'Văn thư%' THEN 'cho_van_thu'
+                        WHEN w.buoc = 'cho_ket_thuc' OR w.don_vi = 'Phó Cục trưởng' THEN 'cho_cong_bo'
+                        WHEN w.buoc IN ('chua_xu_ly', 'bi_tra_lai', 'cho_tong_hop') OR w.don_vi IN ('Chuyên viên')
+                        THEN 'cho_chuyen_vien'
+                        ELSE 'cho_chuyen_vien'
+                    END AS tinh_trang,
+                    CASE
+                        WHEN w.cv_name = '__CHUA_PHAN__' THEN NULL
+                        WHEN w.thu_tuc IN (46, 47)
+                          AND w.don_vi = 'Chuyên viên phối hợp thẩm định'
+                        THEN COALESCE(
+                            NULLIF(TRIM(w.nguoi_xu_ly), ''),
+                            CASE
+                                WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+                                ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i')
+                            END,
+                            NULLIF(TRIM(w.cv_name), '')
+                        )
+                        WHEN w.thu_tuc IN (46, 47)
+                          AND w.don_vi = 'Chuyên viên'
+                          AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
+                        THEN COALESCE(
+                            CASE
+                                WHEN NULLIF(TRIM(roles.cv_thu_ly_name), '') IS NULL THEN NULL
+                                ELSE REGEXP_REPLACE(TRIM(roles.cv_thu_ly_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i')
+                            END,
+                            NULLIF(TRIM(w.cv_name), '')
+                        )
+                        WHEN NULLIF(TRIM(w.cv_name), '') IS NULL OR w.cv_name = '__CHUA_PHAN__' THEN NULL
+                        ELSE TRIM(w.cv_name)
+                    END AS chuyen_vien,
+                    CASE
+                        WHEN w.cv_name = '__CHUA_PHAN__' THEN NULL
+                        WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN REGEXP_REPLACE(TRIM(cf.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
+                        WHEN NULLIF(TRIM(we.chuyen_gia_name), '') IS NOT NULL THEN we.chuyen_gia_name
+                        ELSE NULL
+                    END AS chuyen_gia,
+                    COALESCE(w.qua_han_ngay, 0) AS qua_han_ngay,
+                    COALESCE(
+                        CASE
+                            WHEN COALESCE(w.qua_han_ngay, 0) > 0 THEN w.qua_han_ngay
+                            ELSE GREATEST(
+                                0,
+                                CURRENT_DATE - ((w.ngay_nhan AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
+                            )::int
+                        END,
+                        0
+                    ) AS thoi_gian_cho_ngay
+                FROM {STATS_MATERIALIZED_VIEWS["workflow_cases"]} w
+                LEFT JOIN latest_case_facts cf
+                  ON cf.thu_tuc = w.thu_tuc
+                 AND cf.ma_ho_so = w.ma_ho_so
+                LEFT JOIN latest_tcc_roles roles
+                  ON roles.thu_tuc = w.thu_tuc
+                 AND roles.ma_ho_so = w.ma_ho_so
+                LEFT JOIN latest_workflow_experts we
+                  ON we.thu_tuc = w.thu_tuc
+                 AND we.ma_ho_so = w.ma_ho_so
+                LEFT JOIN tt47_46_dang_xu_ly_status dxs
+                  ON dxs.thu_tuc = w.thu_tuc
+                 AND dxs.ma_ho_so = w.ma_ho_so
+                LEFT JOIN tt47_46_cho_tham_dinh ctd
+                  ON ctd.thu_tuc = w.thu_tuc
+                 AND ctd.ma_ho_so = w.ma_ho_so
+            ),
+            capa_base AS (
+                SELECT
+                    roles.thu_tuc,
+                    roles.ma_ho_so,
+                    COALESCE(cf.ngay_nhan, roles.ngay_tiep_nhan) AS ngay_tiep_nhan,
+                    cf.nhan_hen_tra AS ngay_hen_tra,
+                    cf.loai_ho_so,
+                    cf.submission_kind,
+                    CASE
+                        WHEN roles.trang_thai_ho_so = '210' THEN 'cho_nop_capa'
+                        WHEN roles.trang_thai_ho_so = '220' THEN 'cho_danh_gia_capa'
+                        ELSE 'cho_chuyen_vien'
+                    END AS tinh_trang,
+                    REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i') AS chuyen_vien,
+                    NULL::text AS chuyen_gia,
+                    CASE
+                        WHEN cf.nhan_hen_tra IS NOT NULL THEN (CURRENT_DATE - ((cf.nhan_hen_tra AT TIME ZONE 'Asia/Ho_Chi_Minh')::date))::int
+                        ELSE 0
+                    END AS qua_han_ngay,
+                    CASE
+                        WHEN cf.nhan_hen_tra IS NOT NULL THEN (CURRENT_DATE - ((cf.nhan_hen_tra AT TIME ZONE 'Asia/Ho_Chi_Minh')::date))::int
+                        WHEN COALESCE(cf.ngay_nhan, roles.ngay_tiep_nhan) IS NOT NULL THEN GREATEST(
+                            0,
+                            CURRENT_DATE - ((COALESCE(cf.ngay_nhan, roles.ngay_tiep_nhan) AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
+                        )::int
+                        ELSE 0
+                    END AS thoi_gian_cho_ngay
+                FROM latest_tcc_roles roles
+                LEFT JOIN latest_case_facts cf
+                  ON cf.thu_tuc = roles.thu_tuc
+                 AND cf.ma_ho_so = roles.ma_ho_so
+                WHERE roles.thu_tuc IN (46, 47)
+                  AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
+                  AND roles.trang_thai_ho_so IN ('210', '220')
+            )
+            SELECT *
+            FROM workflow_rows
+            WHERE NOT (
+                thu_tuc IN (46, 47)
+                AND ma_ho_so IN (SELECT ma_ho_so FROM capa_base WHERE thu_tuc = workflow_rows.thu_tuc)
+            )
+            UNION ALL
+            SELECT *
+            FROM capa_base
+        """))
+        conn.execute(text(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['pending_lookup']}_key "
+            f"ON {STATS_MATERIALIZED_VIEWS['pending_lookup']} (thu_tuc, ma_ho_so)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['pending_lookup']}_filters "
+            f"ON {STATS_MATERIALIZED_VIEWS['pending_lookup']} (thu_tuc, tinh_trang, chuyen_vien, chuyen_gia)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['pending_lookup']}_ma_ho_so "
+            f"ON {STATS_MATERIALIZED_VIEWS['pending_lookup']} (thu_tuc, ma_ho_so)"
+        ))
+
+        conn.execute(text(f"""
+            CREATE MATERIALIZED VIEW IF NOT EXISTS {STATS_MATERIALIZED_VIEWS["resolved_lookup"]} AS
+            WITH latest_case_facts AS (
+                SELECT DISTINCT ON (thu_tuc, luot_xu_ly_id)
+                    thu_tuc,
+                    COALESCE(NULLIF(TRIM(da_xu_ly_id), ''), tcc_id) AS luot_xu_ly_id,
+                    ma_ho_so,
+                    tcc_id,
+                    ngay_nhan AS ngay_tiep_nhan,
+                    ngay_tra AS ngay_hen_tra,
+                    loai_ho_so,
+                    submission_kind,
+                    CASE
+                        WHEN trang_thai = '4' THEN 'can_bo_sung'
+                        WHEN trang_thai = '7' THEN 'khong_dat'
+                        WHEN trang_thai = '6' THEN 'da_hoan_thanh'
+                        ELSE NULL
+                    END AS tinh_trang,
+                    cv_name_raw,
+                    chuyen_gia_name,
+                    GREATEST(
+                        0,
+                        ((COALESCE(ngay_tra, ngay_nhan) AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - (ngay_nhan AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
+                    )::int AS thoi_gian_cho_ngay
+                FROM {STATS_MATERIALIZED_VIEWS["case_facts"]}
+                WHERE trang_thai IN ('4', '6', '7')
+                  AND COALESCE(NULLIF(TRIM(da_xu_ly_id), ''), tcc_id) IS NOT NULL
+                ORDER BY thu_tuc, luot_xu_ly_id, ngay_tra DESC NULLS LAST, ngay_nhan DESC NULLS LAST
+            ),
+            latest_tcc_roles AS (
+                SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'id')
+                    (data->>'thuTucId')::int AS thu_tuc,
+                    NULLIF(TRIM(data->>'id'), '') AS tcc_id,
+                    data->>'maHoSo' AS ma_ho_so,
+                    NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name
+                FROM tra_cuu_chung
+                WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
+                ORDER BY
+                    (data->>'thuTucId')::int,
+                    NULLIF(TRIM(data->>'id'), ''),
+                    CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
+                    NULLIF(TRIM(data->>'maHoSo'), '') DESC NULLS LAST
+            )
+            SELECT
+                l.luot_xu_ly_id AS lookup_id,
+                l.thu_tuc,
+                l.ma_ho_so,
+                l.ngay_tiep_nhan,
+                l.ngay_hen_tra,
+                l.loai_ho_so,
+                l.submission_kind,
+                l.tinh_trang,
+                CASE
+                    WHEN l.thu_tuc IN (46, 47) THEN COALESCE(
+                        CASE
+                            WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+                            ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i')
+                        END,
+                        NULLIF(TRIM(d.data->>'nguoiXuLy'), ''),
+                        NULLIF(TRIM(d.data->>'chuyenVienPhoiHopName'), ''),
+                        NULLIF(TRIM(d.data->>'chuyenVienXuLyName'), '')
+                    )
+                    WHEN NULLIF(TRIM(l.cv_name_raw), '') IS NULL OR l.cv_name_raw = '__CHUA_PHAN__' THEN NULL
+                    ELSE TRIM(l.cv_name_raw)
+                END AS chuyen_vien,
+                CASE
+                    WHEN NULLIF(TRIM(l.chuyen_gia_name), '') IS NULL THEN NULL
+                    ELSE REGEXP_REPLACE(TRIM(l.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
+                END AS chuyen_gia,
+                l.thoi_gian_cho_ngay
+            FROM latest_case_facts l
+            LEFT JOIN latest_tcc_roles roles
+              ON roles.thu_tuc = l.thu_tuc
+             AND (roles.tcc_id = l.tcc_id OR roles.ma_ho_so = l.ma_ho_so)
+            LEFT JOIN da_xu_ly d
+              ON d.thu_tuc = l.thu_tuc
+             AND d.data->>'id' = l.luot_xu_ly_id
+        """))
+        conn.execute(text(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['resolved_lookup']}_key "
+            f"ON {STATS_MATERIALIZED_VIEWS['resolved_lookup']} (lookup_id)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['resolved_lookup']}_filters "
+            f"ON {STATS_MATERIALIZED_VIEWS['resolved_lookup']} (thu_tuc, tinh_trang, chuyen_vien, chuyen_gia)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['resolved_lookup']}_ma_ho_so "
+            f"ON {STATS_MATERIALIZED_VIEWS['resolved_lookup']} (thu_tuc, ma_ho_so)"
         ))
 
         conn.execute(text(f"""

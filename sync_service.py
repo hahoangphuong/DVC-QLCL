@@ -10,7 +10,15 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 
 from auth_client import RemoteAuthError, RemoteClient
-from models import DaXuLy, DangXuLy, RemoteFetchLog, TraCuuChung, Tt47Tt46DangXuLyStatus, Tt48CvBuoc
+from models import (
+    DaXuLy,
+    DangXuLy,
+    RemoteFetchLog,
+    TraCuuChung,
+    Tt47Tt46ChoThamDinh,
+    Tt47Tt46DangXuLyStatus,
+    Tt48CvBuoc,
+)
 from stats_views import refresh_stats_materialized_views
 from sync_utils import batched_insert, calc_batch_size, clean_record, den_ngay_now
 
@@ -200,7 +208,7 @@ class SyncService:
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Loi lay chi tiet ho so TT48: {exc}")
 
-    def get_tt47_46_cho_tham_dinh(self, thu_tuc: int, client: RemoteClient | None = None) -> dict:
+    def _fetch_tt47_46_cho_tham_dinh_rows(self, thu_tuc: int, client: RemoteClient | None = None) -> tuple[list[dict], float]:
         if thu_tuc not in (46, 47):
             raise HTTPException(status_code=400, detail="thu_tuc phai la 46 hoac 47")
 
@@ -242,38 +250,140 @@ class SyncService:
                 return None
             return trimmed
 
+        active_client = client or self._login_remote_client()
+        items, fetch_sec = self.fetch_all_paged(active_client, api_url, body, referer=referer)
+
+        rows = []
+        for item in items:
+            ma_ho_so = (item.get("maHoSo") or item.get("strSoHieuHoSo") or "").strip()
+            chuyen_vien_thu_ly = _clean_cv_name(item.get("chuyenVienThuLyName"))
+            chuyen_vien_phoi_hop = _clean_cv_name(item.get("chuyenVienPhoiHopName"))
+            if not ma_ho_so or not chuyen_vien_thu_ly or chuyen_vien_phoi_hop:
+                continue
+            rows.append({
+                "ma_ho_so": ma_ho_so,
+                "chuyen_vien_thu_ly": chuyen_vien_thu_ly,
+            })
+
+        return rows, fetch_sec
+
+    def sync_tt47_46_cho_tham_dinh(
+        self,
+        thu_tuc: int,
+        client: RemoteClient | None = None,
+        refresh_views: bool = False,
+    ) -> dict:
+        if thu_tuc not in (46, 47):
+            raise HTTPException(status_code=400, detail="thu_tuc phai la 46 hoac 47")
+
+        db = self.session_factory()
         try:
-            active_client = client or self._login_remote_client()
-            items, _fetch_sec = self.fetch_all_paged(active_client, api_url, body, referer=referer)
+            started = _time.monotonic()
+            rows, fetch_sec = self._fetch_tt47_46_cho_tham_dinh_rows(thu_tuc, client=client)
+            process_sec = max(0.0, _time.monotonic() - started - fetch_sec)
 
-            rows = []
-            for item in items:
-                ma_ho_so = (item.get("maHoSo") or item.get("strSoHieuHoSo") or "").strip()
-                chuyen_vien_thu_ly = _clean_cv_name(item.get("chuyenVienThuLyName"))
-                chuyen_vien_phoi_hop = _clean_cv_name(item.get("chuyenVienPhoiHopName"))
-                if not ma_ho_so or not chuyen_vien_thu_ly or chuyen_vien_phoi_hop:
-                    continue
-                rows.append({
-                    "ma_ho_so": ma_ho_so,
-                    "chuyen_vien_thu_ly": chuyen_vien_thu_ly,
-                })
+            t_insert = _time.monotonic()
+            synced_at = datetime.now(timezone.utc)
+            db.execute(
+                text('DELETE FROM "tt47_46_cho_tham_dinh" WHERE thu_tuc = :tt'),
+                {"tt": thu_tuc},
+            )
+            if rows:
+                db.execute(
+                    Tt47Tt46ChoThamDinh.__table__.insert(),
+                    [{"thu_tuc": thu_tuc, **row} for row in rows],
+                )
+            self._upsert_sync_meta(
+                db,
+                f"tt{thu_tuc}_cho_tham_dinh",
+                synced_at,
+                len(rows),
+                fetch_sec=fetch_sec,
+                insert_sec=_time.monotonic() - t_insert,
+            )
+            insert_sec = _time.monotonic() - t_insert
+            refresh_sec = 0.0
+            if refresh_views:
+                refresh_sec = self._refresh_views_with_timing(db, "pending_lookup")
+            db.commit()
+            self.runtime.sync_log.info(
+                f"[tt{thu_tuc}_cho_tham_dinh] Tong: {len(rows)} records -> "
+                f"fetch_raw={fetch_sec:.1f}s | process={process_sec:.1f}s | "
+                f"write_db={insert_sec:.1f}s | refresh_mv={refresh_sec:.1f}s"
+            )
+            return {
+                "ok": True,
+                "dataset": f"tt{thu_tuc}_cho_tham_dinh",
+                "inserted": len(rows),
+                "total_from_api": len(rows),
+                "synced_at": synced_at.isoformat(),
+                "fetch_sec": fetch_sec,
+                "process_sec": process_sec,
+                "insert_sec": insert_sec,
+                "refresh_sec": refresh_sec,
+            }
+        except RemoteAuthError as exc:
+            db.rollback()
+            raise HTTPException(status_code=401, detail=str(exc))
+        except EnvironmentError as exc:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Thieu cau hinh: {exc}")
+        except requests.HTTPError as exc:
+            db.rollback()
+            raise HTTPException(status_code=502, detail=f"Loi HTTP tu DAV: {exc}")
+        except ValueError as exc:
+            db.rollback()
+            raise HTTPException(status_code=502, detail=str(exc))
+        except Exception as exc:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Loi sync danh sach cho tham dinh TT{thu_tuc}: {exc}")
+        finally:
+            db.close()
 
+    def get_tt47_46_cho_tham_dinh(self, thu_tuc: int) -> dict:
+        if thu_tuc not in (46, 47):
+            raise HTTPException(status_code=400, detail="thu_tuc phai la 46 hoac 47")
+
+        db = self.session_factory()
+        try:
+            rows = db.query(
+                Tt47Tt46ChoThamDinh.ma_ho_so,
+                Tt47Tt46ChoThamDinh.chuyen_vien_thu_ly,
+            ).filter(
+                Tt47Tt46ChoThamDinh.thu_tuc == thu_tuc
+            ).all()
             return {
                 "ok": True,
                 "thu_tuc": thu_tuc,
                 "total": len(rows),
-                "rows": rows,
+                "rows": [
+                    {
+                        "ma_ho_so": ma_ho_so,
+                        "chuyen_vien_thu_ly": chuyen_vien_thu_ly,
+                    }
+                    for ma_ho_so, chuyen_vien_thu_ly in rows
+                ],
             }
-        except RemoteAuthError as exc:
-            raise HTTPException(status_code=401, detail=str(exc))
-        except EnvironmentError as exc:
-            raise HTTPException(status_code=500, detail=f"Thieu cau hinh: {exc}")
-        except requests.HTTPError as exc:
-            raise HTTPException(status_code=502, detail=f"Loi HTTP tu DAV: {exc}")
-        except ValueError as exc:
-            raise HTTPException(status_code=502, detail=str(exc))
         except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Loi lay danh sach cho tham dinh TT{thu_tuc}: {exc}")
+            self.runtime.sync_log.warning(
+                f"[tt{thu_tuc}_cho_tham_dinh] fallback fetch truc tiep tu DAV "
+                f"do loi doc cache DB: {type(exc).__name__}: {exc}"
+            )
+            try:
+                rows, _fetch_sec = self._fetch_tt47_46_cho_tham_dinh_rows(thu_tuc)
+                return {
+                    "ok": True,
+                    "thu_tuc": thu_tuc,
+                    "total": len(rows),
+                    "rows": rows,
+                    "source": "dav_fallback",
+                }
+            except HTTPException:
+                raise
+            except Exception as inner_exc:
+                raise HTTPException(status_code=500, detail=f"Loi lay danh sach cho tham dinh TT{thu_tuc}: {inner_exc}")
+        finally:
+            db.close()
 
     def _fetch_tt47_46_dang_xu_ly_sub_status_rows(self, thu_tuc: int, client: RemoteClient | None = None) -> tuple[list[dict], float]:
         if thu_tuc not in (46, 47):
@@ -969,9 +1079,11 @@ class SyncService:
                 ("tt48_cv_buoc", self.sync_tt48_cv_buoc, f"{base_url}/api/services/app/xuLyHoSoGridView48/GetListHoSoPaging [formCase 2/3/5]"),
                 ("tt47_da_xu_ly", self.sync_tt47_da_xu_ly, f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc [ThuTucEnum=47, isDone=True]"),
                 ("tt47_dang_xu_ly", self.sync_tt47_dang_xu_ly, f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc [ThuTucEnum=47, isDone=False]"),
+                ("tt47_cho_tham_dinh", lambda client=None, refresh_views=False: self.sync_tt47_46_cho_tham_dinh(47, client=client, refresh_views=refresh_views), f"{base_url}/api/services/app/xuLyHoSoGridView47/GetListHoSoPaging [formCase 2, loaiHoSoId=49]"),
                 ("tt47_dang_xu_ly_sub_statuses", lambda client=None, refresh_views=False: self.sync_tt47_46_dang_xu_ly_sub_statuses(47, client=client, refresh_views=refresh_views), f"{base_url}/api/services/app/xuLyHoSoGridView47/GetListHoSoPaging [formCase 3, loaiHoSoId=49]"),
                 ("tt46_da_xu_ly", self.sync_tt46_da_xu_ly, f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc [ThuTucEnum=46, isDone=True]"),
                 ("tt46_dang_xu_ly", self.sync_tt46_dang_xu_ly, f"{base_url}/api/services/app/dashBoard/Get_DanhSachHoSoXuLyTrucTuyen_ByThuTuc [ThuTucEnum=46, isDone=False]"),
+                ("tt46_cho_tham_dinh", lambda client=None, refresh_views=False: self.sync_tt47_46_cho_tham_dinh(46, client=client, refresh_views=refresh_views), f"{base_url}/api/services/app/xuLyHoSoGridView46/GetListHoSoPaging [formCase 2, loaiHoSoId=48]"),
                 ("tt46_dang_xu_ly_sub_statuses", lambda client=None, refresh_views=False: self.sync_tt47_46_dang_xu_ly_sub_statuses(46, client=client, refresh_views=refresh_views), f"{base_url}/api/services/app/xuLyHoSoGridView46/GetListHoSoPaging [formCase 3, loaiHoSoId=48]"),
             ]
 
@@ -997,19 +1109,22 @@ class SyncService:
                             "received_bounds",
                             "case_facts",
                             "workflow_cases",
+                            "pending_lookup",
+                            "resolved_lookup",
                             "treo_by_cv",
                             "tt48_treo_by_loai",
                         )
                     elif label == "tt48_cv_buoc":
-                        self._merge_refresh_kinds(deferred_refresh_kinds, "workflow_cases")
-                    elif label.endswith("_sub_statuses"):
-                        pass
+                        self._merge_refresh_kinds(deferred_refresh_kinds, "workflow_cases", "pending_lookup")
+                    elif label.endswith("_sub_statuses") or label.endswith("_cho_tham_dinh"):
+                        self._merge_refresh_kinds(deferred_refresh_kinds, "pending_lookup")
                     elif label.endswith("da_xu_ly"):
                         self._merge_refresh_kinds(
                             deferred_refresh_kinds,
                             "resolved",
                             "case_facts",
                             "resolved_facts",
+                            "resolved_lookup",
                             "treo_by_cv",
                             "tt48_treo_by_loai",
                         )
@@ -1019,6 +1134,7 @@ class SyncService:
                             "inflight",
                             "case_facts",
                             "workflow_cases",
+                            "pending_lookup",
                         )
                     self.runtime.sync_log.info(
                         f"[run #{run_id}] [{label}] POST {api_info} → OK | {inserted}/{total} records | "

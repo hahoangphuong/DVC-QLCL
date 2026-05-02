@@ -10,6 +10,8 @@ STATS_MATERIALIZED_VIEWS = {
     "inflight": "mv_stats_inflight_monthly",
     "case_facts": "mv_stats_case_facts",
     "workflow_cases": "mv_stats_workflow_cases",
+    "pending_lookup": "mv_stats_pending_lookup",
+    "resolved_lookup": "mv_stats_resolved_lookup",
     "treo_by_cv": "mv_stats_treo_by_cv",
     "tt48_treo_by_loai": "mv_stats_tt48_treo_by_loai",
 }
@@ -22,6 +24,8 @@ CONCURRENT_REFRESH_KINDS = {
     "inflight",
     "case_facts",
     "workflow_cases",
+    "pending_lookup",
+    "resolved_lookup",
     "treo_by_cv",
     "tt48_treo_by_loai",
 }

@@ -112,3 +112,14 @@ class Tt47Tt46DangXuLyStatus(Base):
     thu_tuc = Column(Integer, primary_key=True)
     ma_ho_so = Column(String(100), primary_key=True)
     trang_thai_xu_ly = Column(Integer, nullable=False)
+
+
+class Tt47Tt46ChoThamDinh(Base):
+    """
+    Bảng phụ TT46/TT47: lưu tập hồ sơ ở nhánh "chờ thẩm định" theo mã hồ sơ.
+    Dùng cho dashboard stats/lookup đọc dữ liệu đã sync định kỳ thay vì fetch DAV runtime.
+    """
+    __tablename__ = "tt47_46_cho_tham_dinh"
+    thu_tuc = Column(Integer, primary_key=True)
+    ma_ho_so = Column(String(100), primary_key=True)
+    chuyen_vien_thu_ly = Column(String(255), nullable=False)

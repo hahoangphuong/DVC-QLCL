@@ -489,11 +489,7 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
   };
 }
 
-export async function getDangXuLyStats(
-  thuTuc: number,
-  choThamDinhMaHoSoSet?: ReadonlySet<string>,
-  tt47Tt46DangXuLyStatusMap?: ReadonlyMap<string, number>,
-) {
+export async function getDangXuLyStats(thuTuc: number) {
   const monthRows = await query<{ yr: string; mo: string; cnt: string }>(
     buildMonthlyAggregateSql("mv_stats_inflight_monthly"),
     [thuTuc]
@@ -656,112 +652,74 @@ export async function getDangXuLyStats(
 
   const rows = await query<{
     cv_name: string;
-    ma_ho_so: string;
-    qua_han_ngay: string | number;
-    ngay_nhan: string | Date | null;
-    buoc_tt47_46: string | null;
+    tong: string;
+    cho_cv: string;
+    cho_tham_dinh: string;
+    cho_quyet_dinh: string;
+    cho_ke_hoach: string;
+    cho_bao_cao: string;
+    cho_cg: string;
+    cho_nop_capa: string;
+    cho_danh_gia_capa: string;
+    cho_to_truong: string;
+    cho_trp: string;
+    cho_pct: string;
+    cho_van_thu: string;
+    con_han: string;
+    qua_han: string;
+    cham_so_ngay: string;
+    cham_ma: string | null;
+    cham_ngay: string | null;
   }>(
-    `WITH
-     ${buildWorkflowCasesCte("$1")},
-     ${buildCaseFactsCte("$1")},
-     latest_case_facts AS (
-       SELECT DISTINCT ON (ma_ho_so)
-         ma_ho_so,
-         ngay_nhan,
-         nhan_hen_tra
-       FROM case_facts
-       ORDER BY ma_ho_so, ngay_nhan DESC NULLS LAST
-     ),
-     latest_tcc_roles AS (
-       SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
-         (data->>'thuTucId')::int AS thu_tuc,
-         data->>'maHoSo' AS ma_ho_so,
-         NULLIF(TRIM(data->>'chuyenVienThuLyName'), '') AS cv_thu_ly_name,
-         NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name,
-         NULLIF(TRIM(data->>'trangThaiHoSo'), '') AS trang_thai_ho_so,
-         CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END AS ngay_tiep_nhan
-       FROM tra_cuu_chung
-       WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
-         AND (data->>'thuTucId')::int = $1
-       ORDER BY
-         (data->>'thuTucId')::int,
-         data->>'maHoSo',
-         CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
-         NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
-     ),
-     workflow_base AS (
+    `WITH base AS (
        SELECT
          CASE
-           WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN '__CHUA_PHAN__'
-           WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN COALESCE(
-             NULLIF(TRIM(nguoi_xu_ly), ''),
-             CASE
-               WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
-               ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
-             END,
-             NULLIF(TRIM(cv_name), '')
-           )
-           WHEN don_vi = 'Chuy\u00ean vi\u00ean'
-             AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
-           THEN COALESCE(
-             CASE
-               WHEN NULLIF(TRIM(roles.cv_thu_ly_name), '') IS NULL THEN NULL
-               ELSE REGEXP_REPLACE(TRIM(roles.cv_thu_ly_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i')
-             END,
-             NULLIF(TRIM(cv_name), '')
-           )
-           ELSE cv_name
+           WHEN tinh_trang = 'cho_phan_cong' THEN '__CHUA_PHAN__'
+           ELSE chuyen_vien
          END AS cv_name,
-         workflow_cases.ma_ho_so,
-         qua_han_ngay,
-         ngay_nhan,
-         roles.trang_thai_ho_so,
-         NULLIF(TRIM(roles.cv_phoi_hop_name), '') AS cv_phoi_hop_name_raw,
-         CASE
-           WHEN don_vi = 'Ph\u00f2ng ban ph\u00e2n c\u00f4ng' THEN 'cho_phan_cong'
-           WHEN don_vi = 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh' THEN 'dang_xu_ly'
-           WHEN don_vi = 'Chuy\u00ean vi\u00ean'
-             AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
-           THEN 'dang_tham_dinh'
-           ELSE NULL
-         END AS buoc_tt47_46
-       FROM workflow_cases
-       LEFT JOIN latest_tcc_roles roles
-         ON roles.thu_tuc = $1
-        AND roles.ma_ho_so = workflow_cases.ma_ho_so
-       WHERE don_vi IN ('Ph\u00f2ng ban ph\u00e2n c\u00f4ng', 'Chuy\u00ean vi\u00ean', 'Chuy\u00ean vi\u00ean ph\u1ed1i h\u1ee3p th\u1ea9m \u0111\u1ecbnh')
+         ma_ho_so,
+         COALESCE(qua_han_ngay, 0) AS qua_han_ngay,
+         ngay_tiep_nhan AS ngay_nhan,
+         tinh_trang
+       FROM mv_stats_pending_lookup
+       WHERE thu_tuc = $1
      ),
-     capa_base AS (
+     stats AS (
        SELECT
-         REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(ph\u1ed1i h\u1ee3p|th\u1ee5 l\u00fd)\\s*:\\s*', '', 'i') AS cv_name,
-         roles.ma_ho_so,
-         CASE
-           WHEN cf.nhan_hen_tra IS NOT NULL THEN (CURRENT_DATE - ((cf.nhan_hen_tra AT TIME ZONE 'Asia/Ho_Chi_Minh')::date))::int
-           ELSE 0
-         END AS qua_han_ngay,
-         COALESCE(cf.ngay_nhan, roles.ngay_tiep_nhan) AS ngay_nhan,
-         CASE
-           WHEN roles.trang_thai_ho_so = '210' THEN 'cho_nop_capa'
-           WHEN roles.trang_thai_ho_so = '220' THEN 'cho_danh_gia_capa'
-           ELSE NULL
-         END AS buoc_tt47_46
-       FROM latest_tcc_roles roles
-       LEFT JOIN latest_case_facts cf
-         ON cf.ma_ho_so = roles.ma_ho_so
-       WHERE NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
-         AND roles.trang_thai_ho_so IN ('220', '210')
+         cv_name,
+         COUNT(*) AS tong,
+         COUNT(*) FILTER (WHERE tinh_trang IN ('cho_tham_dinh', 'cho_quyet_dinh')) AS cho_cv,
+         COUNT(*) FILTER (WHERE tinh_trang = 'cho_tham_dinh') AS cho_tham_dinh,
+         COUNT(*) FILTER (WHERE tinh_trang = 'cho_quyet_dinh') AS cho_quyet_dinh,
+         COUNT(*) FILTER (WHERE tinh_trang = 'cho_ke_hoach') AS cho_ke_hoach,
+         COUNT(*) FILTER (WHERE tinh_trang = 'cho_bao_cao') AS cho_bao_cao,
+         COUNT(*) FILTER (WHERE tinh_trang = 'dang_xu_ly') AS cho_cg,
+         COUNT(*) FILTER (WHERE tinh_trang = 'cho_nop_capa') AS cho_nop_capa,
+         COUNT(*) FILTER (WHERE tinh_trang = 'cho_danh_gia_capa') AS cho_danh_gia_capa,
+         0::bigint AS cho_to_truong,
+         0::bigint AS cho_trp,
+         0::bigint AS cho_pct,
+         0::bigint AS cho_van_thu,
+         COUNT(*) FILTER (WHERE qua_han_ngay <= 0) AS con_han,
+         COUNT(*) FILTER (WHERE qua_han_ngay > 0) AS qua_han
+       FROM base
+       WHERE cv_name IS NOT NULL
+       GROUP BY cv_name
+     ),
+     cham_nhat AS (
+       SELECT DISTINCT ON (cv_name)
+         cv_name,
+         qua_han_ngay AS cham_so_ngay,
+         ma_ho_so AS cham_ma,
+         ngay_nhan AS cham_ngay
+       FROM base
+       WHERE cv_name IS NOT NULL
+       ORDER BY cv_name, qua_han_ngay DESC, ma_ho_so ASC
      )
-     SELECT cv_name, ma_ho_so, qua_han_ngay, ngay_nhan, buoc_tt47_46
-     FROM workflow_base
-     WHERE buoc_tt47_46 IS NOT NULL
-       AND NOT (
-         cv_phoi_hop_name_raw IS NOT NULL
-         AND trang_thai_ho_so IN ('220', '210')
-       )
-     UNION ALL
-     SELECT cv_name, ma_ho_so, qua_han_ngay, ngay_nhan, buoc_tt47_46
-     FROM capa_base
-     WHERE buoc_tt47_46 IS NOT NULL`,
+     SELECT s.*, cn.cham_so_ngay, cn.cham_ma, cn.cham_ngay
+     FROM stats s
+     LEFT JOIN cham_nhat cn ON cn.cv_name = s.cv_name
+     ORDER BY s.tong DESC, s.cv_name ASC`,
     [thuTuc]
   );
 
@@ -787,88 +745,27 @@ export async function getDangXuLyStats(
     cham_ngay: string | null;
   };
 
-  const byCv = new Map<string, Tt47Tt46PendingRow>();
-  const ensureRow = (cvName: string): Tt47Tt46PendingRow => {
-    const existing = byCv.get(cvName);
-    if (existing) return existing;
-    const created: Tt47Tt46PendingRow = {
-      cv_name: cvName,
-      tong: 0,
-      cho_cv: 0,
-      cho_tham_dinh: 0,
-      cho_quyet_dinh: 0,
-      cho_ke_hoach: 0,
-      cho_bao_cao: 0,
-      cho_cg: 0,
-      cho_nop_capa: 0,
-      cho_danh_gia_capa: 0,
-      cho_to_truong: 0,
-      cho_trp: 0,
-      cho_pct: 0,
-      cho_van_thu: 0,
-      con_han: 0,
-      qua_han: 0,
-      cham_so_ngay: 0,
-      cham_ma: null,
-      cham_ngay: null,
-    };
-    byCv.set(cvName, created);
-    return created;
-  };
-
-  for (const row of rows) {
-    const cvName = row.cv_name;
-    if (!cvName) continue;
-    const target = ensureRow(cvName);
-    const rawStatus = row.buoc_tt47_46 ?? "";
-    const appraisalMappedStatus = mapTt47Tt46PendingStatus(thuTuc, rawStatus, row.ma_ho_so, choThamDinhMaHoSoSet);
-    const pendingStatus = mapTt47Tt46DangXuLyStatus(thuTuc, appraisalMappedStatus, row.ma_ho_so, tt47Tt46DangXuLyStatusMap);
-    const quaHanNgay = toCount(row.qua_han_ngay);
-
-    target.tong += 1;
-    if (quaHanNgay > 0) target.qua_han += 1;
-    else target.con_han += 1;
-
-    switch (pendingStatus) {
-      case "cho_tham_dinh":
-        target.cho_cv += 1;
-        target.cho_tham_dinh += 1;
-        break;
-      case "cho_quyet_dinh":
-        target.cho_cv += 1;
-        target.cho_quyet_dinh += 1;
-        break;
-      case "cho_ke_hoach":
-        target.cho_ke_hoach += 1;
-        break;
-      case "cho_bao_cao":
-        target.cho_bao_cao += 1;
-        break;
-      case "dang_xu_ly":
-        target.cho_cg += 1;
-        break;
-      case "cho_nop_capa":
-        target.cho_nop_capa += 1;
-        break;
-      case "cho_danh_gia_capa":
-        target.cho_danh_gia_capa += 1;
-        break;
-      default:
-        break;
-    }
-
-    if (
-      target.cham_ma === null
-      || quaHanNgay > target.cham_so_ngay
-      || (quaHanNgay === target.cham_so_ngay && row.ma_ho_so.localeCompare(target.cham_ma, "vi", { numeric: true, sensitivity: "base" }) < 0)
-    ) {
-      target.cham_so_ngay = quaHanNgay;
-      target.cham_ma = row.ma_ho_so;
-      target.cham_ngay = row.ngay_nhan instanceof Date ? row.ngay_nhan.toISOString() : row.ngay_nhan;
-    }
-  }
-
-  const mappedRows = Array.from(byCv.values());
+  const mappedRows = rows.map((row) => ({
+    cv_name: row.cv_name,
+    tong: toCount(row.tong),
+    cho_cv: toCount(row.cho_cv),
+    cho_tham_dinh: toCount(row.cho_tham_dinh),
+    cho_quyet_dinh: toCount(row.cho_quyet_dinh),
+    cho_ke_hoach: toCount(row.cho_ke_hoach),
+    cho_bao_cao: toCount(row.cho_bao_cao),
+    cho_cg: toCount(row.cho_cg),
+    cho_nop_capa: toCount(row.cho_nop_capa),
+    cho_danh_gia_capa: toCount(row.cho_danh_gia_capa),
+    cho_to_truong: toCount(row.cho_to_truong),
+    cho_trp: toCount(row.cho_trp),
+    cho_pct: toCount(row.cho_pct),
+    cho_van_thu: toCount(row.cho_van_thu),
+    con_han: toCount(row.con_han),
+    qua_han: toCount(row.qua_han),
+    cham_so_ngay: toCount(row.cham_so_ngay),
+    cham_ma: row.cham_ma ?? null,
+    cham_ngay: row.cham_ngay ?? null,
+  }));
 
   const choPhanCong = mappedRows.find((row) => row.cv_name === "__CHUA_PHAN__") ?? null;
   const sortedRows = sortByPriority(
@@ -1227,11 +1124,12 @@ workflow_base AS (
   FROM capa_base
 )`;
 
-export async function getDangXuLyLookup(
-  filters: PendingLookupFilters,
-  choThamDinhMaHoSoSet?: ReadonlySet<string>,
-  tt47Tt46DangXuLyStatusMap?: ReadonlyMap<string, number>,
-) {
+void buildTt47Tt46PendingKey;
+void mapTt47Tt46PendingStatus;
+void mapTt47Tt46DangXuLyStatus;
+void PENDING_LOOKUP_BASE_CTE;
+
+export async function getDangXuLyLookup(filters: PendingLookupFilters) {
   const thuTuc = filters.thuTuc ?? null;
   const chuyenVien = normalizeLookupText(filters.chuyenVien);
   const chuyenGia = normalizeLookupExpertText(filters.chuyenGia);
@@ -1240,15 +1138,14 @@ export async function getDangXuLyLookup(
 
   const [optionRows, rows] = await Promise.all([
     query<PendingLookupOptionRow>(
-      `${PENDING_LOOKUP_BASE_CTE}
-       SELECT DISTINCT chuyen_vien, chuyen_gia
-       FROM workflow_base
+      `SELECT DISTINCT chuyen_vien, chuyen_gia
+       FROM mv_stats_pending_lookup
+       WHERE ($1::int IS NULL OR thu_tuc = $1)
        ORDER BY chuyen_vien NULLS LAST, chuyen_gia NULLS LAST`,
       [thuTuc]
     ),
     query<PendingLookupRow>(
-      `${PENDING_LOOKUP_BASE_CTE}
-       SELECT
+      `SELECT
          thu_tuc,
          ma_ho_so,
          ngay_tiep_nhan,
@@ -1259,12 +1156,20 @@ export async function getDangXuLyLookup(
          chuyen_vien,
          chuyen_gia,
          thoi_gian_cho_ngay
-       FROM workflow_base
-       WHERE ($2::text IS NULL OR chuyen_vien = $2)
+       FROM mv_stats_pending_lookup
+       WHERE ($1::int IS NULL OR thu_tuc = $1)
+         AND ($2::text IS NULL OR chuyen_vien = $2)
          AND ($3::text IS NULL OR chuyen_gia = $3)
          AND ($4::text IS NULL OR LOWER(ma_ho_so) LIKE '%' || LOWER($4) || '%')
+         AND (
+           $5::text IS NULL
+           OR tinh_trang = $5
+           OR ($5::text = 'cho_chuyen_vien' AND tinh_trang IN ('cho_chuyen_vien', 'chua_xu_ly', 'bi_tra_lai', 'cho_tong_hop', 'cho_tham_dinh', 'cho_quyet_dinh'))
+           OR ($5::text = 'dang_tham_dinh' AND tinh_trang IN ('cho_tham_dinh', 'cho_quyet_dinh'))
+           OR ($5::text = 'dang_xu_ly' AND tinh_trang IN ('dang_xu_ly', 'cho_ke_hoach', 'cho_bao_cao'))
+         )
        ORDER BY thu_tuc DESC, thoi_gian_cho_ngay DESC, ma_ho_so ASC`,
-      [thuTuc, chuyenVien, chuyenGia, maHoSo]
+      [thuTuc, chuyenVien, chuyenGia, maHoSo, tinhTrang]
     ),
   ]);
 
@@ -1280,45 +1185,6 @@ export async function getDangXuLyLookup(
       .filter((value): value is string => Boolean(value))
   )).sort((left, right) => left.localeCompare(right, "vi"));
 
-  const mappedRows = rows.map((row) => {
-    const mappedTinhTrang =
-      (row.thu_tuc === 46 || row.thu_tuc === 47)
-        ? mapTt47Tt46DangXuLyStatus(
-            row.thu_tuc,
-            mapTt47Tt46PendingStatus(row.thu_tuc, row.tinh_trang, row.ma_ho_so, choThamDinhMaHoSoSet),
-            row.ma_ho_so,
-            tt47Tt46DangXuLyStatusMap,
-          )
-        : row.tinh_trang;
-
-    return {
-      thu_tuc: row.thu_tuc,
-      ma_ho_so: row.ma_ho_so,
-      ngay_tiep_nhan: row.ngay_tiep_nhan,
-      ngay_hen_tra: row.ngay_hen_tra,
-      loai_ho_so: row.loai_ho_so,
-      submission_kind: row.submission_kind,
-      tinh_trang: mappedTinhTrang,
-      chuyen_vien: row.chuyen_vien,
-      chuyen_gia: row.chuyen_gia,
-      thoi_gian_cho_ngay: toCount(row.thoi_gian_cho_ngay),
-    };
-  });
-
-  const filteredRows = mappedRows.filter((row) => {
-    if (!tinhTrang) return true;
-    if (tinhTrang === "cho_chuyen_vien") {
-      return ["cho_chuyen_vien", "chua_xu_ly", "bi_tra_lai", "cho_tong_hop", "cho_tham_dinh", "cho_quyet_dinh"].includes(row.tinh_trang);
-    }
-      if (tinhTrang === "dang_tham_dinh") {
-        return row.tinh_trang === "cho_tham_dinh" || row.tinh_trang === "cho_quyet_dinh";
-      }
-      if (tinhTrang === "dang_xu_ly") {
-        return row.tinh_trang === "dang_xu_ly" || row.tinh_trang === "cho_ke_hoach" || row.tinh_trang === "cho_bao_cao";
-      }
-      return row.tinh_trang === tinhTrang;
-    });
-
   return {
     filters: {
       thu_tuc: thuTuc,
@@ -1331,7 +1197,18 @@ export async function getDangXuLyLookup(
       chuyen_vien: chuyenVienOptions,
       chuyen_gia: chuyenGiaOptions,
     },
-    rows: filteredRows,
+    rows: rows.map((row) => ({
+      thu_tuc: row.thu_tuc,
+      ma_ho_so: row.ma_ho_so,
+      ngay_tiep_nhan: row.ngay_tiep_nhan,
+      ngay_hen_tra: row.ngay_hen_tra,
+      loai_ho_so: row.loai_ho_so,
+      submission_kind: row.submission_kind,
+      tinh_trang: row.tinh_trang,
+      chuyen_vien: row.chuyen_vien,
+      chuyen_gia: row.chuyen_gia,
+      thoi_gian_cho_ngay: toCount(row.thoi_gian_cho_ngay),
+    })),
   };
 }
 
@@ -1487,6 +1364,83 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
          thoi_gian_cho_ngay
        FROM resolved_enriched
        WHERE ($2::text IS NULL OR chuyen_vien = $2)
+         AND ($3::text IS NULL OR chuyen_gia = $3)
+         AND ($4::text IS NULL OR tinh_trang = $4)
+         AND ($5::text IS NULL OR LOWER(ma_ho_so) LIKE '%' || LOWER($5) || '%')
+       ORDER BY thu_tuc DESC, ngay_hen_tra DESC NULLS LAST, ma_ho_so ASC`,
+      [thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo]
+    ),
+  ]);
+
+  const chuyenVienOptions = Array.from(new Set(
+    optionRows
+      .map((row) => row.chuyen_vien)
+      .filter((value): value is string => Boolean(value))
+  )).sort((left, right) => left.localeCompare(right, "vi"));
+
+  const chuyenGiaOptions = Array.from(new Set(
+    optionRows
+      .map((row) => row.chuyen_gia)
+      .filter((value): value is string => Boolean(value))
+  )).sort((left, right) => left.localeCompare(right, "vi"));
+
+  return {
+    filters: {
+      thu_tuc: thuTuc,
+      chuyen_vien: chuyenVien,
+      chuyen_gia: chuyenGia,
+      tinh_trang: tinhTrang,
+      ma_ho_so: maHoSo,
+    },
+    options: {
+      chuyen_vien: chuyenVienOptions,
+      chuyen_gia: chuyenGiaOptions,
+    },
+    rows: rows.map((row) => ({
+      thu_tuc: row.thu_tuc,
+      ma_ho_so: row.ma_ho_so,
+      ngay_tiep_nhan: row.ngay_tiep_nhan,
+      ngay_hen_tra: row.ngay_hen_tra,
+      loai_ho_so: row.loai_ho_so,
+      submission_kind: row.submission_kind,
+      tinh_trang: row.tinh_trang,
+      chuyen_vien: row.chuyen_vien,
+      chuyen_gia: row.chuyen_gia,
+      thoi_gian_cho_ngay: toCount(row.thoi_gian_cho_ngay),
+    })),
+  };
+}
+
+export async function getDaXuLyLookupMaterialized(filters: PendingLookupFilters) {
+  const thuTuc = filters.thuTuc ?? null;
+  const chuyenVien = normalizeLookupText(filters.chuyenVien);
+  const chuyenGia = normalizeLookupExpertText(filters.chuyenGia);
+  const tinhTrang = normalizeLookupText(filters.tinhTrang);
+  const maHoSo = normalizeLookupText(filters.maHoSo);
+
+  const [optionRows, rows] = await Promise.all([
+    query<PendingLookupOptionRow>(
+      `SELECT DISTINCT chuyen_vien, chuyen_gia
+       FROM mv_stats_resolved_lookup
+       WHERE ($1::int IS NULL OR thu_tuc = $1)
+       ORDER BY chuyen_vien NULLS LAST, chuyen_gia NULLS LAST`,
+      [thuTuc]
+    ),
+    query<PendingLookupRow>(
+      `SELECT
+         thu_tuc,
+         ma_ho_so,
+         ngay_tiep_nhan,
+         ngay_hen_tra,
+         loai_ho_so,
+         submission_kind,
+         tinh_trang,
+         chuyen_vien,
+         chuyen_gia,
+         thoi_gian_cho_ngay
+       FROM mv_stats_resolved_lookup
+       WHERE ($1::int IS NULL OR thu_tuc = $1)
+         AND ($2::text IS NULL OR chuyen_vien = $2)
          AND ($3::text IS NULL OR chuyen_gia = $3)
          AND ($4::text IS NULL OR tinh_trang = $4)
          AND ($5::text IS NULL OR LOWER(ma_ho_so) LIKE '%' || LOWER($5) || '%')
