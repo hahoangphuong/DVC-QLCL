@@ -676,18 +676,32 @@ def migrate_stats_schema(engine):
                 ORDER BY thu_tuc, luot_xu_ly_id, ngay_tra DESC NULLS LAST, ngay_nhan DESC NULLS LAST
             ),
             latest_tcc_roles AS (
-                SELECT DISTINCT ON ((data->>'thuTucId')::int, NULLIF(TRIM(data->>'id'), ''))
+                SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
                     (data->>'thuTucId')::int AS thu_tuc,
-                    NULLIF(TRIM(data->>'id'), '') AS tcc_id,
                     data->>'maHoSo' AS ma_ho_so,
                     NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name
                 FROM tra_cuu_chung
                 WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
                 ORDER BY
                     (data->>'thuTucId')::int,
-                    NULLIF(TRIM(data->>'id'), ''),
+                    data->>'maHoSo',
                     CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
-                    NULLIF(TRIM(data->>'maHoSo'), '') DESC NULLS LAST
+                    NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
+            ),
+            latest_da_xu_ly AS (
+                SELECT DISTINCT ON (thu_tuc, NULLIF(TRIM(data->>'id'), ''))
+                    thu_tuc,
+                    NULLIF(TRIM(data->>'id'), '') AS luot_xu_ly_id,
+                    NULLIF(TRIM(data->>'nguoiXuLy'), '') AS nguoi_xu_ly,
+                    NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name,
+                    NULLIF(TRIM(data->>'chuyenVienXuLyName'), '') AS cv_xu_ly_name
+                FROM da_xu_ly
+                WHERE NULLIF(TRIM(data->>'id'), '') IS NOT NULL
+                ORDER BY
+                    thu_tuc,
+                    NULLIF(TRIM(data->>'id'), ''),
+                    CASE WHEN NULLIF(data->>'ngayTraKetQua', '') IS NOT NULL THEN (data->>'ngayTraKetQua')::timestamptz END DESC NULLS LAST,
+                    CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST
             )
             SELECT
                 l.luot_xu_ly_id AS lookup_id,
@@ -719,14 +733,14 @@ def migrate_stats_schema(engine):
             FROM latest_case_facts l
             LEFT JOIN latest_tcc_roles roles
               ON roles.thu_tuc = l.thu_tuc
-             AND (roles.tcc_id = l.tcc_id OR roles.ma_ho_so = l.ma_ho_so)
-            LEFT JOIN da_xu_ly d
+             AND roles.ma_ho_so = l.ma_ho_so
+            LEFT JOIN latest_da_xu_ly d
               ON d.thu_tuc = l.thu_tuc
-             AND d.data->>'id' = l.luot_xu_ly_id
+             AND d.luot_xu_ly_id = l.luot_xu_ly_id
         """))
         conn.execute(text(
             f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['resolved_lookup']}_key "
-            f"ON {STATS_MATERIALIZED_VIEWS['resolved_lookup']} (lookup_id)"
+            f"ON {STATS_MATERIALIZED_VIEWS['resolved_lookup']} (thu_tuc, lookup_id)"
         ))
         conn.execute(text(
             f"CREATE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['resolved_lookup']}_filters "
