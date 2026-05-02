@@ -363,25 +363,10 @@ class SyncService:
                     }
                     for ma_ho_so, chuyen_vien_thu_ly in rows
                 ],
+                "source": "cache",
             }
         except Exception as exc:
-            self.runtime.sync_log.warning(
-                f"[tt{thu_tuc}_cho_tham_dinh] fallback fetch truc tiep tu DAV "
-                f"do loi doc cache DB: {type(exc).__name__}: {exc}"
-            )
-            try:
-                rows, _fetch_sec = self._fetch_tt47_46_cho_tham_dinh_rows(thu_tuc)
-                return {
-                    "ok": True,
-                    "thu_tuc": thu_tuc,
-                    "total": len(rows),
-                    "rows": rows,
-                    "source": "dav_fallback",
-                }
-            except HTTPException:
-                raise
-            except Exception as inner_exc:
-                raise HTTPException(status_code=500, detail=f"Loi lay danh sach cho tham dinh TT{thu_tuc}: {inner_exc}")
+            raise HTTPException(status_code=500, detail=f"Loi doc cache cho tham dinh TT{thu_tuc}: {exc}")
         finally:
             db.close()
 
@@ -531,8 +516,10 @@ class SyncService:
                     }
                     for ma_ho_so, trang_thai_xu_ly in rows
                 ],
+                "source": "cache",
             }
         except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Loi doc cache dang xu ly TT{thu_tuc}: {exc}")
             self.runtime.sync_log.warning(
                 f"[tt{thu_tuc}_dang_xu_ly_sub_statuses] fallback fetch trực tiếp từ DAV "
                 f"do lỗi đọc cache DB: {type(exc).__name__}: {exc}"
