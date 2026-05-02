@@ -132,7 +132,7 @@ export function LookupResultsTable({
                         {"Chi ti\u1ebft"}
                       </button>
                     </td>
-                    <td className="px-3 py-2.5 align-top">{renderCoSoCell(row)}</td>
+                    <td className="px-3 py-2.5 align-middle">{renderCoSoCell(row)}</td>
                   </tr>
                 );
               })}
