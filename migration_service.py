@@ -676,7 +676,7 @@ def migrate_stats_schema(engine):
                 ORDER BY thu_tuc, luot_xu_ly_id, ngay_tra DESC NULLS LAST, ngay_nhan DESC NULLS LAST
             ),
             latest_tcc_roles AS (
-                SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'id')
+                SELECT DISTINCT ON ((data->>'thuTucId')::int, NULLIF(TRIM(data->>'id'), ''))
                     (data->>'thuTucId')::int AS thu_tuc,
                     NULLIF(TRIM(data->>'id'), '') AS tcc_id,
                     data->>'maHoSo' AS ma_ho_so,
