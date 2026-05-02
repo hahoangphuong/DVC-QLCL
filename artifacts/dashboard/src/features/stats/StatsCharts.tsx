@@ -13,6 +13,9 @@ import {
 } from "recharts";
 import { CHART_ANIMATION_MS } from "../../shared/chartConfig";
 
+const OVERVIEW_BAR_CHART_HEIGHT = 196;
+const OVERVIEW_DONUT_CHART_HEIGHT = 133;
+
 export interface BarData {
   name: string;
   value: number;
@@ -33,7 +36,7 @@ export function SummaryBarChart({ data }: { data: BarData[] }) {
   };
 
   return (
-    <ResponsiveContainer width="100%" height={280}>
+    <ResponsiveContainer width="100%" height={OVERVIEW_BAR_CHART_HEIGHT}>
       <BarChart data={data} margin={{ top: 32, right: 20, left: -10, bottom: 8 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
         <XAxis
@@ -157,20 +160,20 @@ export function DonutChart({
       </div>
 
       {isLoading ? (
-        <div className="h-52 flex items-center justify-center">
+        <div className="h-[146px] flex items-center justify-center">
           <div
             className="w-8 h-8 rounded-full border-4 border-t-transparent animate-spin"
             style={{ borderColor: `${spinnerColor} transparent transparent transparent` }}
           />
         </div>
       ) : total === 0 ? (
-        <div className="h-52 flex flex-col items-center justify-center text-slate-400 text-sm">
+        <div className="h-[146px] flex flex-col items-center justify-center text-slate-400 text-sm">
           <div className="text-3xl mb-2">—</div>
           <div>{emptyMessage ?? "Không có dữ liệu"}</div>
         </div>
       ) : (
         <div className="flex flex-col items-center gap-3">
-          <ResponsiveContainer width="100%" height={190}>
+          <ResponsiveContainer width="100%" height={OVERVIEW_DONUT_CHART_HEIGHT}>
             <PieChart>
               <Pie
                 data={segments}
