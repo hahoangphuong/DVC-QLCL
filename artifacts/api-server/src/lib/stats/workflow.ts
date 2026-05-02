@@ -1,4 +1,4 @@
-import { query } from "../db";
+import { query, queryOne } from "../db";
 import { CV_BARE_NAMES, CV_BARE_SET, sortByPriority } from "./cv-order";
 import { buildCaseFactsCte, buildMonthlyAggregateSql, buildWorkflowCasesCte } from "./sql";
 
@@ -38,6 +38,194 @@ function normalizeLookupExpertText(value: string | null | undefined): string | n
 function buildTt47Tt46PendingKey(thuTuc: number, maHoSo: string): string {
   return `${thuTuc}:${maHoSo}`;
 }
+
+async function relationExists(name: string): Promise<boolean> {
+  const row = await queryOne<{ rel: string | null }>("SELECT to_regclass($1) AS rel", [name]);
+  return Boolean(row?.rel);
+}
+
+const PENDING_LOOKUP_FALLBACK_CTE = `WITH latest_case_facts AS (
+  SELECT DISTINCT ON (thu_tuc, ma_ho_so)
+    thu_tuc,
+    ma_ho_so,
+    loai_ho_so,
+    submission_kind,
+    ngay_nhan,
+    nhan_hen_tra,
+    chuyen_gia_name
+  FROM mv_stats_case_facts
+  ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
+),
+latest_workflow_experts AS (
+  SELECT DISTINCT ON (thu_tuc, ma_ho_so)
+    thu_tuc,
+    ma_ho_so,
+    REGEXP_REPLACE(TRIM(nguoi_xu_ly), '^CG\\s*:\\s*', '', 'i') AS chuyen_gia_name
+  FROM mv_stats_workflow_cases
+  WHERE don_vi = 'Chuyên gia thẩm định'
+    AND NULLIF(TRIM(nguoi_xu_ly), '') IS NOT NULL
+  ORDER BY thu_tuc, ma_ho_so, ngay_nhan DESC NULLS LAST
+),
+latest_tcc_roles AS (
+  SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
+    (data->>'thuTucId')::int AS thu_tuc,
+    data->>'maHoSo' AS ma_ho_so,
+    CASE
+      WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz
+      ELSE NULL
+    END AS ngay_tiep_nhan,
+    NULLIF(TRIM(data->>'trangThaiHoSo'), '') AS trang_thai_ho_so,
+    NULLIF(TRIM(data->>'chuyenVienThuLyName'), '') AS cv_thu_ly_name,
+    NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name
+  FROM tra_cuu_chung
+  WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
+  ORDER BY
+    (data->>'thuTucId')::int,
+    data->>'maHoSo',
+    CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
+    NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
+),
+workflow_rows AS (
+  SELECT
+    w.thu_tuc,
+    w.ma_ho_so,
+    w.ngay_nhan AS ngay_tiep_nhan,
+    cf.nhan_hen_tra AS ngay_hen_tra,
+    cf.loai_ho_so,
+    cf.submission_kind,
+    CASE
+      WHEN w.cv_name = '__CHUA_PHAN__' THEN 'cho_phan_cong'
+      WHEN w.thu_tuc IN (46, 47)
+        AND w.don_vi = 'Chuyên viên phối hợp thẩm định'
+      THEN CASE
+        WHEN dxs.trang_thai_xu_ly = 30 THEN 'cho_ke_hoach'
+        WHEN dxs.trang_thai_xu_ly = 40 THEN 'cho_bao_cao'
+        ELSE 'dang_xu_ly'
+      END
+      WHEN w.thu_tuc IN (46, 47)
+        AND w.don_vi = 'Chuyên viên'
+        AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
+      THEN CASE
+        WHEN ctd.ma_ho_so IS NOT NULL THEN 'cho_tham_dinh'
+        ELSE 'cho_quyet_dinh'
+      END
+      WHEN w.thu_tuc = 48 AND w.buoc = 'chua_xu_ly' THEN 'chua_xu_ly'
+      WHEN w.thu_tuc = 48 AND w.buoc = 'bi_tra_lai' THEN 'bi_tra_lai'
+      WHEN w.thu_tuc = 48 AND w.buoc = 'cho_tong_hop' THEN 'cho_tong_hop'
+      WHEN w.don_vi = 'Chuyên gia thẩm định' THEN 'cho_chuyen_gia'
+      WHEN w.don_vi = 'Tổ trưởng chuyên gia' THEN 'cho_to_truong'
+      WHEN w.don_vi = 'Trưởng phòng' THEN 'cho_truong_phong'
+      WHEN w.don_vi LIKE 'Văn thư%' THEN 'cho_van_thu'
+      WHEN w.buoc = 'cho_ket_thuc' OR w.don_vi = 'Phó Cục trưởng' THEN 'cho_cong_bo'
+      WHEN w.buoc IN ('chua_xu_ly', 'bi_tra_lai', 'cho_tong_hop') OR w.don_vi IN ('Chuyên viên')
+      THEN 'cho_chuyen_vien'
+      ELSE 'cho_chuyen_vien'
+    END AS tinh_trang,
+    CASE
+      WHEN w.cv_name = '__CHUA_PHAN__' THEN NULL
+      WHEN w.thu_tuc IN (46, 47)
+        AND w.don_vi = 'Chuyên viên phối hợp thẩm định'
+      THEN COALESCE(
+        NULLIF(TRIM(w.nguoi_xu_ly), ''),
+        CASE
+          WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
+          ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i')
+        END,
+        NULLIF(TRIM(w.cv_name), '')
+      )
+      WHEN w.thu_tuc IN (46, 47)
+        AND w.don_vi = 'Chuyên viên'
+        AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL
+      THEN COALESCE(
+        CASE
+          WHEN NULLIF(TRIM(roles.cv_thu_ly_name), '') IS NULL THEN NULL
+          ELSE REGEXP_REPLACE(TRIM(roles.cv_thu_ly_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i')
+        END,
+        NULLIF(TRIM(w.cv_name), '')
+      )
+      WHEN NULLIF(TRIM(w.cv_name), '') IS NULL OR w.cv_name = '__CHUA_PHAN__' THEN NULL
+      ELSE TRIM(w.cv_name)
+    END AS chuyen_vien,
+    CASE
+      WHEN w.cv_name = '__CHUA_PHAN__' THEN NULL
+      WHEN NULLIF(TRIM(cf.chuyen_gia_name), '') IS NOT NULL THEN REGEXP_REPLACE(TRIM(cf.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
+      WHEN NULLIF(TRIM(we.chuyen_gia_name), '') IS NOT NULL THEN we.chuyen_gia_name
+      ELSE NULL
+    END AS chuyen_gia,
+    COALESCE(w.qua_han_ngay, 0) AS qua_han_ngay,
+    COALESCE(
+      CASE
+        WHEN COALESCE(w.qua_han_ngay, 0) > 0 THEN w.qua_han_ngay
+        ELSE GREATEST(
+          0,
+          CURRENT_DATE - ((w.ngay_nhan AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
+        )::int
+      END,
+      0
+    ) AS thoi_gian_cho_ngay
+  FROM mv_stats_workflow_cases w
+  LEFT JOIN latest_case_facts cf
+    ON cf.thu_tuc = w.thu_tuc
+   AND cf.ma_ho_so = w.ma_ho_so
+  LEFT JOIN latest_tcc_roles roles
+    ON roles.thu_tuc = w.thu_tuc
+   AND roles.ma_ho_so = w.ma_ho_so
+  LEFT JOIN latest_workflow_experts we
+    ON we.thu_tuc = w.thu_tuc
+   AND we.ma_ho_so = w.ma_ho_so
+  LEFT JOIN tt47_46_dang_xu_ly_status dxs
+    ON dxs.thu_tuc = w.thu_tuc
+   AND dxs.ma_ho_so = w.ma_ho_so
+  LEFT JOIN tt47_46_cho_tham_dinh ctd
+    ON ctd.thu_tuc = w.thu_tuc
+   AND ctd.ma_ho_so = w.ma_ho_so
+),
+capa_base AS (
+  SELECT
+    roles.thu_tuc,
+    roles.ma_ho_so,
+    COALESCE(cf.ngay_nhan, roles.ngay_tiep_nhan) AS ngay_tiep_nhan,
+    cf.nhan_hen_tra AS ngay_hen_tra,
+    cf.loai_ho_so,
+    cf.submission_kind,
+    CASE
+      WHEN roles.trang_thai_ho_so = '210' THEN 'cho_nop_capa'
+      WHEN roles.trang_thai_ho_so = '220' THEN 'cho_danh_gia_capa'
+      ELSE 'cho_chuyen_vien'
+    END AS tinh_trang,
+    REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i') AS chuyen_vien,
+    NULL::text AS chuyen_gia,
+    CASE
+      WHEN cf.nhan_hen_tra IS NOT NULL THEN (CURRENT_DATE - ((cf.nhan_hen_tra AT TIME ZONE 'Asia/Ho_Chi_Minh')::date))::int
+      ELSE 0
+    END AS qua_han_ngay,
+    CASE
+      WHEN cf.nhan_hen_tra IS NOT NULL THEN (CURRENT_DATE - ((cf.nhan_hen_tra AT TIME ZONE 'Asia/Ho_Chi_Minh')::date))::int
+      WHEN COALESCE(cf.ngay_nhan, roles.ngay_tiep_nhan) IS NOT NULL THEN GREATEST(
+        0,
+        CURRENT_DATE - ((COALESCE(cf.ngay_nhan, roles.ngay_tiep_nhan) AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
+      )::int
+      ELSE 0
+    END AS thoi_gian_cho_ngay
+  FROM latest_tcc_roles roles
+  LEFT JOIN latest_case_facts cf
+    ON cf.thu_tuc = roles.thu_tuc
+   AND cf.ma_ho_so = roles.ma_ho_so
+  WHERE roles.thu_tuc IN (46, 47)
+    AND NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NOT NULL
+    AND roles.trang_thai_ho_so IN ('210', '220')
+),
+pending_lookup_source AS (
+  SELECT *
+  FROM workflow_rows
+  WHERE NOT (
+    thu_tuc IN (46, 47)
+    AND ma_ho_so IN (SELECT ma_ho_so FROM capa_base WHERE thu_tuc = workflow_rows.thu_tuc)
+  )
+  UNION ALL
+  SELECT *
+  FROM capa_base
+)`;
 
 function mapTt47Tt46PendingStatus(
   thuTuc: number,
@@ -650,6 +838,8 @@ export async function getDangXuLyStats(thuTuc: number) {
     };
   }
 
+  const hasPendingLookup = await relationExists("mv_stats_pending_lookup");
+
   const rows = await query<{
     cv_name: string;
     tong: string;
@@ -671,7 +861,7 @@ export async function getDangXuLyStats(thuTuc: number) {
     cham_ma: string | null;
     cham_ngay: string | null;
   }>(
-    `WITH base AS (
+    `${hasPendingLookup ? "WITH" : `${PENDING_LOOKUP_FALLBACK_CTE},`} base AS (
        SELECT
          CASE
            WHEN tinh_trang = 'cho_phan_cong' THEN '__CHUA_PHAN__'
@@ -681,7 +871,7 @@ export async function getDangXuLyStats(thuTuc: number) {
          COALESCE(qua_han_ngay, 0) AS qua_han_ngay,
          ngay_tiep_nhan AS ngay_nhan,
          tinh_trang
-       FROM mv_stats_pending_lookup
+       FROM ${hasPendingLookup ? "mv_stats_pending_lookup" : "pending_lookup_source"}
        WHERE thu_tuc = $1
      ),
      stats AS (
@@ -1135,17 +1325,20 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
   const chuyenGia = normalizeLookupExpertText(filters.chuyenGia);
   const tinhTrang = normalizeLookupText(filters.tinhTrang);
   const maHoSo = normalizeLookupText(filters.maHoSo);
+  const hasPendingLookup = await relationExists("mv_stats_pending_lookup");
 
   const [optionRows, rows] = await Promise.all([
     query<PendingLookupOptionRow>(
-      `SELECT DISTINCT chuyen_vien, chuyen_gia
-       FROM mv_stats_pending_lookup
+      `${hasPendingLookup ? "" : `${PENDING_LOOKUP_FALLBACK_CTE} `}
+       SELECT DISTINCT chuyen_vien, chuyen_gia
+       FROM ${hasPendingLookup ? "mv_stats_pending_lookup" : "pending_lookup_source"}
        WHERE ($1::int IS NULL OR thu_tuc = $1)
        ORDER BY chuyen_vien NULLS LAST, chuyen_gia NULLS LAST`,
       [thuTuc]
     ),
     query<PendingLookupRow>(
-      `SELECT
+      `${hasPendingLookup ? "" : `${PENDING_LOOKUP_FALLBACK_CTE} `}
+       SELECT
          thu_tuc,
          ma_ho_so,
          ngay_tiep_nhan,
@@ -1156,7 +1349,7 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
          chuyen_vien,
          chuyen_gia,
          thoi_gian_cho_ngay
-       FROM mv_stats_pending_lookup
+       FROM ${hasPendingLookup ? "mv_stats_pending_lookup" : "pending_lookup_source"}
        WHERE ($1::int IS NULL OR thu_tuc = $1)
          AND ($2::text IS NULL OR chuyen_vien = $2)
          AND ($3::text IS NULL OR chuyen_gia = $3)
@@ -1417,6 +1610,11 @@ export async function getDaXuLyLookupMaterialized(filters: PendingLookupFilters)
   const chuyenGia = normalizeLookupExpertText(filters.chuyenGia);
   const tinhTrang = normalizeLookupText(filters.tinhTrang);
   const maHoSo = normalizeLookupText(filters.maHoSo);
+  const hasResolvedLookup = await relationExists("mv_stats_resolved_lookup");
+
+  if (!hasResolvedLookup) {
+    return getDaXuLyLookup(filters);
+  }
 
   const [optionRows, rows] = await Promise.all([
     query<PendingLookupOptionRow>(

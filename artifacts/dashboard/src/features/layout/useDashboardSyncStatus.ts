@@ -7,9 +7,15 @@ export type SyncStatus = {
 };
 
 async function fetchSyncStatus(): Promise<SyncStatus> {
-  const res = await fetch("/api/sync-status");
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  try {
+    const res = await fetch("/api/sync-status");
+    if (!res.ok) {
+      return { lastSyncedAt: null, totalSizeMB: 0 };
+    }
+    return res.json();
+  } catch {
+    return { lastSyncedAt: null, totalSizeMB: 0 };
+  }
 }
 
 export function useDashboardSyncStatus(authRole: DashboardRole | null) {
@@ -19,5 +25,6 @@ export function useDashboardSyncStatus(authRole: DashboardRole | null) {
     enabled: Boolean(authRole),
     refetchInterval: 5 * 60 * 1000,
     staleTime: 60 * 1000,
+    placeholderData: { lastSyncedAt: null, totalSizeMB: 0 },
   });
 }

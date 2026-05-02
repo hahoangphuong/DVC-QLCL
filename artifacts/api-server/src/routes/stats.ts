@@ -604,23 +604,33 @@ router.get("/dav/file", async (req, res) => {
 router.get("/sync-status", async (_req, res) => {
   try {
     res.json(await cachedJson("stats:sync-status", FAST_TTL_MS, FAST_STALE_MS, async () => {
-      const [timeRow, sizeRow] = await Promise.all([
-        queryOne<{ last_synced_at: string | null }>(`
+      let lastSyncedAt: string | null = null;
+      let totalBytes = 0;
+
+      try {
+        const timeRow = await queryOne<{ last_synced_at: string | null }>(`
           SELECT MAX(synced_at) AS last_synced_at
           FROM sync_meta
           WHERE table_name IN ('tra_cuu_chung', 'dang_xu_ly', 'da_xu_ly')
-        `),
-        queryOne<{ total_bytes: string }>(`
+        `);
+        lastSyncedAt = timeRow?.last_synced_at ?? null;
+      } catch {
+        lastSyncedAt = null;
+      }
+
+      try {
+        const sizeRow = await queryOne<{ total_bytes: string }>(`
           SELECT COALESCE(SUM(pg_total_relation_size(c.oid)), 0)::bigint AS total_bytes
           FROM pg_class c
           JOIN pg_namespace n ON n.oid = c.relnamespace
           WHERE n.nspname = 'public'
             AND c.relkind IN ('r', 'm')
-        `),
-      ]);
+        `);
+        totalBytes = parseInt(sizeRow?.total_bytes ?? "0", 10);
+      } catch {
+        totalBytes = 0;
+      }
 
-      const lastSyncedAt = timeRow?.last_synced_at ?? null;
-      const totalBytes = parseInt(sizeRow?.total_bytes ?? "0", 10);
       const totalSizeMB = totalBytes / (1024 * 1024);
       return { lastSyncedAt, totalSizeMB: parseFloat(totalSizeMB.toFixed(2)) };
     }));
