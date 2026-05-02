@@ -718,9 +718,9 @@ def migrate_stats_schema(engine):
                             WHEN NULLIF(TRIM(roles.cv_phoi_hop_name), '') IS NULL THEN NULL
                             ELSE REGEXP_REPLACE(TRIM(roles.cv_phoi_hop_name), '^CV\\s*(phối hợp|thụ lý)\\s*:\\s*', '', 'i')
                         END,
-                        NULLIF(TRIM(d.data->>'nguoiXuLy'), ''),
-                        NULLIF(TRIM(d.data->>'chuyenVienPhoiHopName'), ''),
-                        NULLIF(TRIM(d.data->>'chuyenVienXuLyName'), '')
+                        d.nguoi_xu_ly,
+                        d.cv_phoi_hop_name,
+                        d.cv_xu_ly_name
                     )
                     WHEN NULLIF(TRIM(l.cv_name_raw), '') IS NULL OR l.cv_name_raw = '__CHUA_PHAN__' THEN NULL
                     ELSE TRIM(l.cv_name_raw)
