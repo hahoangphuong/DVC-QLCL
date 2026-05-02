@@ -40,6 +40,9 @@ def refresh_stats_materialized_views(db, *kinds: str, concurrently: bool = False
                 view_name = STATS_MATERIALIZED_VIEWS.get(kind)
                 if not view_name:
                     raise ValueError(f"Unknown stats materialized view kind: {kind}")
+                exists = conn.execute(text("SELECT to_regclass(:name)"), {"name": view_name}).scalar()
+                if not exists:
+                    continue
                 stmt = "REFRESH MATERIALIZED VIEW CONCURRENTLY" if kind in CONCURRENT_REFRESH_KINDS else "REFRESH MATERIALIZED VIEW"
                 conn.execute(text(f"{stmt} {view_name}"))
         return
@@ -48,4 +51,7 @@ def refresh_stats_materialized_views(db, *kinds: str, concurrently: bool = False
         view_name = STATS_MATERIALIZED_VIEWS.get(kind)
         if not view_name:
             raise ValueError(f"Unknown stats materialized view kind: {kind}")
+        exists = db.execute(text("SELECT to_regclass(:name)"), {"name": view_name}).scalar()
+        if not exists:
+            continue
         db.execute(text(f"REFRESH MATERIALIZED VIEW {view_name}"))
