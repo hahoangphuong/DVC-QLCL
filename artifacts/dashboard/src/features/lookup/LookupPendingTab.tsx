@@ -16,16 +16,25 @@ import { useLookupTabState, type LookupTabProps } from "./useLookupTabState";
 import {
   DEFAULT_TRA_CUU_FILTER_STATE,
   LOOKUP_COMMON_MESSAGES,
-  TRA_CUU_TINH_TRANG_OPTIONS,
   downloadTraCuuDangXuLyExcel,
   fetchTraCuuDangXuLy,
+  getPendingTinhTrangOptionGroups,
+  isPendingTinhTrangAllowed,
 } from "./lookupShared";
 
 export function LookupPendingTab(props?: LookupTabProps) {
   const { state, setState, isActive } = useLookupTabState(props, DEFAULT_TRA_CUU_FILTER_STATE);
   const { thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo, sortBy, sortDir } = state;
   const { selectedDetail, openDetail, closeDetail } = useLookupDetailModal();
-  const { setChuyenVien, setChuyenGia, setThuTuc, setTinhTrang, setMaHoSo } = useLookupFilterControls(setState);
+  const { setChuyenVien, setChuyenGia, setTinhTrang, setMaHoSo } = useLookupFilterControls(setState);
+  const tinhTrangOptionGroups = getPendingTinhTrangOptionGroups(thuTuc);
+  const handleThuTucChange = (value: typeof thuTuc) => {
+    setState((prev) => ({
+      ...prev,
+      thuTuc: value,
+      tinhTrang: isPendingTinhTrangAllowed(value, prev.tinhTrang) ? prev.tinhTrang : "all",
+    }));
+  };
   const deferredMaHoSo = useDeferredValue(maHoSo);
   const { exporting, handleExportExcel } = useLookupExport(() =>
     downloadTraCuuDangXuLyExcel({
@@ -70,8 +79,8 @@ export function LookupPendingTab(props?: LookupTabProps) {
         maHoSo={maHoSo}
         chuyenVienOptions={chuyenVienOptions}
         chuyenGiaOptions={chuyenGiaOptions}
-        tinhTrangOptions={TRA_CUU_TINH_TRANG_OPTIONS}
-        onThuTucChange={setThuTuc}
+        tinhTrangOptionGroups={tinhTrangOptionGroups}
+        onThuTucChange={handleThuTucChange}
         onChuyenVienChange={setChuyenVien}
         onChuyenGiaChange={setChuyenGia}
         onTinhTrangChange={setTinhTrang}

@@ -2,7 +2,13 @@ import { LOOKUP_TEXT } from "../../uiText";
 import { LookupActionBar } from "./LookupActionBar";
 import { LookupSelectField } from "./LookupSelectField";
 import { LookupTextFilterField } from "./LookupTextFilterField";
-import { displayLookupCg, displayLookupCv, type LookupThuTuc, type LookupTinhTrang } from "./lookupShared";
+import {
+  displayLookupCg,
+  displayLookupCv,
+  type LookupThuTuc,
+  type LookupTinhTrang,
+  type LookupTinhTrangOptionGroup,
+} from "./lookupShared";
 
 type LookupFilterPanelProps = {
   thuTuc: LookupThuTuc | "all";
@@ -12,7 +18,7 @@ type LookupFilterPanelProps = {
   maHoSo: string;
   chuyenVienOptions: string[];
   chuyenGiaOptions: string[];
-  tinhTrangOptions: Array<{ value: "all" | LookupTinhTrang; label: string }>;
+  tinhTrangOptionGroups: LookupTinhTrangOptionGroup[];
   onThuTucChange: (value: LookupThuTuc | "all") => void;
   onChuyenVienChange: (value: string) => void;
   onChuyenGiaChange: (value: string) => void;
@@ -34,7 +40,7 @@ export function LookupFilterPanel({
   maHoSo,
   chuyenVienOptions,
   chuyenGiaOptions,
-  tinhTrangOptions,
+  tinhTrangOptionGroups,
   onThuTucChange,
   onChuyenVienChange,
   onChuyenGiaChange,
@@ -80,8 +86,13 @@ export function LookupFilterPanel({
           value={tinhTrang}
           onChange={(value) => onTinhTrangChange(value as LookupTinhTrang | "all")}
         >
-          {tinhTrangOptions.map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
+          <option value="all">{LOOKUP_TEXT.all}</option>
+          {tinhTrangOptionGroups.map((group) => (
+            <optgroup key={group.label} label={group.label}>
+              {group.options.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </optgroup>
           ))}
         </LookupSelectField>
 

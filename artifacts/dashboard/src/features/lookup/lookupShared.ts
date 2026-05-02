@@ -29,6 +29,16 @@ export type LookupTinhTrang =
   | "khong_dat"
   | "da_hoan_thanh";
 
+export type LookupTinhTrangOption = {
+  value: "all" | LookupTinhTrang;
+  label: string;
+};
+
+export type LookupTinhTrangOptionGroup = {
+  label: string;
+  options: LookupTinhTrangOption[];
+};
+
 export interface TraCuuDangXuLyRow {
   thu_tuc: LookupThuTuc;
   ma_ho_so: string;
@@ -202,11 +212,11 @@ export function buildDavViewFileUrl(pathOrUrl: string | null | undefined): strin
   return `${API}/dav/file?path=${encodeURIComponent(pathOrUrl)}`;
 }
 
-export const TRA_CUU_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang; label: string }> = [
-  { value: "all", label: LOOKUP_TEXT.all },
+const LOOKUP_PENDING_COMMON_OPTIONS: LookupTinhTrangOption[] = [
   { value: "cho_phan_cong", label: LOOKUP_TEXT.pendingAssignment },
-  { value: "cho_chuyen_vien", label: LOOKUP_TEXT.pendingSpecialist },
-  { value: "dang_tham_dinh", label: LOOKUP_TEXT.pendingReview },
+];
+
+const LOOKUP_PENDING_TT47_46_OPTIONS: LookupTinhTrangOption[] = [
   { value: "cho_tham_dinh", label: LOOKUP_TEXT.pendingAppraisalWait },
   { value: "cho_quyet_dinh", label: LOOKUP_TEXT.pendingDecisionWait },
   { value: "cho_ke_hoach", label: LOOKUP_TEXT.pendingPlanWait },
@@ -214,6 +224,11 @@ export const TRA_CUU_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang;
   { value: "dang_xu_ly", label: LOOKUP_TEXT.pendingProcessing },
   { value: "cho_nop_capa", label: LOOKUP_TEXT.pendingCapaSubmit },
   { value: "cho_danh_gia_capa", label: LOOKUP_TEXT.pendingCapaReview },
+];
+
+const LOOKUP_PENDING_TT48_OPTIONS: LookupTinhTrangOption[] = [
+  { value: "cho_chuyen_vien", label: LOOKUP_TEXT.pendingSpecialist },
+  { value: "dang_tham_dinh", label: LOOKUP_TEXT.pendingReview },
   { value: "chua_xu_ly", label: LOOKUP_TEXT.notProcessed },
   { value: "bi_tra_lai", label: LOOKUP_TEXT.returned },
   { value: "cho_tong_hop", label: LOOKUP_TEXT.pendingSummary },
@@ -224,12 +239,63 @@ export const TRA_CUU_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang;
   { value: "cho_van_thu", label: LOOKUP_TEXT.pendingClerical },
 ];
 
-export const TRA_CUU_DA_XU_LY_TINH_TRANG_OPTIONS: Array<{ value: "all" | LookupTinhTrang; label: string }> = [
-  { value: "all", label: LOOKUP_TEXT.all },
+const LOOKUP_DONE_COMMON_OPTIONS: LookupTinhTrangOption[] = [
   { value: "can_bo_sung", label: LOOKUP_TEXT.requiresSupplement },
   { value: "khong_dat", label: LOOKUP_TEXT.failed },
   { value: "da_hoan_thanh", label: LOOKUP_TEXT.completed },
 ];
+
+export function getPendingTinhTrangOptionGroups(
+  thuTuc: LookupThuTuc | "all",
+): LookupTinhTrangOptionGroup[] {
+  if (thuTuc === 46 || thuTuc === 47) {
+    return [
+      { label: "Chung", options: LOOKUP_PENDING_COMMON_OPTIONS },
+      { label: "TT47 / TT46", options: LOOKUP_PENDING_TT47_46_OPTIONS },
+    ];
+  }
+
+  if (thuTuc === 48) {
+    return [
+      { label: "Chung", options: LOOKUP_PENDING_COMMON_OPTIONS },
+      { label: "TT48", options: LOOKUP_PENDING_TT48_OPTIONS },
+    ];
+  }
+
+  return [
+    { label: "Chung", options: LOOKUP_PENDING_COMMON_OPTIONS },
+    { label: "TT47 / TT46", options: LOOKUP_PENDING_TT47_46_OPTIONS },
+    { label: "TT48", options: LOOKUP_PENDING_TT48_OPTIONS },
+  ];
+}
+
+export function getDoneTinhTrangOptionGroups(
+  _thuTuc: LookupThuTuc | "all",
+): LookupTinhTrangOptionGroup[] {
+  return [
+    { label: "Tất cả thủ tục", options: LOOKUP_DONE_COMMON_OPTIONS },
+  ];
+}
+
+export function isPendingTinhTrangAllowed(
+  thuTuc: LookupThuTuc | "all",
+  tinhTrang: LookupTinhTrang | "all",
+): boolean {
+  if (tinhTrang === "all") return true;
+  return getPendingTinhTrangOptionGroups(thuTuc).some((group) =>
+    group.options.some((option) => option.value === tinhTrang)
+  );
+}
+
+export function isDoneTinhTrangAllowed(
+  thuTuc: LookupThuTuc | "all",
+  tinhTrang: LookupTinhTrang | "all",
+): boolean {
+  if (tinhTrang === "all") return true;
+  return getDoneTinhTrangOptionGroups(thuTuc).some((group) =>
+    group.options.some((option) => option.value === tinhTrang)
+  );
+}
 
 export const LOOKUP_TINH_TRANG_LABELS: Record<LookupTinhTrang, string> = {
   cho_phan_cong: LOOKUP_TEXT.pendingAssignment,
