@@ -299,11 +299,90 @@ export async function getChuyenVienStats(thuTuc: number, fromDate: string, toDat
       };
     });
 
+    const cpcRows = await query<{
+      ton_truoc: string;
+      da_nhan: string;
+      ton_sau_tong: string;
+      ton_sau_con_han: string;
+      ton_sau_qua_han: string;
+    }>(
+      `WITH
+       latest_tcc_roles AS (
+         SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
+           (data->>'thuTucId')::int AS thu_tuc,
+           data->>'maHoSo' AS ma_ho_so,
+           CASE
+             WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz
+             ELSE NULL
+           END AS ngay_tiep_nhan,
+           CASE
+             WHEN NULLIF(data->>'ngayHenTra', '') IS NOT NULL THEN (data->>'ngayHenTra')::timestamptz
+             ELSE NULL
+           END AS ngay_hen_tra
+         FROM tra_cuu_chung
+         WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
+           AND (data->>'thuTucId')::int = $1
+         ORDER BY
+           (data->>'thuTucId')::int,
+           data->>'maHoSo',
+           CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
+           NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
+       ),
+       cpc_snapshot AS (
+         SELECT DISTINCT ON (d.data->>'maHoSo')
+           d.data->>'maHoSo' AS ma_ho_so,
+           t.ngay_tiep_nhan AS ngay_nhan,
+           t.ngay_hen_tra AS kq_hen_tra
+         FROM dang_xu_ly d
+         LEFT JOIN latest_tcc_roles t
+           ON t.thu_tuc = (d.data->>'thuTucId')::int
+          AND t.ma_ho_so = d.data->>'maHoSo'
+         WHERE NULLIF(d.data->>'thuTucId', '') IS NOT NULL
+           AND (d.data->>'thuTucId')::int = $1
+           AND TRIM(COALESCE(d.data->>'tenDonViXuLy', '')) = 'Phòng ban phân công'
+         ORDER BY
+           d.data->>'maHoSo',
+           CASE WHEN NULLIF(d.data->>'ngayTiepNhan', '') IS NOT NULL THEN (d.data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
+           NULLIF(TRIM(d.data->>'id'), '') DESC NULLS LAST
+       )
+       SELECT
+         COUNT(*) FILTER (WHERE ngay_nhan < $2) AS ton_truoc,
+         COUNT(*) FILTER (WHERE ngay_nhan >= $2 AND ngay_nhan <= $3) AS da_nhan,
+         COUNT(*) FILTER (WHERE ngay_nhan <= $3) AS ton_sau_tong,
+         COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND kq_hen_tra IS NOT NULL AND kq_hen_tra > CURRENT_DATE) AS ton_sau_con_han,
+         COUNT(*) FILTER (WHERE ngay_nhan <= $3 AND (kq_hen_tra IS NULL OR kq_hen_tra <= CURRENT_DATE)) AS ton_sau_qua_han
+       FROM cpc_snapshot`,
+      [thuTuc, fromDt, toDt]
+    );
+
+    const cpc = cpcRows[0];
+
     return {
       thu_tuc: thuTuc,
       from_date: fromDate,
       to_date: toDate,
-      cho_phan_cong: null,
+      cho_phan_cong: cpc && (
+        toCount(cpc.ton_truoc) > 0
+        || toCount(cpc.da_nhan) > 0
+        || toCount(cpc.ton_sau_tong) > 0
+      ) ? {
+        ten_cv: "__CHUA_PHAN__",
+        ton_truoc: toCount(cpc.ton_truoc),
+        da_nhan: toCount(cpc.da_nhan),
+        gq_tong: 0,
+        can_bo_sung: 0,
+        khong_dat: 0,
+        hoan_thanh: 0,
+        dung_han: 0,
+        qua_han: 0,
+        tg_tb: null,
+        pct_gq_dung_han: 0,
+        pct_da_gq: 0,
+        ton_sau_tong: toCount(cpc.ton_sau_tong),
+        ton_sau_con_han: toCount(cpc.ton_sau_con_han),
+        ton_sau_qua_han: toCount(cpc.ton_sau_qua_han),
+        treo: 0,
+      } : null,
       rows: sortByPriority(mappedRows, (row) => row.ten_cv),
     };
   }

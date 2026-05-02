@@ -234,7 +234,7 @@ export function ChuyenVienTable({
               </tr>
             ) : (
               <>
-                {cpc && (cpc.ton_sau_tong > 0 || cpc.da_nhan > 0) && (
+                {cpc && (cpc.ton_truoc > 0 || cpc.da_nhan > 0 || cpc.ton_sau_tong > 0) && (
                   <tr className="bg-yellow-50 border-b-2 border-yellow-200">
                     <td
                       className={`${tdC} text-slate-400`}
@@ -248,7 +248,7 @@ export function ChuyenVienTable({
                     >
                       {"Chờ phân công"}
                     </td>
-                    <td className={tdC}></td>
+                    <td className={tdC}><Num v={cpc.ton_truoc} color="#be185d" bold /></td>
                     <td className={tdC}><Num v={cpc.da_nhan} color="#1d4ed8" bold /></td>
                     <td className={tdC}></td>
                     {showResolvedSupplementColumn ? <td className={tdC}></td> : null}
