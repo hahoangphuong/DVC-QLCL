@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { LOOKUP_TEXT } from "../../uiText";
 import { LookupActionBar } from "./LookupActionBar";
 import { LookupSelectField } from "./LookupSelectField";
@@ -53,6 +54,16 @@ export function LookupFilterPanel({
   hasData,
   rowCount,
 }: LookupFilterPanelProps) {
+  const getTinhTrangGroupStyle = (label: string) => {
+    if (label === "Chung") {
+      return { backgroundColor: "#e2e8f0", color: "#334155" };
+    }
+    if (label === "TT48") {
+      return { backgroundColor: "#dbeafe", color: "#1d4ed8" };
+    }
+    return { backgroundColor: "#dcfce7", color: "#166534" };
+  };
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
       <div className="flex flex-wrap gap-4 items-end">
@@ -88,11 +99,18 @@ export function LookupFilterPanel({
         >
           <option value="all">{LOOKUP_TEXT.all}</option>
           {tinhTrangOptionGroups.map((group) => (
-            <optgroup key={group.label} label={group.label}>
+            <Fragment key={group.label}>
+              <option
+                disabled
+                value={`__group__${group.label}`}
+                style={getTinhTrangGroupStyle(group.label)}
+              >
+                {` ${group.label} `}
+              </option>
               {group.options.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
+                <option key={option.value} value={option.value}>{`\u00A0\u00A0${option.label}`}</option>
               ))}
-            </optgroup>
+            </Fragment>
           ))}
         </LookupSelectField>
 
