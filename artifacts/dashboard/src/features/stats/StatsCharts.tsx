@@ -39,7 +39,7 @@ export function SummaryBarChart({ data }: { data: BarData[] }) {
 
   return (
     <ResponsiveContainer width="100%" height={OVERVIEW_BAR_CHART_HEIGHT}>
-      <BarChart data={data} margin={{ top: 32, right: 20, left: -10, bottom: 8 }}>
+      <BarChart data={data} margin={{ top: 18, right: 20, left: -10, bottom: 8 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
         <XAxis
           dataKey="name"

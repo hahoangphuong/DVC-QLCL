@@ -148,7 +148,7 @@ export function ThongKeOverviewCharts({ thuTuc, fromDate, toDate }: {
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: "3.7fr 2.1fr 2.1fr 2.1fr" }}>
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-        <div className="relative flex items-center justify-center mb-4">
+        <div className="relative flex items-center justify-center mb-2">
           <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide text-center">{`T\u00ccNH TR\u1ea0NG H\u1ed2 S\u01a0 ${ttLabel}`}</h3>
           {isLoading && <span className="text-xs text-blue-500 animate-pulse font-medium absolute right-0">{"\u0110ang t\u1ea3i..."}</span>}
           {isError && <span className="text-xs text-red-500 font-medium absolute right-0">{"L\u1ed7i t\u1ea3i d\u1eef li\u1ec7u"}</span>}
