@@ -76,7 +76,13 @@ latest_tcc_roles AS (
     END AS ngay_tiep_nhan,
     NULLIF(TRIM(data->>'trangThaiHoSo'), '') AS trang_thai_ho_so,
     NULLIF(TRIM(data->>'chuyenVienThuLyName'), '') AS cv_thu_ly_name,
-    NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name
+    NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name,
+    NULLIF(TRIM(data->>'tenDoanhNghiep'), '') AS co_so_dang_ky,
+    CASE
+      WHEN NULLIF(TRIM(data->>'jsonDonHang'), '') IS NULL THEN NULL
+      WHEN LEFT(TRIM(data->>'jsonDonHang'), 1) <> '{' THEN NULL
+      ELSE NULLIF(TRIM(((data->>'jsonDonHang')::jsonb->>'tenCoSoSanXuat')), '')
+    END AS co_so_san_xuat
   FROM tra_cuu_chung
   WHERE NULLIF(data->>'thuTucId', '') IS NOT NULL
   ORDER BY
@@ -1141,6 +1147,8 @@ type PendingLookupRow = {
   tinh_trang: string;
   chuyen_vien: string | null;
   chuyen_gia: string | null;
+  co_so_dang_ky: string | null;
+  co_so_san_xuat: string | null;
   thoi_gian_cho_ngay: string | number;
 };
 
@@ -1178,7 +1186,13 @@ latest_tcc_roles AS (
     END AS ngay_tiep_nhan,
     NULLIF(TRIM(data->>'trangThaiHoSo'), '') AS trang_thai_ho_so,
     NULLIF(TRIM(data->>'chuyenVienThuLyName'), '') AS cv_thu_ly_name,
-    NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name
+    NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name,
+    NULLIF(TRIM(data->>'tenDoanhNghiep'), '') AS co_so_dang_ky,
+    CASE
+      WHEN NULLIF(TRIM(data->>'jsonDonHang'), '') IS NULL THEN NULL
+      WHEN LEFT(TRIM(data->>'jsonDonHang'), 1) <> '{' THEN NULL
+      ELSE NULLIF(TRIM(((data->>'jsonDonHang')::jsonb->>'tenCoSoSanXuat')), '')
+    END AS co_so_san_xuat
   FROM tra_cuu_chung
   WHERE ($1::int IS NULL OR (data->>'thuTucId')::int = $1)
     AND NULLIF(data->>'thuTucId', '') IS NOT NULL
@@ -1338,30 +1352,54 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
     ),
     query<PendingLookupRow>(
       `${hasPendingLookup ? "" : `${PENDING_LOOKUP_FALLBACK_CTE} `}
+       ${hasPendingLookup ? `WITH latest_tcc_roles AS (
+         SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
+           (data->>'thuTucId')::int AS thu_tuc,
+           data->>'maHoSo' AS ma_ho_so,
+           NULLIF(TRIM(data->>'tenDoanhNghiep'), '') AS co_so_dang_ky,
+           CASE
+             WHEN NULLIF(TRIM(data->>'jsonDonHang'), '') IS NULL THEN NULL
+             WHEN LEFT(TRIM(data->>'jsonDonHang'), 1) <> '{' THEN NULL
+             ELSE NULLIF(TRIM(((data->>'jsonDonHang')::jsonb->>'tenCoSoSanXuat')), '')
+           END AS co_so_san_xuat
+         FROM tra_cuu_chung
+         WHERE ($1::int IS NULL OR (data->>'thuTucId')::int = $1)
+           AND NULLIF(data->>'thuTucId', '') IS NOT NULL
+         ORDER BY
+           (data->>'thuTucId')::int,
+           data->>'maHoSo',
+           CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
+           NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
+       )` : ""}
        SELECT
-         thu_tuc,
-         ma_ho_so,
-         ngay_tiep_nhan,
-         ngay_hen_tra,
-         loai_ho_so,
-         submission_kind,
-         tinh_trang,
-         chuyen_vien,
-         chuyen_gia,
-         thoi_gian_cho_ngay
-       FROM ${hasPendingLookup ? "mv_stats_pending_lookup" : "pending_lookup_source"}
-       WHERE ($1::int IS NULL OR thu_tuc = $1)
-         AND ($2::text IS NULL OR chuyen_vien = $2)
-         AND ($3::text IS NULL OR chuyen_gia = $3)
-         AND ($4::text IS NULL OR LOWER(ma_ho_so) LIKE '%' || LOWER($4) || '%')
+         base.thu_tuc,
+         base.ma_ho_so,
+         base.ngay_tiep_nhan,
+         base.ngay_hen_tra,
+         base.loai_ho_so,
+         base.submission_kind,
+         base.tinh_trang,
+         base.chuyen_vien,
+         base.chuyen_gia,
+         roles.co_so_dang_ky,
+         roles.co_so_san_xuat,
+         base.thoi_gian_cho_ngay
+       FROM ${hasPendingLookup ? "mv_stats_pending_lookup" : "pending_lookup_source"} base
+       LEFT JOIN latest_tcc_roles roles
+         ON roles.thu_tuc = base.thu_tuc
+        AND roles.ma_ho_so = base.ma_ho_so
+       WHERE ($1::int IS NULL OR base.thu_tuc = $1)
+         AND ($2::text IS NULL OR base.chuyen_vien = $2)
+         AND ($3::text IS NULL OR base.chuyen_gia = $3)
+         AND ($4::text IS NULL OR LOWER(base.ma_ho_so) LIKE '%' || LOWER($4) || '%')
          AND (
            $5::text IS NULL
-           OR tinh_trang = $5
-           OR ($5::text = 'cho_chuyen_vien' AND tinh_trang IN ('cho_chuyen_vien', 'chua_xu_ly', 'bi_tra_lai', 'cho_tong_hop', 'cho_tham_dinh', 'cho_quyet_dinh'))
-           OR ($5::text = 'dang_tham_dinh' AND tinh_trang IN ('cho_tham_dinh', 'cho_quyet_dinh'))
-           OR ($5::text = 'dang_xu_ly' AND tinh_trang IN ('dang_xu_ly', 'cho_ke_hoach', 'cho_bao_cao'))
+           OR base.tinh_trang = $5
+           OR ($5::text = 'cho_chuyen_vien' AND base.tinh_trang IN ('cho_chuyen_vien', 'chua_xu_ly', 'bi_tra_lai', 'cho_tong_hop', 'cho_tham_dinh', 'cho_quyet_dinh'))
+           OR ($5::text = 'dang_tham_dinh' AND base.tinh_trang IN ('cho_tham_dinh', 'cho_quyet_dinh'))
+           OR ($5::text = 'dang_xu_ly' AND base.tinh_trang IN ('dang_xu_ly', 'cho_ke_hoach', 'cho_bao_cao'))
          )
-       ORDER BY thu_tuc DESC, thoi_gian_cho_ngay DESC, ma_ho_so ASC`,
+       ORDER BY base.thu_tuc DESC, base.thoi_gian_cho_ngay DESC, base.ma_ho_so ASC`,
       [thuTuc, chuyenVien, chuyenGia, maHoSo, tinhTrang]
     ),
   ]);
@@ -1400,6 +1438,8 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
       tinh_trang: row.tinh_trang,
       chuyen_vien: row.chuyen_vien,
       chuyen_gia: row.chuyen_gia,
+      co_so_dang_ky: row.co_so_dang_ky,
+      co_so_san_xuat: row.co_so_san_xuat,
       thoi_gian_cho_ngay: toCount(row.thoi_gian_cho_ngay),
     })),
   };
@@ -1433,7 +1473,13 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
            (data->>'thuTucId')::int AS thu_tuc,
            NULLIF(TRIM(data->>'id'), '') AS tcc_id,
            data->>'maHoSo' AS ma_ho_so,
-           NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name
+           NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name,
+           NULLIF(TRIM(data->>'tenDoanhNghiep'), '') AS co_so_dang_ky,
+           CASE
+             WHEN NULLIF(TRIM(data->>'jsonDonHang'), '') IS NULL THEN NULL
+             WHEN LEFT(TRIM(data->>'jsonDonHang'), 1) <> '{' THEN NULL
+             ELSE NULLIF(TRIM(((data->>'jsonDonHang')::jsonb->>'tenCoSoSanXuat')), '')
+           END AS co_so_san_xuat
          FROM tra_cuu_chung
          WHERE ($1::int IS NULL OR (data->>'thuTucId')::int = $1)
            AND NULLIF(data->>'thuTucId', '') IS NOT NULL
@@ -1504,7 +1550,13 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
            (data->>'thuTucId')::int AS thu_tuc,
            NULLIF(TRIM(data->>'id'), '') AS tcc_id,
            data->>'maHoSo' AS ma_ho_so,
-           NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name
+           NULLIF(TRIM(data->>'chuyenVienPhoiHopName'), '') AS cv_phoi_hop_name,
+           NULLIF(TRIM(data->>'tenDoanhNghiep'), '') AS co_so_dang_ky,
+           CASE
+             WHEN NULLIF(TRIM(data->>'jsonDonHang'), '') IS NULL THEN NULL
+             WHEN LEFT(TRIM(data->>'jsonDonHang'), 1) <> '{' THEN NULL
+             ELSE NULLIF(TRIM(((data->>'jsonDonHang')::jsonb->>'tenCoSoSanXuat')), '')
+           END AS co_so_san_xuat
          FROM tra_cuu_chung
          WHERE ($1::int IS NULL OR (data->>'thuTucId')::int = $1)
            AND NULLIF(data->>'thuTucId', '') IS NOT NULL
@@ -1535,6 +1587,8 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
              WHEN NULLIF(TRIM(l.chuyen_gia_name), '') IS NULL THEN NULL
              ELSE REGEXP_REPLACE(TRIM(l.chuyen_gia_name), '^CG\\s*:\\s*', '', 'i')
            END AS chuyen_gia,
+           roles.co_so_dang_ky,
+           roles.co_so_san_xuat,
            l.thoi_gian_cho_ngay
          FROM latest_case_facts l
          LEFT JOIN latest_tcc_roles roles
@@ -1554,6 +1608,8 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
          tinh_trang,
          chuyen_vien,
          chuyen_gia,
+         co_so_dang_ky,
+         co_so_san_xuat,
          thoi_gian_cho_ngay
        FROM resolved_enriched
        WHERE ($2::text IS NULL OR chuyen_vien = $2)
@@ -1599,6 +1655,8 @@ export async function getDaXuLyLookup(filters: PendingLookupFilters) {
       tinh_trang: row.tinh_trang,
       chuyen_vien: row.chuyen_vien,
       chuyen_gia: row.chuyen_gia,
+      co_so_dang_ky: row.co_so_dang_ky,
+      co_so_san_xuat: row.co_so_san_xuat,
       thoi_gian_cho_ngay: toCount(row.thoi_gian_cho_ngay),
     })),
   };
@@ -1625,24 +1683,48 @@ export async function getDaXuLyLookupMaterialized(filters: PendingLookupFilters)
       [thuTuc]
     ),
     query<PendingLookupRow>(
-      `SELECT
-         thu_tuc,
-         ma_ho_so,
-         ngay_tiep_nhan,
-         ngay_hen_tra,
-         loai_ho_so,
-         submission_kind,
-         tinh_trang,
-         chuyen_vien,
-         chuyen_gia,
-         thoi_gian_cho_ngay
-       FROM mv_stats_resolved_lookup
-       WHERE ($1::int IS NULL OR thu_tuc = $1)
-         AND ($2::text IS NULL OR chuyen_vien = $2)
-         AND ($3::text IS NULL OR chuyen_gia = $3)
-         AND ($4::text IS NULL OR tinh_trang = $4)
-         AND ($5::text IS NULL OR LOWER(ma_ho_so) LIKE '%' || LOWER($5) || '%')
-       ORDER BY thu_tuc DESC, ngay_hen_tra DESC NULLS LAST, ma_ho_so ASC`,
+      `WITH latest_tcc_roles AS (
+         SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
+           (data->>'thuTucId')::int AS thu_tuc,
+           data->>'maHoSo' AS ma_ho_so,
+           NULLIF(TRIM(data->>'tenDoanhNghiep'), '') AS co_so_dang_ky,
+           CASE
+             WHEN NULLIF(TRIM(data->>'jsonDonHang'), '') IS NULL THEN NULL
+             WHEN LEFT(TRIM(data->>'jsonDonHang'), 1) <> '{' THEN NULL
+             ELSE NULLIF(TRIM(((data->>'jsonDonHang')::jsonb->>'tenCoSoSanXuat')), '')
+           END AS co_so_san_xuat
+         FROM tra_cuu_chung
+         WHERE ($1::int IS NULL OR (data->>'thuTucId')::int = $1)
+           AND NULLIF(data->>'thuTucId', '') IS NOT NULL
+         ORDER BY
+           (data->>'thuTucId')::int,
+           data->>'maHoSo',
+           CASE WHEN NULLIF(data->>'ngayTiepNhan', '') IS NOT NULL THEN (data->>'ngayTiepNhan')::timestamptz END DESC NULLS LAST,
+           NULLIF(TRIM(data->>'id'), '') DESC NULLS LAST
+       )
+       SELECT
+         base.thu_tuc,
+         base.ma_ho_so,
+         base.ngay_tiep_nhan,
+         base.ngay_hen_tra,
+         base.loai_ho_so,
+         base.submission_kind,
+         base.tinh_trang,
+         base.chuyen_vien,
+         base.chuyen_gia,
+         roles.co_so_dang_ky,
+         roles.co_so_san_xuat,
+         base.thoi_gian_cho_ngay
+       FROM mv_stats_resolved_lookup base
+       LEFT JOIN latest_tcc_roles roles
+         ON roles.thu_tuc = base.thu_tuc
+        AND roles.ma_ho_so = base.ma_ho_so
+       WHERE ($1::int IS NULL OR base.thu_tuc = $1)
+         AND ($2::text IS NULL OR base.chuyen_vien = $2)
+         AND ($3::text IS NULL OR base.chuyen_gia = $3)
+         AND ($4::text IS NULL OR base.tinh_trang = $4)
+         AND ($5::text IS NULL OR LOWER(base.ma_ho_so) LIKE '%' || LOWER($5) || '%')
+       ORDER BY base.thu_tuc DESC, base.ngay_hen_tra DESC NULLS LAST, base.ma_ho_so ASC`,
       [thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo]
     ),
   ]);
@@ -1681,6 +1763,8 @@ export async function getDaXuLyLookupMaterialized(filters: PendingLookupFilters)
       tinh_trang: row.tinh_trang,
       chuyen_vien: row.chuyen_vien,
       chuyen_gia: row.chuyen_gia,
+      co_so_dang_ky: row.co_so_dang_ky,
+      co_so_san_xuat: row.co_so_san_xuat,
       thoi_gian_cho_ngay: toCount(row.thoi_gian_cho_ngay),
     })),
   };

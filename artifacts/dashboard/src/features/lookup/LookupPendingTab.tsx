@@ -103,8 +103,7 @@ export function LookupPendingTab(props?: LookupTabProps) {
         sortBy={sortBy}
         sortDir={sortDir}
         onToggleSort={toggleSort}
-        dateReceivedLabel={LOOKUP_TEXT.dateReceived}
-        secondDateLabel={LOOKUP_TEXT.dueDate}
+        secondDateLabel={"Hẹn trả"}
         durationLabel={LOOKUP_COMMON_MESSAGES.pendingDurationLabel}
         loadingMessage={LOOKUP_COMMON_MESSAGES.loadingResults}
         emptyMessage={LOOKUP_COMMON_MESSAGES.emptyResults}

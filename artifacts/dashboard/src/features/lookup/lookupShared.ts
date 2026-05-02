@@ -49,6 +49,8 @@ export interface TraCuuDangXuLyRow {
   tinh_trang: LookupTinhTrang;
   chuyen_vien: string | null;
   chuyen_gia: string | null;
+  co_so_dang_ky: string | null;
+  co_so_san_xuat: string | null;
   thoi_gian_cho_ngay: number;
 }
 
