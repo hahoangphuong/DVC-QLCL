@@ -17,6 +17,7 @@ export function LookupHoSoDetailModal({
   onClose,
 }: LookupHoSoDetailModalProps) {
   const [infoTab, setInfoTab] = useState<"co_so" | "doanh_nghiep">("co_so");
+  const [detailTab, setDetailTab] = useState<"attachments" | "processing">("attachments");
   const [attachmentTab, setAttachmentTab] = useState("");
   const { data, isLoading, isError } = useQuery({
     queryKey: ["dav-ho-so-detail", thuTuc, hoSoId],
@@ -35,6 +36,7 @@ export function LookupHoSoDetailModal({
 
   const hoSo = data?.view.hoSo ?? {};
   const donHang = data?.view.parsedJsonDonHang ?? {};
+  const showProcessingTab = thuTuc === 46 || thuTuc === 47;
   const attachmentBundles = useMemo(() => {
     const seenAcrossBundles = new Set<string>();
     return (data?.view.listTepHoSo ?? [])
@@ -64,6 +66,87 @@ export function LookupHoSoDetailModal({
   const giayBaoThuUrl = buildDavViewFileUrl(data?.view.urlGiayBaoThu);
   const banDangKyUrl = buildDavViewFileUrl(data?.view.urlBanDangKy);
   const activeAttachmentBundle = attachmentBundles.find((bundle) => bundle.key === attachmentTab) ?? attachmentBundles[0] ?? null;
+  const bienBanThamXet = data?.view.bienBanThamXet && typeof data.view.bienBanThamXet === "object"
+    ? data.view.bienBanThamXet
+    : null;
+
+  const parseJsonObject = (value: unknown): Record<string, unknown> | null => {
+    if (typeof value !== "string" || !value.trim()) return null;
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const parseJsonArray = (value: unknown): Array<Record<string, unknown>> => {
+    if (typeof value !== "string" || !value.trim()) return [];
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed)
+        ? parsed.filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
+        : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const processingFiles = useMemo(() => {
+    if (!showProcessingTab) return [];
+
+    const fileBaoCaoDanhGia = parseJsonObject(bienBanThamXet?.["fileBaoCaoDanhGia"]);
+    const fileGiayChungNhanGMP = parseJsonObject(bienBanThamXet?.["fileGiayChungNhanGMP"]);
+    const fileGiayChungNhanDuDKKD = parseJsonObject(bienBanThamXet?.["fileGiayChungNhanDuDKKD"]);
+    const bienBanBaoCaoKhacPhucFromView = Array.isArray(data?.view.bienBanDanhGiaBaoCaoKhacPhuc)
+      ? data.view.bienBanDanhGiaBaoCaoKhacPhuc.filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
+      : [];
+    const bienBanBaoCaoKhacPhucFromJson = parseJsonArray(bienBanThamXet?.["fileBienBanDanhGiaBaoCaoKhacPhuc"]);
+    const bienBanBaoCaoKhacPhuc = bienBanBaoCaoKhacPhucFromView.length > 0
+      ? bienBanBaoCaoKhacPhucFromView
+      : bienBanBaoCaoKhacPhucFromJson;
+
+    return [
+      {
+        key: "quyet-dinh-kiem-tra",
+        label: "QuyetDinhKiemTra",
+        fileName: bienBanThamXet?.["fileQuyetDinhKiemTra"],
+        path: bienBanThamXet?.["fileQuyetDinhKiemTra"],
+      },
+      {
+        key: "ke-hoach-kiem-tra",
+        label: "KeHoachKiemTraThucDia",
+        fileName: bienBanThamXet?.["fileKeHoachKiemTraThucDia"],
+        path: bienBanThamXet?.["fileKeHoachKiemTraThucDia"],
+      },
+      {
+        key: "bao-cao-danh-gia",
+        label: "BaoCaoDanhGia",
+        fileName: fileBaoCaoDanhGia?.["DuongDanFileBaoCaoDanhGia"],
+        path: fileBaoCaoDanhGia?.["DuongDanFileBaoCaoDanhGia"],
+      },
+      {
+        key: "bien-ban-danh-gia-bao-cao-khac-phuc",
+        label: "BienBanDanhGiaBaoCaoKhacPhuc",
+        fileName: bienBanBaoCaoKhacPhuc[0]?.name ?? bienBanBaoCaoKhacPhuc[0]?.Name ?? bienBanBaoCaoKhacPhuc[0]?.duongDanFile ?? bienBanBaoCaoKhacPhuc[0]?.DuongDanFile,
+        path: bienBanBaoCaoKhacPhuc[0]?.duongDanFile ?? bienBanBaoCaoKhacPhuc[0]?.DuongDanFile,
+      },
+      {
+        key: "giay-chung-nhan-gmp",
+        label: "GiayChungNhanGMP",
+        fileName: fileGiayChungNhanGMP?.["DuongDanFileGMP"] ?? fileGiayChungNhanGMP?.["DuongDanFileQuyetDinh"],
+        path: fileGiayChungNhanGMP?.["DuongDanFileGMP"] ?? fileGiayChungNhanGMP?.["DuongDanFileQuyetDinh"],
+      },
+      {
+        key: "giay-chung-nhan-du-dkkd",
+        label: "GiayChungNhanDuDKKD",
+        fileName: fileGiayChungNhanDuDKKD?.["DuongDanFileChungNhanDuDKKD"],
+        path: fileGiayChungNhanDuDKKD?.["DuongDanFileChungNhanDuDKKD"],
+      },
+    ].filter((item) => item.path);
+  }, [bienBanThamXet, data?.view.bienBanDanhGiaBaoCaoKhacPhuc, showProcessingTab]);
 
   useEffect(() => {
     setAttachmentTab((prev) =>
@@ -73,6 +156,7 @@ export function LookupHoSoDetailModal({
 
   useEffect(() => {
     setInfoTab("co_so");
+    setDetailTab("attachments");
   }, [thuTuc, hoSoId]);
 
   const renderValue = (value: unknown) => {
@@ -212,52 +296,108 @@ export function LookupHoSoDetailModal({
               </section>
 
               <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">{DOSSIER_DETAIL_TEXT.attachmentsTitle}</h3>
-                {attachmentBundles.length === 0 ? (
-                  <div className="mt-3 text-sm text-slate-400">{DOSSIER_DETAIL_TEXT.noAttachments}</div>
-                ) : (
-                  <div className="mt-3 space-y-4">
-                    <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
-                      {attachmentBundles.map((bundle) => (
-                        <button
-                          key={bundle.key}
-                          type="button"
-                          onClick={() => setAttachmentTab(bundle.key)}
-                          className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
-                            activeAttachmentBundle?.key === bundle.key
-                              ? "bg-blue-600 text-white"
-                              : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
-                          }`}
-                        >
-                          {bundle.label}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="space-y-2">
-                      {(activeAttachmentBundle?.files ?? []).map((file, index) => {
-                        const url = buildDavViewFileUrl(file.duongDanTep);
-                        return (
-                          <div
-                            key={`${activeAttachmentBundle?.key ?? "bundle"}-${file.code ?? "tep"}-${index}`}
-                            className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+                <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+                  <button
+                    type="button"
+                    onClick={() => setDetailTab("attachments")}
+                    className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
+                      detailTab === "attachments"
+                        ? "bg-blue-600 text-white"
+                        : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {DOSSIER_DETAIL_TEXT.attachmentsTitle}
+                  </button>
+                  {showProcessingTab ? (
+                    <button
+                      type="button"
+                      onClick={() => setDetailTab("processing")}
+                      className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
+                        detailTab === "processing"
+                          ? "bg-blue-600 text-white"
+                          : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      H\u1ed3 s\u01a1 x\u1eed l\u00fd
+                    </button>
+                  ) : null}
+                </div>
+
+                {detailTab === "attachments" ? (
+                  attachmentBundles.length === 0 ? (
+                    <div className="mt-3 text-sm text-slate-400">{DOSSIER_DETAIL_TEXT.noAttachments}</div>
+                  ) : (
+                    <div className="mt-3 space-y-4">
+                      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+                        {attachmentBundles.map((bundle) => (
+                          <button
+                            key={bundle.key}
+                            type="button"
+                            onClick={() => setAttachmentTab(bundle.key)}
+                            className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
+                              activeAttachmentBundle?.key === bundle.key
+                                ? "bg-blue-600 text-white"
+                                : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                            }`}
                           >
-                            <div className="min-w-0 flex-1">
-                              <div className="text-sm font-medium text-slate-800">{renderValue(file.moTaTep)}</div>
-                              <div className="mt-1 break-all text-xs text-slate-500">{renderValue(file.tenTep)}</div>
+                            {bundle.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="space-y-2">
+                        {(activeAttachmentBundle?.files ?? []).map((file, index) => {
+                          const url = buildDavViewFileUrl(file.duongDanTep);
+                          return (
+                            <div
+                              key={`${activeAttachmentBundle?.key ?? "bundle"}-${file.code ?? "tep"}-${index}`}
+                              className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-medium text-slate-800">{renderValue(file.moTaTep)}</div>
+                                <div className="mt-1 break-all text-xs text-slate-500">{renderValue(file.tenTep)}</div>
+                              </div>
+                              <div className="shrink-0">
+                                {url ? (
+                                  <a href={url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-700 hover:text-blue-800">
+                                    {DOSSIER_DETAIL_TEXT.actions.open}
+                                  </a>
+                                ) : (
+                                  <span className="text-sm text-slate-400">{"\u2014"}</span>
+                                )}
+                              </div>
                             </div>
-                            <div className="shrink-0">
-                              {url ? (
-                                <a href={url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-700 hover:text-blue-800">
-                                  {DOSSIER_DETAIL_TEXT.actions.open}
-                                </a>
-                              ) : (
-                                <span className="text-sm text-slate-400">{"\u2014"}</span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
+                  )
+                ) : processingFiles.length === 0 ? (
+                  <div className="mt-3 text-sm text-slate-400">Kh\u00f4ng c\u00f3 h\u1ed3 s\u01a1 x\u1eed l\u00fd.</div>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {processingFiles.map((file) => {
+                      const url = buildDavViewFileUrl(typeof file.path === "string" ? file.path : null);
+                      return (
+                        <div
+                          key={file.key}
+                          className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium text-slate-800">{file.label}</div>
+                            <div className="mt-1 break-all text-xs text-slate-500">{renderValue(file.fileName)}</div>
+                          </div>
+                          <div className="shrink-0">
+                            {url ? (
+                              <a href={url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-700 hover:text-blue-800">
+                                {DOSSIER_DETAIL_TEXT.actions.open}
+                              </a>
+                            ) : (
+                              <span className="text-sm text-slate-400">{"\u2014"}</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </section>

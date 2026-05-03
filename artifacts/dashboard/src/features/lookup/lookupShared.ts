@@ -146,6 +146,9 @@ export interface DavHoSoDetailData {
     urlBanDangKy: string | null;
     listTepHoSo: DavHoSoBundle[];
     listTepHoSoXuLy: Array<Record<string, unknown>>;
+    bienBanThamXet: Record<string, unknown> | null;
+    bienBanDanhGiaBaoCaoKhacPhuc: Array<Record<string, unknown>> | Record<string, unknown> | null;
+    bienBanDanhGiaBaoCaoKhacPhucThucTe: Record<string, unknown> | null;
     parsedJsonDonHang: Record<string, unknown> | null;
     parsedJsonPhamViKinhDoanh: Array<Record<string, unknown>> | null;
   };

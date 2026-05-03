@@ -199,6 +199,8 @@ class SyncService:
                     "hosoXuLy": (view_result or {}).get("hosoXuLy") or [],
                     "taiLieuDinhKemChuyenVien": (view_result or {}).get("taiLieuDinhKemChuyenVien") or [],
                     "bienBanThamXet": (view_result or {}).get("bienBanThamXet"),
+                    "bienBanDanhGiaBaoCaoKhacPhuc": (view_result or {}).get("bienBanDanhGiaBaoCaoKhacPhuc"),
+                    "bienBanDanhGiaBaoCaoKhacPhucThucTe": (view_result or {}).get("bienBanDanhGiaBaoCaoKhacPhucThucTe"),
                     "parsedJsonDonHang": parsed_json_don_hang,
                     "parsedJsonPhamViKinhDoanh": parsed_json_pham_vi,
                     "parsedJsonKiemSoatDacBiet": parsed_json_kiem_soat,
