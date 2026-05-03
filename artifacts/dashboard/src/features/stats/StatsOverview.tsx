@@ -161,15 +161,6 @@ export function ThongKeOverviewCharts({ thuTuc, fromDate, toDate }: {
         ) : (
           <SummaryBarChart data={barData} />
         )}
-
-        <div className="mt-1 flex flex-wrap justify-center gap-x-3 gap-y-1">
-          {Object.values(COLORS).map(({ bar, label }) => (
-            <div key={label} className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: bar }} />
-              <span className="text-xs text-slate-500 font-medium">{label}</span>
-            </div>
-          ))}
-        </div>
       </div>
 
       <DonutChart

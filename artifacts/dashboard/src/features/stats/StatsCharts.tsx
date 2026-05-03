@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import { CHART_ANIMATION_MS } from "../../shared/chartConfig";
 
-const OVERVIEW_BAR_CHART_HEIGHT = 224;
+const OVERVIEW_BAR_CHART_HEIGHT = 256;
 const OVERVIEW_DONUT_CHART_HEIGHT = 188;
 const OVERVIEW_DONUT_INNER_RADIUS = 50;
 const OVERVIEW_DONUT_OUTER_RADIUS = 80;
