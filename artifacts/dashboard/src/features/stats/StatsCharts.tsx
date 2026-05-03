@@ -14,9 +14,9 @@ import {
 import { CHART_ANIMATION_MS } from "../../shared/chartConfig";
 
 const OVERVIEW_BAR_CHART_HEIGHT = 196;
-const OVERVIEW_DONUT_CHART_HEIGHT = 150;
-const OVERVIEW_DONUT_INNER_RADIUS = 42;
-const OVERVIEW_DONUT_OUTER_RADIUS = 68;
+const OVERVIEW_DONUT_CHART_HEIGHT = 188;
+const OVERVIEW_DONUT_INNER_RADIUS = 50;
+const OVERVIEW_DONUT_OUTER_RADIUS = 80;
 
 export interface BarData {
   name: string;
@@ -154,51 +154,53 @@ export function DonutChart({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-      <div className="relative flex items-center justify-center mb-3">
+    <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="relative mb-2 flex items-center justify-center">
         <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide text-center">{title}</h3>
         {isLoading && <span className="text-xs text-blue-500 animate-pulse font-medium absolute right-0">Đang tải...</span>}
         {isError && <span className="text-xs text-red-500 font-medium absolute right-0">Lỗi tải dữ liệu</span>}
       </div>
 
       {isLoading ? (
-        <div className="h-[150px] flex items-center justify-center">
+        <div className="flex min-h-[228px] flex-1 items-center justify-center">
           <div
             className="w-8 h-8 rounded-full border-4 border-t-transparent animate-spin"
             style={{ borderColor: `${spinnerColor} transparent transparent transparent` }}
           />
         </div>
       ) : total === 0 ? (
-        <div className="h-[150px] flex flex-col items-center justify-center text-slate-400 text-sm">
+        <div className="flex min-h-[228px] flex-1 flex-col items-center justify-center text-slate-400 text-sm">
           <div className="text-3xl mb-2">—</div>
           <div>{emptyMessage ?? "Không có dữ liệu"}</div>
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-2">
-          <ResponsiveContainer width="100%" height={OVERVIEW_DONUT_CHART_HEIGHT}>
-            <PieChart>
-              <Pie
-                data={segments}
-                cx="50%"
-                cy="52%"
-                innerRadius={OVERVIEW_DONUT_INNER_RADIUS}
-                outerRadius={OVERVIEW_DONUT_OUTER_RADIUS}
-                dataKey="value"
-                startAngle={startAngle}
-                endAngle={endAngle}
-                labelLine={false}
-                label={CombinedLabel}
-                animationDuration={CHART_ANIMATION_MS}
-              >
-                {segments.map((s, i) => (
-                  <Cell key={i} fill={s.color} stroke="none" />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
+        <div className="flex flex-1 flex-col items-center">
+          <div className="flex min-h-[188px] w-full flex-1 items-center justify-center">
+            <ResponsiveContainer width="100%" height={OVERVIEW_DONUT_CHART_HEIGHT}>
+              <PieChart>
+                <Pie
+                  data={segments}
+                  cx="50%"
+                  cy="52%"
+                  innerRadius={OVERVIEW_DONUT_INNER_RADIUS}
+                  outerRadius={OVERVIEW_DONUT_OUTER_RADIUS}
+                  dataKey="value"
+                  startAngle={startAngle}
+                  endAngle={endAngle}
+                  labelLine={false}
+                  label={CombinedLabel}
+                  animationDuration={CHART_ANIMATION_MS}
+                >
+                  {segments.map((s, i) => (
+                    <Cell key={i} fill={s.color} stroke="none" />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
 
-          <div className="flex gap-6 justify-center flex-wrap">
+          <div className="mt-1 flex flex-wrap justify-center gap-x-6 gap-y-1">
             {segments.map((s) => (
               <div key={s.name} className="flex flex-col items-center gap-0.5">
                 <div className="w-3 h-3 rounded-full" style={{ background: s.color }} />
