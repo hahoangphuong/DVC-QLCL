@@ -382,12 +382,7 @@ router.get("/stats/tra-cuu-dang-xu-ly", async (req, res) => {
     const tinhTrang = typeof req.query["tinh_trang"] === "string" ? req.query["tinh_trang"] : null;
     const maHoSo = typeof req.query["ma_ho_so"] === "string" ? req.query["ma_ho_so"] : null;
 
-    res.json(await cachedJson(
-      `stats:tra-cuu-dang-xu-ly:${thuTuc ?? "all"}:${chuyenVien ?? ""}:${chuyenGia ?? ""}:${tinhTrang ?? ""}:${maHoSo ?? ""}`,
-      FAST_TTL_MS,
-      FAST_STALE_MS,
-      () => getDangXuLyLookup({ thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo })
-    ));
+    res.json(await getDangXuLyLookup({ thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo }));
   } catch (e: unknown) {
     res.status(500).json({ detail: String(e) });
   }
@@ -472,12 +467,7 @@ router.get("/stats/tra-cuu-da-xu-ly", async (req, res) => {
     const tinhTrang = typeof req.query["tinh_trang"] === "string" ? req.query["tinh_trang"] : null;
     const maHoSo = typeof req.query["ma_ho_so"] === "string" ? req.query["ma_ho_so"] : null;
 
-    res.json(await cachedJson(
-      `stats:tra-cuu-da-xu-ly:${thuTuc ?? "all"}:${chuyenVien ?? ""}:${chuyenGia ?? ""}:${tinhTrang ?? ""}:${maHoSo ?? ""}`,
-      FAST_TTL_MS,
-      FAST_STALE_MS,
-      () => getDaXuLyLookupMaterialized({ thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo })
-    ));
+    res.json(await getDaXuLyLookupMaterialized({ thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo }));
   } catch (e: unknown) {
     res.status(500).json({ detail: String(e) });
   }
