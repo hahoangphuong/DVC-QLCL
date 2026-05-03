@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import { CHART_ANIMATION_MS } from "../../shared/chartConfig";
 
-const OVERVIEW_BAR_CHART_HEIGHT = 196;
+const OVERVIEW_BAR_CHART_HEIGHT = 224;
 const OVERVIEW_DONUT_CHART_HEIGHT = 188;
 const OVERVIEW_DONUT_INNER_RADIUS = 50;
 const OVERVIEW_DONUT_OUTER_RADIUS = 80;
@@ -39,7 +39,7 @@ export function SummaryBarChart({ data }: { data: BarData[] }) {
 
   return (
     <ResponsiveContainer width="100%" height={OVERVIEW_BAR_CHART_HEIGHT}>
-      <BarChart data={data} margin={{ top: 18, right: 20, left: -10, bottom: 8 }}>
+      <BarChart data={data} margin={{ top: 16, right: 20, left: -10, bottom: 2 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
         <XAxis
           dataKey="name"
@@ -155,21 +155,21 @@ export function DonutChart({
 
   return (
     <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="relative mb-2 flex items-center justify-center">
+      <div className="relative mb-1 flex items-center justify-center">
         <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide text-center">{title}</h3>
         {isLoading && <span className="text-xs text-blue-500 animate-pulse font-medium absolute right-0">Đang tải...</span>}
         {isError && <span className="text-xs text-red-500 font-medium absolute right-0">Lỗi tải dữ liệu</span>}
       </div>
 
       {isLoading ? (
-        <div className="flex min-h-[228px] flex-1 items-center justify-center">
+        <div className="flex min-h-[236px] flex-1 items-center justify-center">
           <div
             className="w-8 h-8 rounded-full border-4 border-t-transparent animate-spin"
             style={{ borderColor: `${spinnerColor} transparent transparent transparent` }}
           />
         </div>
       ) : total === 0 ? (
-        <div className="flex min-h-[228px] flex-1 flex-col items-center justify-center text-slate-400 text-sm">
+        <div className="flex min-h-[236px] flex-1 flex-col items-center justify-center text-slate-400 text-sm">
           <div className="text-3xl mb-2">—</div>
           <div>{emptyMessage ?? "Không có dữ liệu"}</div>
         </div>
