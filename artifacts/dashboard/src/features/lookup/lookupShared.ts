@@ -113,20 +113,20 @@ export interface TraCuuDangXuLyData {
 
 export interface TraCuuDaXuLyData extends TraCuuDangXuLyData {}
 
-export interface DavTt48FileItem {
+export interface DavHoSoFileItem {
   duongDanTep?: string | null;
   tenTep?: string | null;
   moTaTep?: string | null;
   code?: string | null;
 }
 
-export interface DavTt48HoSoBundle {
+export interface DavHoSoBundle {
   lanBoSung?: number | null;
   moTaTep?: string | null;
-  danhSachTepDinhKem?: DavTt48FileItem[];
+  danhSachTepDinhKem?: DavHoSoFileItem[];
 }
 
-export interface DavTt48HistoryItem {
+export interface DavHoSoHistoryItem {
   nguoiXuLy?: string | null;
   hanhDongXuLy?: string | null;
   ngayXuLy?: string | null;
@@ -135,22 +135,22 @@ export interface DavTt48HistoryItem {
   soNgayQuaHan?: number | null;
 }
 
-export interface DavTt48DetailData {
+export interface DavHoSoDetailData {
   ok: boolean;
-  thu_tuc: 48;
+  thu_tuc: LookupThuTuc;
   ho_so_id: number;
   view: {
     hoSo: Record<string, unknown>;
     trangThaiHoSo: number | null;
     urlGiayBaoThu: string | null;
     urlBanDangKy: string | null;
-    listTepHoSo: DavTt48HoSoBundle[];
+    listTepHoSo: DavHoSoBundle[];
     listTepHoSoXuLy: Array<Record<string, unknown>>;
     parsedJsonDonHang: Record<string, unknown> | null;
     parsedJsonPhamViKinhDoanh: Array<Record<string, unknown>> | null;
   };
   history: {
-    listYKien: DavTt48HistoryItem[];
+    listYKien: DavHoSoHistoryItem[];
   };
 }
 
@@ -196,14 +196,17 @@ export async function fetchTraCuuDaXuLy(params: {
   return res.json();
 }
 
-export async function fetchDavTt48HoSoDetail(hoSoId: number): Promise<DavTt48DetailData> {
-  const res = await fetch(`${API}/dav/tt48/ho-so/${hoSoId}`);
+export async function fetchDavHoSoDetail(
+  thuTuc: LookupThuTuc,
+  hoSoId: number,
+): Promise<DavHoSoDetailData> {
+  const res = await fetch(`${API}/dav/ho-so/${thuTuc}/${hoSoId}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
-export function extractHoSoId(maHoSo: string): number | null {
-  const matched = /^\s*(\d+)\s*\/\s*TT48\s*$/i.exec(maHoSo);
+export function extractHoSoId(maHoSo: string, thuTuc: LookupThuTuc): number | null {
+  const matched = new RegExp(`^\\s*(\\d+)\\s*\\/\\s*TT${thuTuc}\\s*$`, "i").exec(maHoSo);
   if (!matched) return null;
   const value = Number(matched[1]);
   return Number.isInteger(value) && value > 0 ? value : null;

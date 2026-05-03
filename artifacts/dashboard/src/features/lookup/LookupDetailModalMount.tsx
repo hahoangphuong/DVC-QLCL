@@ -13,6 +13,7 @@ export function LookupDetailModalMount({
   if (!selectedDetail) return null;
   return (
     <LookupHoSoDetailModal
+      thuTuc={selectedDetail.thuTuc}
       hoSoId={selectedDetail.hoSoId}
       maHoSo={selectedDetail.maHoSo}
       onClose={onClose}

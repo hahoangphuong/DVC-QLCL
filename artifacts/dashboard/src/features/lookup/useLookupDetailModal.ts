@@ -1,6 +1,8 @@
+import type { LookupThuTuc } from "./lookupShared";
 import { useCallback, useState } from "react";
 
 export type LookupDetailSelection = {
+  thuTuc: LookupThuTuc;
   hoSoId: number;
   maHoSo: string;
 };
@@ -8,8 +10,8 @@ export type LookupDetailSelection = {
 export function useLookupDetailModal() {
   const [selectedDetail, setSelectedDetail] = useState<LookupDetailSelection | null>(null);
 
-  const openDetail = useCallback((hoSoId: number, maHoSo: string) => {
-    setSelectedDetail({ hoSoId, maHoSo });
+  const openDetail = useCallback((thuTuc: LookupThuTuc, hoSoId: number, maHoSo: string) => {
+    setSelectedDetail({ thuTuc, hoSoId, maHoSo });
   }, []);
 
   const closeDetail = useCallback(() => {

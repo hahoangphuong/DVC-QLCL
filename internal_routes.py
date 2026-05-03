@@ -100,11 +100,13 @@ def create_internal_router(sync_service, runtime, engine=None, migrate_stats_sch
             runtime.sync_log.error(f"STATS MIGRATION THAT BAI | {type(exc).__name__}: {exc} | {elapsed:.1f}s")
             raise HTTPException(status_code=500, detail=str(exc))
 
-    @router.get("/internal/dav/tt48/ho-so/{ho_so_id}")
-    def internal_dav_tt48_hoso_detail(ho_so_id: int):
+    @router.get("/internal/dav/ho-so/{thu_tuc}/{ho_so_id}")
+    def internal_dav_hoso_detail(thu_tuc: int, ho_so_id: int):
+        if thu_tuc not in (46, 47, 48):
+            raise HTTPException(status_code=400, detail="thu_tuc phai la 46, 47 hoac 48")
         if ho_so_id <= 0:
             raise HTTPException(status_code=400, detail="ho_so_id phai la so duong")
-        return sync_service.get_tt48_hoso_detail(ho_so_id)
+        return sync_service.get_hoso_detail(thu_tuc, ho_so_id)
 
     @router.get("/internal/dav/tt47-46/cho-tham-dinh")
     def internal_dav_tt47_46_cho_tham_dinh(thu_tuc: int = Query(...)):

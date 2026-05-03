@@ -6,6 +6,7 @@ import {
   displaySubmissionKind,
   extractHoSoId,
   isoToDisplay,
+  type LookupThuTuc,
   type TraCuuDangXuLyRow,
   type TraCuuSortKey,
 } from "./lookupShared";
@@ -22,7 +23,7 @@ type LookupResultsTableProps = {
   durationLabel: string;
   loadingMessage: string;
   emptyMessage: string;
-  onOpenDetail: (hoSoId: number, maHoSo: string) => void;
+  onOpenDetail: (thuTuc: LookupThuTuc, hoSoId: number, maHoSo: string) => void;
 };
 
 export function LookupResultsTable({
@@ -105,7 +106,7 @@ export function LookupResultsTable({
                   <td colSpan={12} className="px-4 py-10 text-center text-sm text-slate-400">{emptyMessage}</td>
                 </tr>
               ) : sortedRows.map((row, index) => {
-                const hoSoId = row.thu_tuc === 48 ? extractHoSoId(row.ma_ho_so) : null;
+                const hoSoId = extractHoSoId(row.ma_ho_so, row.thu_tuc);
                 return (
                   <tr key={`${row.thu_tuc}-${row.ma_ho_so}-${index}`} className={`${index % 2 === 0 ? "bg-white" : "bg-slate-50"} group hover:bg-blue-50`}>
                     <td className="px-3 py-2.5 text-center text-slate-500">{index + 1}</td>
@@ -124,7 +125,7 @@ export function LookupResultsTable({
                       <button
                         type="button"
                         onClick={() => {
-                          if (hoSoId) onOpenDetail(hoSoId, row.ma_ho_so);
+                          if (hoSoId) onOpenDetail(row.thu_tuc, hoSoId, row.ma_ho_so);
                         }}
                         disabled={hoSoId === null}
                         className="rounded-md border border-blue-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-700 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"

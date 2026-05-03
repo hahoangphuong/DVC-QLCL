@@ -156,14 +156,17 @@ class SyncService:
             **extract_tra_cuu_chung_facility_fields(item),
         }
 
-    def get_tt48_hoso_detail(self, ho_so_id: int, client: RemoteClient | None = None) -> dict:
+    def get_hoso_detail(self, thu_tuc: int, ho_so_id: int, client: RemoteClient | None = None) -> dict:
+        if thu_tuc not in (46, 47, 48):
+            raise HTTPException(status_code=400, detail="thu_tuc phai la 46, 47 hoac 48")
+
         base_url = os.environ.get("BASE_URL", "").rstrip("/")
         if not base_url:
             raise HTTPException(status_code=500, detail="Thieu cau hinh BASE_URL")
 
         referer = f"{base_url}/Application"
-        view_url = f"{base_url}/api/services/app/xuLyHoSoView48/GetViewHoSo?hoSoId={ho_so_id}"
-        history_url = f"{base_url}/api/services/app/xuLyHoSoView48/GetHistory?hoSoId={ho_so_id}"
+        view_url = f"{base_url}/api/services/app/xuLyHoSoView{thu_tuc}/GetViewHoSo?hoSoId={ho_so_id}"
+        history_url = f"{base_url}/api/services/app/xuLyHoSoView{thu_tuc}/GetHistory?hoSoId={ho_so_id}"
 
         try:
             active_client = client or self._login_remote_client()
@@ -183,7 +186,7 @@ class SyncService:
 
             return {
                 "ok": True,
-                "thu_tuc": 48,
+                "thu_tuc": thu_tuc,
                 "ho_so_id": ho_so_id,
                 "view": {
                     "hoSo": ho_so,
@@ -213,7 +216,7 @@ class SyncService:
         except ValueError as exc:
             raise HTTPException(status_code=502, detail=str(exc))
         except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Loi lay chi tiet ho so TT48: {exc}")
+            raise HTTPException(status_code=500, detail=f"Loi lay chi tiet ho so TT{thu_tuc}: {exc}")
 
     def _fetch_tt47_46_cho_tham_dinh_rows(self, thu_tuc: int, client: RemoteClient | None = None) -> tuple[list[dict], float]:
         if thu_tuc not in (46, 47):

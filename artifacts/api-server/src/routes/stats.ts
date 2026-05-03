@@ -547,14 +547,18 @@ router.get("/stats/tra-cuu-da-xu-ly/export", async (req, res) => {
   }
 });
 
-router.get("/dav/tt48/ho-so/:hoSoId", async (req, res) => {
+router.get("/dav/ho-so/:thuTuc/:hoSoId", async (req, res) => {
+  const thuTuc = validateThuTuc(req.params["thuTuc"]);
   const hoSoId = Number(req.params["hoSoId"]);
+  if (!thuTuc) {
+    return void res.status(400).json({ detail: "thuTuc phai la 46, 47 hoac 48" });
+  }
   if (!Number.isInteger(hoSoId) || hoSoId <= 0) {
     return void res.status(400).json({ detail: "hoSoId phai la so nguyen duong" });
   }
 
   try {
-    const pyRes = await fetch(`${PYTHON_API}/internal/dav/tt48/ho-so/${hoSoId}`);
+    const pyRes = await fetch(`${PYTHON_API}/internal/dav/ho-so/${thuTuc}/${hoSoId}`);
     const data = await pyRes.json();
     res.status(pyRes.ok ? 200 : (pyRes.status === 400 ? 400 : pyRes.status === 401 ? 401 : 502)).json(data);
   } catch (e: unknown) {

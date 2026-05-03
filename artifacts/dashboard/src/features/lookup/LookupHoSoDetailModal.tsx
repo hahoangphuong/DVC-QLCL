@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DOSSIER_DETAIL_TEXT } from "../../uiText";
-import { buildDavViewFileUrl, fetchDavTt48HoSoDetail, isoToDisplay } from "./lookupShared";
+import { buildDavViewFileUrl, fetchDavHoSoDetail, isoToDisplay, type LookupThuTuc } from "./lookupShared";
 
 export type LookupHoSoDetailModalProps = {
+  thuTuc: LookupThuTuc;
   hoSoId: number;
   maHoSo: string;
   onClose: VoidFunction;
 };
 
 export function LookupHoSoDetailModal({
+  thuTuc,
   hoSoId,
   maHoSo,
   onClose,
@@ -17,8 +19,8 @@ export function LookupHoSoDetailModal({
   const [infoTab, setInfoTab] = useState<"co_so" | "doanh_nghiep">("co_so");
   const [attachmentTab, setAttachmentTab] = useState("");
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["dav-tt48-ho-so-detail", hoSoId],
-    queryFn: () => fetchDavTt48HoSoDetail(hoSoId),
+    queryKey: ["dav-ho-so-detail", thuTuc, hoSoId],
+    queryFn: () => fetchDavHoSoDetail(thuTuc, hoSoId),
     retry: 1,
     staleTime: 60 * 1000,
   });
@@ -71,7 +73,7 @@ export function LookupHoSoDetailModal({
 
   useEffect(() => {
     setInfoTab("co_so");
-  }, [hoSoId]);
+  }, [thuTuc, hoSoId]);
 
   const renderValue = (value: unknown) => {
     if (value === null || value === undefined || value === "") return "\u2014";
