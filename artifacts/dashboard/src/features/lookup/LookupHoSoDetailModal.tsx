@@ -155,14 +155,18 @@ export function LookupHoSoDetailModal({
                 {infoTab === "co_so" ? (
                   <div className="mt-4 space-y-4">
                     <div className="grid gap-3 md:grid-cols-2">
-                      <div>
-                        <div className="text-xs font-semibold text-slate-500">IDCT</div>
-                        <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["idCongTy"])}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold text-slate-500">{DOSSIER_DETAIL_TEXT.fields.country}</div>
-                        <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["nuocSoTai"])}</div>
-                      </div>
+                      {thuTuc === 48 ? (
+                        <>
+                          <div>
+                            <div className="text-xs font-semibold text-slate-500">IDCT</div>
+                            <div className="mt-1 text-sm text-slate-700">{renderValue(hoSo["idCongTy"])}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs font-semibold text-slate-500">{DOSSIER_DETAIL_TEXT.fields.country}</div>
+                            <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["nuocSoTai"])}</div>
+                          </div>
+                        </>
+                      ) : null}
                       <div className="md:col-span-2">
                         <div className="text-xs font-semibold text-slate-500">{DOSSIER_DETAIL_TEXT.fields.facilityName}</div>
                         <div className="mt-1 text-sm text-slate-700">{renderValue(donHang["tenCoSoSanXuat"] ?? hoSo["tenCoSo"])}</div>

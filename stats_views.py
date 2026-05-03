@@ -16,6 +16,9 @@ STATS_MATERIALIZED_VIEWS = {
     "tt48_treo_by_loai": "mv_stats_tt48_treo_by_loai",
 }
 
+STATS_SCHEMA_VERSION = 1
+STATS_SCHEMA_META_KEY = "__stats_schema_version__"
+
 CONCURRENT_REFRESH_KINDS = {
     "received",
     "tt48_received_by_loai",

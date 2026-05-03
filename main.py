@@ -16,7 +16,7 @@ app = FastAPI(
     title="DAV PQLCL Scraper",
     description="Đăng nhập dichvucong.dav.gov.vn, lấy 7 bộ dữ liệu hồ sơ, lưu vào PostgreSQL",
     version="2.0.0",
-    lifespan=create_lifespan(Base.metadata, engine, migrate_schema, runtime, sync_service),
+    lifespan=create_lifespan(Base.metadata, engine, migrate_schema, migrate_stats_schema, runtime, sync_service),
 )
 
 app.add_middleware(

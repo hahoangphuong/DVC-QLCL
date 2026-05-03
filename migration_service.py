@@ -1,11 +1,12 @@
 from sqlalchemy import text
+from datetime import datetime, timezone
 
 from country_classification import (
     HT2_ALPHA2_CODES,
     build_country_name_to_alpha2_case,
     build_nuoc_so_tai_expr,
 )
-from stats_views import STATS_MATERIALIZED_VIEWS
+from stats_views import STATS_MATERIALIZED_VIEWS, STATS_SCHEMA_META_KEY, STATS_SCHEMA_VERSION
 from sync_utils import extract_tra_cuu_chung_facility_fields
 
 
@@ -14,6 +15,27 @@ DATA_TABLES = [
     "dang_xu_ly",
     "da_xu_ly",
 ]
+
+
+def _stamp_stats_schema_version(conn):
+    conn.execute(
+        text(
+            """
+            INSERT INTO sync_meta (table_name, synced_at, record_count, fetch_sec, insert_sec)
+            VALUES (:table_name, :synced_at, :record_count, 0, 0)
+            ON CONFLICT (table_name)
+            DO UPDATE SET synced_at = EXCLUDED.synced_at,
+                          record_count = EXCLUDED.record_count,
+                          fetch_sec = EXCLUDED.fetch_sec,
+                          insert_sec = EXCLUDED.insert_sec
+            """
+        ),
+        {
+            "table_name": STATS_SCHEMA_META_KEY,
+            "synced_at": datetime.now(timezone.utc),
+            "record_count": STATS_SCHEMA_VERSION,
+        },
+    )
 
 
 def _backfill_tra_cuu_chung_facilities(conn):
@@ -211,7 +233,7 @@ def migrate_stats_schema(engine):
             conn.execute(text(f"DROP MATERIALIZED VIEW IF EXISTS {view_name} CASCADE"))
 
         conn.execute(text(f"""
-            CREATE MATERIALIZED VIEW IF NOT EXISTS {STATS_MATERIALIZED_VIEWS["received"]} AS
+            CREATE MATERIALIZED VIEW {STATS_MATERIALIZED_VIEWS["received"]} AS
             SELECT
                 (data->>'thuTucId')::int AS thu_tuc,
                 EXTRACT(YEAR  FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
@@ -223,7 +245,7 @@ def migrate_stats_schema(engine):
             GROUP BY 1, 2, 3
         """))
         conn.execute(text(f"""
-            CREATE MATERIALIZED VIEW IF NOT EXISTS {STATS_MATERIALIZED_VIEWS["tt48_received_by_loai"]} AS
+            CREATE MATERIALIZED VIEW {STATS_MATERIALIZED_VIEWS["tt48_received_by_loai"]} AS
             SELECT
                 EXTRACT(YEAR  FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
                 EXTRACT(MONTH FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS mo,
@@ -236,7 +258,7 @@ def migrate_stats_schema(engine):
             GROUP BY 1, 2, 3
         """))
         conn.execute(text(f"""
-            CREATE MATERIALIZED VIEW IF NOT EXISTS {STATS_MATERIALIZED_VIEWS["received_bounds"]} AS
+            CREATE MATERIALIZED VIEW {STATS_MATERIALIZED_VIEWS["received_bounds"]} AS
             SELECT
                 (data->>'thuTucId')::int AS thu_tuc,
                 MIN((data->>'ngayTiepNhan')::timestamptz) AS earliest_ngay_nhan
@@ -246,7 +268,7 @@ def migrate_stats_schema(engine):
             GROUP BY 1
         """))
         conn.execute(text(f"""
-            CREATE MATERIALIZED VIEW IF NOT EXISTS {STATS_MATERIALIZED_VIEWS["resolved"]} AS
+            CREATE MATERIALIZED VIEW {STATS_MATERIALIZED_VIEWS["resolved"]} AS
             SELECT
                 thu_tuc,
                 EXTRACT(YEAR  FROM (data->>'ngayTraKetQua')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
@@ -257,7 +279,7 @@ def migrate_stats_schema(engine):
             GROUP BY 1, 2, 3
         """))
         conn.execute(text(f"""
-            CREATE MATERIALIZED VIEW IF NOT EXISTS {STATS_MATERIALIZED_VIEWS["resolved_facts"]} AS
+            CREATE MATERIALIZED VIEW {STATS_MATERIALIZED_VIEWS["resolved_facts"]} AS
             SELECT
                 thu_tuc,
                 data->>'maHoSo' AS ma_ho_so,
@@ -280,7 +302,7 @@ def migrate_stats_schema(engine):
             FROM da_xu_ly
         """))
         conn.execute(text(f"""
-            CREATE MATERIALIZED VIEW IF NOT EXISTS {STATS_MATERIALIZED_VIEWS["inflight"]} AS
+            CREATE MATERIALIZED VIEW {STATS_MATERIALIZED_VIEWS["inflight"]} AS
             SELECT
                 thu_tuc,
                 EXTRACT(YEAR  FROM (data->>'ngayTiepNhan')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
@@ -321,7 +343,7 @@ def migrate_stats_schema(engine):
         ))
 
         conn.execute(text(f"""
-            CREATE MATERIALIZED VIEW IF NOT EXISTS {STATS_MATERIALIZED_VIEWS["case_facts"]} AS
+            CREATE MATERIALIZED VIEW {STATS_MATERIALIZED_VIEWS["case_facts"]} AS
             WITH
             dxl_active AS (
                 SELECT DISTINCT
@@ -438,7 +460,7 @@ def migrate_stats_schema(engine):
         ))
 
         conn.execute(text(f"""
-            CREATE MATERIALIZED VIEW IF NOT EXISTS {STATS_MATERIALIZED_VIEWS["workflow_cases"]} AS
+            CREATE MATERIALIZED VIEW {STATS_MATERIALIZED_VIEWS["workflow_cases"]} AS
             WITH
             cv_from_tcc AS (
                 SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
@@ -500,7 +522,7 @@ def migrate_stats_schema(engine):
         ))
 
         conn.execute(text(f"""
-            CREATE MATERIALIZED VIEW IF NOT EXISTS {STATS_MATERIALIZED_VIEWS["pending_lookup"]} AS
+            CREATE MATERIALIZED VIEW {STATS_MATERIALIZED_VIEWS["pending_lookup"]} AS
             WITH latest_case_facts AS (
                 SELECT DISTINCT ON (thu_tuc, ma_ho_so)
                     thu_tuc,
@@ -696,7 +718,7 @@ def migrate_stats_schema(engine):
         ))
 
         conn.execute(text(f"""
-            CREATE MATERIALIZED VIEW IF NOT EXISTS {STATS_MATERIALIZED_VIEWS["resolved_lookup"]} AS
+            CREATE MATERIALIZED VIEW {STATS_MATERIALIZED_VIEWS["resolved_lookup"]} AS
             WITH latest_case_facts AS (
                 SELECT DISTINCT ON (thu_tuc, luot_xu_ly_id)
                     thu_tuc,
@@ -801,7 +823,7 @@ def migrate_stats_schema(engine):
         ))
 
         conn.execute(text(f"""
-            CREATE MATERIALIZED VIEW IF NOT EXISTS {STATS_MATERIALIZED_VIEWS["treo_by_cv"]} AS
+            CREATE MATERIALIZED VIEW {STATS_MATERIALIZED_VIEWS["treo_by_cv"]} AS
             WITH
             latest_dxl_treo AS (
                 SELECT DISTINCT ON (thu_tuc, ma_ho_so)
@@ -841,7 +863,7 @@ def migrate_stats_schema(engine):
         ))
 
         conn.execute(text(f"""
-            CREATE MATERIALIZED VIEW IF NOT EXISTS {STATS_MATERIALIZED_VIEWS["tt48_treo_by_loai"]} AS
+            CREATE MATERIALIZED VIEW {STATS_MATERIALIZED_VIEWS["tt48_treo_by_loai"]} AS
             WITH
             latest_dxl_treo AS (
                 SELECT DISTINCT ON (ma_ho_so)
@@ -878,3 +900,4 @@ def migrate_stats_schema(engine):
             f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['tt48_treo_by_loai']}_key "
             f"ON {STATS_MATERIALIZED_VIEWS['tt48_treo_by_loai']} (loai_ho_so)"
         ))
+        _stamp_stats_schema_version(conn)
