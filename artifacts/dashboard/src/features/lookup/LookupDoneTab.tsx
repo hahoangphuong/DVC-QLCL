@@ -100,6 +100,7 @@ export function LookupDoneTab(props?: LookupTabProps) {
         sortedRows={sortedRows}
         isError={isError}
         errorMessage={LOOKUP_TEXT.doneLookupLoadError}
+        selectedThuTuc={thuTuc}
         sortBy={sortBy}
         sortDir={sortDir}
         onToggleSort={toggleSort}

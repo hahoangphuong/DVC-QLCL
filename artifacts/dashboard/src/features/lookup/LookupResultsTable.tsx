@@ -16,6 +16,7 @@ type LookupResultsTableProps = {
   sortedRows: TraCuuDangXuLyRow[];
   isError: boolean;
   errorMessage: string;
+  selectedThuTuc: LookupThuTuc | "all";
   sortBy: TraCuuSortKey;
   sortDir: "asc" | "desc";
   onToggleSort: (key: TraCuuSortKey) => void;
@@ -31,6 +32,7 @@ export function LookupResultsTable({
   sortedRows,
   isError,
   errorMessage,
+  selectedThuTuc,
   sortBy,
   sortDir,
   onToggleSort,
@@ -40,6 +42,9 @@ export function LookupResultsTable({
   emptyMessage,
   onOpenDetail,
 }: LookupResultsTableProps) {
+  const hideChuyenGiaColumn = selectedThuTuc === 46 || selectedThuTuc === 47;
+  const totalColumns = hideChuyenGiaColumn ? 11 : 12;
+
   const renderCoSoCell = (row: TraCuuDangXuLyRow) => {
     if (row.thu_tuc === 48) {
       return (
@@ -74,7 +79,7 @@ export function LookupResultsTable({
               <col style={{ width: 74 }} />
               <col style={{ width: 78 }} />
               <col style={{ width: 156 }} />
-              <col style={{ width: 156 }} />
+              {!hideChuyenGiaColumn ? <col style={{ width: 156 }} /> : null}
               <col style={{ width: 84 }} />
               <col style={{ width: 118 }} />
               <col style={{ width: 54 }} />
@@ -89,7 +94,9 @@ export function LookupResultsTable({
                 <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={onToggleSort} label={"L\u1ea7n n\u1ed9p"} sortKey="submission_kind" center />
                 <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={onToggleSort} label={"Lo\u1ea1i h\u1ed3 s\u01a1"} sortKey="loai_ho_so" center />
                 <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={onToggleSort} label={"Chuy\u00ean vi\u00ean"} sortKey="chuyen_vien" />
-                <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={onToggleSort} label={"Chuy\u00ean gia"} sortKey="chuyen_gia" />
+                {!hideChuyenGiaColumn ? (
+                  <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={onToggleSort} label={"Chuy\u00ean gia"} sortKey="chuyen_gia" />
+                ) : null}
                 <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={onToggleSort} label={durationLabel} sortKey="thoi_gian_cho_ngay" center />
                 <LookupSortableHeader currentSortBy={sortBy} sortDir={sortDir} onToggle={onToggleSort} label={"T\u00ecnh tr\u1ea1ng"} sortKey="tinh_trang" />
                 <th className="px-3 py-3 text-center font-semibold tracking-wide whitespace-nowrap">...</th>
@@ -99,11 +106,11 @@ export function LookupResultsTable({
             <tbody>
               {!data ? (
                 <tr>
-                  <td colSpan={12} className="px-4 py-10 text-center text-sm text-slate-400">{loadingMessage}</td>
+                  <td colSpan={totalColumns} className="px-4 py-10 text-center text-sm text-slate-400">{loadingMessage}</td>
                 </tr>
               ) : sortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-4 py-10 text-center text-sm text-slate-400">{emptyMessage}</td>
+                  <td colSpan={totalColumns} className="px-4 py-10 text-center text-sm text-slate-400">{emptyMessage}</td>
                 </tr>
               ) : sortedRows.map((row, index) => {
                 const hoSoId = extractHoSoId(row.ma_ho_so, row.thu_tuc);
@@ -116,7 +123,9 @@ export function LookupResultsTable({
                     <td className="px-3 py-2.5 text-center text-slate-700">{displaySubmissionKind(row.submission_kind)}</td>
                     <td className="px-3 py-2.5 text-center text-slate-700">{row.loai_ho_so || ""}</td>
                     <td className="px-3 py-2.5 text-slate-700">{displayLookupCv(row.chuyen_vien)}</td>
-                    <td className="px-3 py-2.5 text-slate-700">{displayLookupCg(row.chuyen_gia)}</td>
+                    {!hideChuyenGiaColumn ? (
+                      <td className="px-3 py-2.5 text-slate-700">{displayLookupCg(row.chuyen_gia)}</td>
+                    ) : null}
                     <td className="px-3 py-2.5 text-center font-semibold text-slate-700 whitespace-nowrap">
                       {row.thoi_gian_cho_ngay > 0 ? `${row.thoi_gian_cho_ngay} ng\u00e0y` : ""}
                     </td>
