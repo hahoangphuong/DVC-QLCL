@@ -377,8 +377,8 @@ export function displaySubmissionKind(value: string | null): string {
 export const LOOKUP_COMMON_MESSAGES = {
   loadingResults: "\u0110ang chu\u1ea9n b\u1ecb d\u1eef li\u1ec7u tra c\u1ee9u...",
   emptyResults: "Kh\u00f4ng c\u00f3 h\u1ed3 s\u01a1 ph\u00f9 h\u1ee3p v\u1edbi \u0111i\u1ec1u ki\u1ec7n l\u1ecdc.",
-  pendingDurationLabel: "Th\u1eddi gian ch\u1edd",
-  doneDurationLabel: "Th\u1eddi gian x\u1eed l\u00fd",
+  pendingDurationLabel: "T/g ch\u1edd",
+  doneDurationLabel: "T/g x\u1eed l\u00fd",
 } as const;
 
 async function downloadBlob(url: string, fallbackFilename: string): Promise<void> {
