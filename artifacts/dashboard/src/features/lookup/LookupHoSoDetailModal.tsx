@@ -111,37 +111,37 @@ export function LookupHoSoDetailModal({
     return [
       {
         key: "quyet-dinh-kiem-tra",
-        label: "QuyetDinhKiemTra",
+        label: "Quyết định kiểm tra",
         fileName: bienBanThamXet?.["fileQuyetDinhKiemTra"],
         path: bienBanThamXet?.["fileQuyetDinhKiemTra"],
       },
       {
         key: "ke-hoach-kiem-tra",
-        label: "KeHoachKiemTraThucDia",
+        label: "Kế hoạch kiểm tra",
         fileName: bienBanThamXet?.["fileKeHoachKiemTraThucDia"],
         path: bienBanThamXet?.["fileKeHoachKiemTraThucDia"],
       },
       {
         key: "bao-cao-danh-gia",
-        label: "BaoCaoDanhGia",
+        label: "Báo cáo đánh giá",
         fileName: fileBaoCaoDanhGia?.["DuongDanFileBaoCaoDanhGia"],
         path: fileBaoCaoDanhGia?.["DuongDanFileBaoCaoDanhGia"],
       },
       {
         key: "bien-ban-danh-gia-bao-cao-khac-phuc",
-        label: "BienBanDanhGiaBaoCaoKhacPhuc",
+        label: "Biên bản đánh giá CAPA",
         fileName: bienBanBaoCaoKhacPhuc[0]?.name ?? bienBanBaoCaoKhacPhuc[0]?.Name ?? bienBanBaoCaoKhacPhuc[0]?.duongDanFile ?? bienBanBaoCaoKhacPhuc[0]?.DuongDanFile,
         path: bienBanBaoCaoKhacPhuc[0]?.duongDanFile ?? bienBanBaoCaoKhacPhuc[0]?.DuongDanFile,
       },
       {
         key: "giay-chung-nhan-gmp",
-        label: "GiayChungNhanGMP",
+        label: "Giấy chứng nhận GxP",
         fileName: fileGiayChungNhanGMP?.["DuongDanFileGMP"] ?? fileGiayChungNhanGMP?.["DuongDanFileQuyetDinh"],
         path: fileGiayChungNhanGMP?.["DuongDanFileGMP"] ?? fileGiayChungNhanGMP?.["DuongDanFileQuyetDinh"],
       },
       {
         key: "giay-chung-nhan-du-dkkd",
-        label: "GiayChungNhanDuDKKD",
+        label: "Giấy ĐĐKKDD",
         fileName: fileGiayChungNhanDuDKKD?.["DuongDanFileChungNhanDuDKKD"],
         path: fileGiayChungNhanDuDKKD?.["DuongDanFileChungNhanDuDKKD"],
       },
@@ -166,7 +166,7 @@ export function LookupHoSoDetailModal({
 
   const topCards: Array<[string, unknown]> = [
     ["M\u00e3 h\u1ed3 s\u01a1", hoSo["maHoSo"]],
-    ["H\u00ecnh th\u1ee9c \u0111\u00e1nh gi\u00e1", donHang["hinhThucDanhGia"]],
+    ...(thuTuc === 48 ? [["H\u00ecnh th\u1ee9c \u0111\u00e1nh gi\u00e1", donHang["hinhThucDanhGia"]] as [string, unknown]] : []),
     [
       "Ng\u00e0y n\u1ed9p",
       isoToDisplay(typeof hoSo["ngayDoanhNghiepNopHoSo"] === "string" ? hoSo["ngayDoanhNghiepNopHoSo"] : null),
@@ -312,13 +312,13 @@ export function LookupHoSoDetailModal({
                     <button
                       type="button"
                       onClick={() => setDetailTab("processing")}
-                      className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
-                        detailTab === "processing"
-                          ? "bg-blue-600 text-white"
-                          : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      H\u1ed3 s\u01a1 x\u1eed l\u00fd
+                    className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
+                      detailTab === "processing"
+                        ? "bg-blue-600 text-white"
+                        : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                      Hồ sơ xử lý
                     </button>
                   ) : null}
                   <button
