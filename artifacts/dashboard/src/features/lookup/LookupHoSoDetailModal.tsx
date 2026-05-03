@@ -17,7 +17,7 @@ export function LookupHoSoDetailModal({
   onClose,
 }: LookupHoSoDetailModalProps) {
   const [infoTab, setInfoTab] = useState<"co_so" | "doanh_nghiep">("co_so");
-  const [detailTab, setDetailTab] = useState<"attachments" | "processing">("attachments");
+  const [detailTab, setDetailTab] = useState<"attachments" | "processing" | "history">("attachments");
   const [attachmentTab, setAttachmentTab] = useState("");
   const { data, isLoading, isError } = useQuery({
     queryKey: ["dav-ho-so-detail", thuTuc, hoSoId],
@@ -321,6 +321,17 @@ export function LookupHoSoDetailModal({
                       H\u1ed3 s\u01a1 x\u1eed l\u00fd
                     </button>
                   ) : null}
+                  <button
+                    type="button"
+                    onClick={() => setDetailTab("history")}
+                    className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
+                      detailTab === "history"
+                        ? "bg-blue-600 text-white"
+                        : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {DOSSIER_DETAIL_TEXT.historyTitle}
+                  </button>
                 </div>
 
                 {detailTab === "attachments" ? (
@@ -371,7 +382,8 @@ export function LookupHoSoDetailModal({
                       </div>
                     </div>
                   )
-                ) : processingFiles.length === 0 ? (
+                ) : detailTab === "processing" ? (
+                  processingFiles.length === 0 ? (
                   <div className="mt-3 text-sm text-slate-400">Kh\u00f4ng c\u00f3 h\u1ed3 s\u01a1 x\u1eed l\u00fd.</div>
                 ) : (
                   <div className="mt-3 space-y-2">
@@ -399,12 +411,8 @@ export function LookupHoSoDetailModal({
                       );
                     })}
                   </div>
-                )}
-              </section>
-
-              <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">{DOSSIER_DETAIL_TEXT.historyTitle}</h3>
-                {lichSu.length === 0 ? (
+                )
+                ) : lichSu.length === 0 ? (
                   <div className="mt-3 text-sm text-slate-400">{DOSSIER_DETAIL_TEXT.noHistory}</div>
                 ) : (
                   <div className="mt-3 space-y-3">
