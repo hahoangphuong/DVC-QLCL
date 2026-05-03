@@ -164,6 +164,13 @@ export function LookupHoSoDetailModal({
     return String(value);
   };
 
+  const fileNameOnly = (value: unknown) => {
+    if (typeof value !== "string") return value;
+    const normalized = value.replaceAll("\\", "/");
+    const parts = normalized.split("/").filter(Boolean);
+    return parts[parts.length - 1] ?? value;
+  };
+
   const topCards: Array<[string, unknown]> = [
     ["M\u00e3 h\u1ed3 s\u01a1", hoSo["maHoSo"]],
     ...(thuTuc === 48 ? [["H\u00ecnh th\u1ee9c \u0111\u00e1nh gi\u00e1", donHang["hinhThucDanhGia"]] as [string, unknown]] : []),
@@ -396,7 +403,7 @@ export function LookupHoSoDetailModal({
                         >
                           <div className="min-w-0 flex-1">
                             <div className="text-sm font-medium text-slate-800">{file.label}</div>
-                            <div className="mt-1 break-all text-xs text-slate-500">{renderValue(file.fileName)}</div>
+                            <div className="mt-1 break-all text-xs text-slate-500">{renderValue(fileNameOnly(file.fileName))}</div>
                           </div>
                           <div className="shrink-0">
                             {url ? (
