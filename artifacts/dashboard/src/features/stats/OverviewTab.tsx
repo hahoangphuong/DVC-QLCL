@@ -72,7 +72,7 @@ export function OverviewTab({
                 {expandedMonthly[thuTuc] ? "\u2212" : "+"}
               </span>
               <span className="text-sm font-bold uppercase tracking-wide text-slate-700">
-                {`XU H\u01af\u1edaNG THEO TH\u00c1NG \u2014 TT${thuTuc}`}
+                {`BI\u1ec2U \u0110\u1ed2 XU H\u01af\u1edaNG \u2014 TT${thuTuc}`}
               </span>
             </button>
             {expandedMonthly[thuTuc] && <div className="px-4 pb-4">{renderMonthlyTrend(thuTuc, fromDate, toDate)}</div>}
