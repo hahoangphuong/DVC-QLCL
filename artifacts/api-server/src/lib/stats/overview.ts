@@ -1,5 +1,5 @@
 import { query, queryOne } from "../db";
-import { buildCaseFactsCte, buildMonthlyAggregateSql } from "./sql";
+import { buildCaseFactsCte } from "./sql";
 
 type CountRow = Record<string, string | null>;
 
@@ -210,7 +210,39 @@ export async function getMonthlyStats(thuTuc: number) {
       [thuTuc]
     ),
     query<{ yr: string; mo: string; cnt: string }>(
-      buildMonthlyAggregateSql("mv_stats_inflight_monthly"),
+      `WITH filtered_case_facts AS (
+         SELECT ngay_nhan, ngay_tra
+         FROM mv_stats_case_facts
+         WHERE thu_tuc = $1
+           AND ngay_nhan IS NOT NULL
+           AND (is_active OR da_xu_ly_id IS NOT NULL)
+       ),
+       bounds AS (
+         SELECT
+           date_trunc('month', MIN(ngay_nhan AT TIME ZONE 'Asia/Ho_Chi_Minh')) AS min_month,
+           date_trunc(
+             'month',
+             MAX(COALESCE(ngay_tra, NOW()) AT TIME ZONE 'Asia/Ho_Chi_Minh')
+           ) AS max_month
+         FROM filtered_case_facts
+       ),
+       month_ends AS (
+         SELECT
+           month_start,
+           ((month_start + INTERVAL '1 month') AT TIME ZONE 'Asia/Ho_Chi_Minh') AS next_month_start
+         FROM bounds,
+         LATERAL generate_series(bounds.min_month, bounds.max_month, INTERVAL '1 month') AS month_start
+       )
+       SELECT
+         EXTRACT(YEAR FROM month_start)::int AS yr,
+         EXTRACT(MONTH FROM month_start)::int AS mo,
+         COUNT(*)::bigint AS cnt
+       FROM month_ends me
+       JOIN filtered_case_facts cf
+         ON cf.ngay_nhan < me.next_month_start
+        AND (cf.ngay_tra IS NULL OR cf.ngay_tra >= me.next_month_start)
+       GROUP BY 1, 2
+       ORDER BY 1, 2`,
       [thuTuc]
     ),
   ]);

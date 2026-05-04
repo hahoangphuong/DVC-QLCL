@@ -57,12 +57,15 @@ export function MonthlyTrendChart({
       if (existing) {
         existing.da_nhan += item.da_nhan;
         existing.da_giai_quyet += item.da_giai_quyet;
-        existing.ton_sau += item.ton_sau;
+        if (item.month > existing.month) {
+          existing.month = item.month;
+          existing.ton_sau = item.ton_sau;
+        }
       } else {
         byYear.set(item.year, {
           label: String(item.year),
           year: item.year,
-          month: 0,
+          month: item.month,
           da_nhan: item.da_nhan,
           da_giai_quyet: item.da_giai_quyet,
           ton_sau: item.ton_sau,
