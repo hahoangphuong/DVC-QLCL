@@ -179,7 +179,7 @@ export async function getTonSauStats(thuTuc: number, toDate: string) {
 }
 
 export async function getMonthlyStats(thuTuc: number) {
-  const [nhanRows, gqRows] = await Promise.all([
+  const [nhanRows, gqRows, tonRows] = await Promise.all([
     query<{ yr: string; mo: string; cnt: string }>(
       buildMonthlyAggregateSql("mv_stats_received_monthly"),
       [thuTuc]
@@ -188,31 +188,32 @@ export async function getMonthlyStats(thuTuc: number) {
       buildMonthlyAggregateSql("mv_stats_resolved_monthly"),
       [thuTuc]
     ),
+    query<{ yr: string; mo: string; cnt: string }>(
+      buildMonthlyAggregateSql("mv_stats_inflight_monthly"),
+      [thuTuc]
+    ),
   ]);
 
   const nhanMap = new Map(nhanRows.map((row) => [`${row.yr}-${row.mo}`, toCount(row.cnt)]));
   const gqMap = new Map(gqRows.map((row) => [`${row.yr}-${row.mo}`, toCount(row.cnt)]));
-  const allKeys = [...new Set([...nhanMap.keys(), ...gqMap.keys()])].sort((left, right) => {
+  const tonMap = new Map(tonRows.map((row) => [`${row.yr}-${row.mo}`, toCount(row.cnt)]));
+  const allKeys = [...new Set([...nhanMap.keys(), ...gqMap.keys(), ...tonMap.keys()])].sort((left, right) => {
     const [leftYear, leftMonth] = left.split("-").map(Number);
     const [rightYear, rightMonth] = right.split("-").map(Number);
     return leftYear !== rightYear ? leftYear - rightYear : leftMonth - rightMonth;
   });
 
-  let cumNhan = 0;
-  let cumGq = 0;
   const months = allKeys.map((key) => {
     const [year, month] = key.split("-").map(Number);
     const daNhan = nhanMap.get(key) ?? 0;
     const daGiaiQuyet = gqMap.get(key) ?? 0;
-    cumNhan += daNhan;
-    cumGq += daGiaiQuyet;
     return {
       label: `T${month}-${year}`,
       year,
       month,
       da_nhan: daNhan,
       da_giai_quyet: daGiaiQuyet,
-      ton_sau: cumNhan - cumGq,
+      ton_sau: tonMap.get(key) ?? 0,
     };
   });
 
