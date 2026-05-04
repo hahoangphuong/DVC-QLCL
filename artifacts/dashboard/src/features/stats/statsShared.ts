@@ -210,6 +210,13 @@ export interface NuocSoTaiData {
   rows: NuocSoTaiRow[];
 }
 
+export const TT48_SRA_ALPHA2_CODES = new Set([
+  "AT", "AU", "BE", "BG", "CA", "CH", "CY", "CZ", "DE", "DK", "EE", "ES",
+  "FI", "FR", "GR", "HR", "HU", "ID", "IE", "IS", "IT", "JP", "LI", "LT",
+  "LU", "LV", "MT", "MY", "NL", "NO", "PH", "PL", "PT", "RO", "SE", "SG",
+  "SI", "SK", "TH", "US",
+]);
+
 export const TT48_LOAI_LABELS: Record<string, string> = {
   A: "A - H\u1ed3 s\u01a1 m\u1edbi",
   B: "B - H\u1ed3 s\u01a1 c\u1eadp nh\u1eadt/duy tr\u00ec",

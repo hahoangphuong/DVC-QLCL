@@ -1,9 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Num, Pct, sumNumericField } from "../pending/pendingDisplay";
-import { fetchNuocSoTai, type NuocSoTaiRow } from "./statsShared";
+import { fetchNuocSoTai, TT48_SRA_ALPHA2_CODES, type NuocSoTaiRow } from "./statsShared";
+
+type CountryGroupFilter = "all" | "sra" | "non-sra";
 
 export function NuocSoTaiTable({ fromDate, toDate }: { fromDate: string; toDate: string }) {
+  const [groupFilter, setGroupFilter] = useState<CountryGroupFilter>("all");
   const { data, isLoading, isError } = useQuery({
     queryKey: ["nuoc-so-tai", fromDate, toDate],
     queryFn: () => fetchNuocSoTai(fromDate, toDate),
@@ -11,7 +14,15 @@ export function NuocSoTaiTable({ fromDate, toDate }: { fromDate: string; toDate:
     placeholderData: (previousData) => previousData,
   });
 
-  const rows = data?.rows ?? [];
+  const rawRows = data?.rows ?? [];
+  const rows = useMemo(() => {
+    if (groupFilter === "all") return rawRows;
+    return rawRows.filter((row) => {
+      const isSra = TT48_SRA_ALPHA2_CODES.has((row.ten_nuoc ?? "").toUpperCase());
+      return groupFilter === "sra" ? isSra : !isSra;
+    });
+  }, [groupFilter, rawRows]);
+
   const regionNames = useMemo(
     () =>
       typeof Intl !== "undefined" && typeof Intl.DisplayNames !== "undefined"
@@ -81,6 +92,23 @@ export function NuocSoTaiTable({ fromDate, toDate }: { fromDate: string; toDate:
   const hiTd = (thresh: number, v: number | null | undefined, extra = "") =>
     `${tdC}${extra ? ` ${extra}` : ""}${isHi(thresh, v) ? " bg-amber-100" : ""}`;
 
+  function FilterButton({ value, label }: { value: CountryGroupFilter; label: string }) {
+    const active = groupFilter === value;
+    return (
+      <button
+        type="button"
+        onClick={() => setGroupFilter(value)}
+        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+          active
+            ? "bg-blue-600 text-white shadow-sm"
+            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+        }`}
+      >
+        {label}
+      </button>
+    );
+  }
+
   function CountryRow({ row, idx }: { row: NuocSoTaiRow; idx: number }) {
     const bgCls = idx % 2 === 0 ? "bg-white" : "bg-slate-50";
     const bgColor = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
@@ -127,10 +155,15 @@ export function NuocSoTaiTable({ fromDate, toDate }: { fromDate: string; toDate:
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
         <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">
-          {"Chi tiết theo nước sở tại — TT48"}
+          Chi tiết theo nước sở tại — TT48
         </h3>
-        {isLoading && <span className="text-xs font-medium text-blue-500 animate-pulse">{"Đang tải..."}</span>}
-        {isError && <span className="text-xs font-medium text-red-500">{"Lỗi tải dữ liệu"}</span>}
+        <div className="flex items-center gap-2">
+          <FilterButton value="all" label="Tất cả" />
+          <FilterButton value="sra" label="SRA" />
+          <FilterButton value="non-sra" label="Non-SRA" />
+          {isLoading && <span className="text-xs font-medium text-blue-500 animate-pulse">Đang tải...</span>}
+          {isError && <span className="text-xs font-medium text-red-500">Lỗi tải dữ liệu</span>}
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -155,27 +188,27 @@ export function NuocSoTaiTable({ fromDate, toDate }: { fromDate: string; toDate:
                 rowSpan={2}
                 style={{ ...stickyCountry, backgroundColor: "#334155" }}
               >
-                {"Nước sở tại"}
+                Nước sở tại
               </th>
-              <th className={`${thC} bg-pink-700 text-white`} rowSpan={2}>{"Tồn"}<br />{"trước"}</th>
-              <th className={`${thC} bg-blue-700 text-white`} rowSpan={2}>{"Đã"}<br />{"nhận"}</th>
-              <th className={`${thC} bg-green-700 text-white`} colSpan={9}>{"Đã giải quyết"}</th>
-              <th className={`${thC} bg-amber-700 text-white`} colSpan={3}>{"Tồn sau"}</th>
+              <th className={`${thC} bg-pink-700 text-white`} rowSpan={2}>Tồn<br />trước</th>
+              <th className={`${thC} bg-blue-700 text-white`} rowSpan={2}>Đã<br />nhận</th>
+              <th className={`${thC} bg-green-700 text-white`} colSpan={9}>Đã giải quyết</th>
+              <th className={`${thC} bg-amber-700 text-white`} colSpan={3}>Tồn sau</th>
               <th className={`${thC} bg-orange-600 text-white`} rowSpan={2}>TREO</th>
             </tr>
             <tr className="bg-slate-100">
-              <th className={`${thC} bg-green-50`}>{"Tổng"}</th>
-              <th className={`${thS} bg-amber-50`}>{"Cần bổ sung"}</th>
-              <th className={`${thS} bg-red-50`}>{"Không đạt"}</th>
-              <th className={`${thS} bg-green-50`}>{"Hoàn thành"}</th>
-              <th className={`${thS} bg-green-50 text-green-700`}>{"Đúng hạn"}</th>
-              <th className={`${thS} bg-red-50 text-red-700`}>{"Quá hạn"}</th>
-              <th className={`${thS} bg-slate-50`}>{"Thời gian TB"}</th>
-              <th className={`${thS} bg-green-50 text-green-700`}>{"% Đúng hạn"}</th>
-              <th className={`${thS} bg-slate-50 text-slate-600`}>{"% Đã GQ"}</th>
-              <th className={`${thC} bg-amber-50`}>{"Tổng"}</th>
-              <th className={`${thS} bg-blue-50 text-blue-700`}>{"Còn hạn"}</th>
-              <th className={`${thS} bg-red-50 text-red-700`}>{"Quá hạn"}</th>
+              <th className={`${thC} bg-green-50`}>Tổng</th>
+              <th className={`${thS} bg-amber-50`}>Cần bổ sung</th>
+              <th className={`${thS} bg-red-50`}>Không đạt</th>
+              <th className={`${thS} bg-green-50`}>Hoàn thành</th>
+              <th className={`${thS} bg-green-50 text-green-700`}>Đúng hạn</th>
+              <th className={`${thS} bg-red-50 text-red-700`}>Quá hạn</th>
+              <th className={`${thS} bg-slate-50`}>Thời gian TB</th>
+              <th className={`${thS} bg-green-50 text-green-700`}>% Đúng hạn</th>
+              <th className={`${thS} bg-slate-50 text-slate-600`}>% Đã GQ</th>
+              <th className={`${thC} bg-amber-50`}>Tổng</th>
+              <th className={`${thS} bg-blue-50 text-blue-700`}>Còn hạn</th>
+              <th className={`${thS} bg-red-50 text-red-700`}>Quá hạn</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -184,13 +217,13 @@ export function NuocSoTaiTable({ fromDate, toDate }: { fromDate: string; toDate:
                 <td colSpan={17} className="py-10 text-center text-slate-400">
                   <div className="flex items-center justify-center gap-2">
                     <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-                    <span>{"Đang tải..."}</span>
+                    <span>Đang tải...</span>
                   </div>
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={17} className="py-10 text-center text-slate-400">{"Không có dữ liệu"}</td>
+                <td colSpan={17} className="py-10 text-center text-slate-400">Không có dữ liệu</td>
               </tr>
             ) : (
               rows.map((row, idx) => <CountryRow key={`${row.ten_nuoc}-${idx}`} row={row} idx={idx} />)
@@ -207,7 +240,7 @@ export function NuocSoTaiTable({ fromDate, toDate }: { fromDate: string; toDate:
                   className={`${tdL} font-bold text-slate-700`}
                   style={{ ...stickyCountry, backgroundColor: "#e2e8f0" }}
                 >
-                  {"TỔNG"}
+                  TỔNG
                 </td>
                 <td className={tdC}><Num v={totals.ton_truoc} color="#be185d" bold /></td>
                 <td className={tdC}><Num v={totals.da_nhan} color="#1d4ed8" bold /></td>
