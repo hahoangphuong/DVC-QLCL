@@ -9,12 +9,14 @@ export function ThongKeTab({
   renderMonthlyTrend,
   renderTt48LoaiHoSoTable,
   renderTt48LoaiHoSoMonthlyChart,
+  renderTt48NuocSoTaiTable,
 }: {
   thuTuc: SupportedThuTuc;
   renderChuyenVienTable: (thuTuc: SupportedThuTuc, fromDate: string, toDate: string) => ReactNode;
   renderMonthlyTrend: (thuTuc: SupportedThuTuc, fromDate: string, toDate: string) => ReactNode;
   renderTt48LoaiHoSoTable?: (fromDate: string, toDate: string) => ReactNode;
   renderTt48LoaiHoSoMonthlyChart?: (fromDate: string, toDate: string) => ReactNode;
+  renderTt48NuocSoTaiTable?: (fromDate: string, toDate: string) => ReactNode;
 }) {
   const { fromDate, toDate, fromInput, toInput, activePreset, loadingAll, update } = useTabFilter(thuTuc);
 
@@ -39,6 +41,7 @@ export function ThongKeTab({
 
       {thuTuc === 48 && renderTt48LoaiHoSoTable?.(fromDate, toDate)}
       {thuTuc === 48 && renderTt48LoaiHoSoMonthlyChart?.(fromDate, toDate)}
+      {thuTuc === 48 && renderTt48NuocSoTaiTable?.(fromDate, toDate)}
     </div>
   );
 }

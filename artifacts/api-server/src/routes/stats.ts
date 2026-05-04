@@ -9,7 +9,7 @@ import {
   getGiaiQuyetStats,
   getMonthlyStats,
   getSummaryStats,
-  getTt48ReceivedMonthlyByLoaiStats,
+  getTt48ReceivedMonthlyBreakdownStats,
   getTt48LoaiHoSoStats,
   getTonSauStats,
 } from "../lib/stats/overview";
@@ -19,6 +19,7 @@ import {
   getDaXuLyLookupMaterialized,
   getDangXuLyStats,
   getDangXuLyLookup,
+  getTt48NuocSoTaiStats,
 } from "../lib/stats/workflow";
 
 const router: IRouter = Router();
@@ -318,13 +319,39 @@ router.get("/stats/tt48-phan-loai", async (req, res) => {
   }
 });
 
-router.get("/stats/tt48-monthly-received", async (_req, res) => {
+router.get("/stats/tt48-monthly-received", async (req, res) => {
+  const groupByRaw = String(req.query["group_by"] ?? "loai_ho_so");
+  const groupBy: "loai_ho_so" | "hinh_thuc" | "submission_kind" | null =
+    groupByRaw === "loai_ho_so" || groupByRaw === "hinh_thuc" || groupByRaw === "submission_kind"
+      ? groupByRaw
+      : null;
+  if (!groupBy) {
+    return void res.status(400).json({ detail: "group_by phai la loai_ho_so, hinh_thuc hoac submission_kind" });
+  }
+
   try {
     res.json(await cachedJson(
-      "stats:tt48-monthly-received",
+      `stats:tt48-monthly-received:${groupBy}`,
       STATS_TTL_MS,
       STATS_STALE_MS,
-      () => getTt48ReceivedMonthlyByLoaiStats()
+      () => getTt48ReceivedMonthlyBreakdownStats(groupBy)
+    ));
+  } catch (e: unknown) {
+    res.status(500).json({ detail: String(e) });
+  }
+});
+
+router.get("/stats/tt48-nuoc-so-tai", async (req, res) => {
+  const fromDate = String(req.query["from_date"] ?? "");
+  const toDate = String(req.query["to_date"] ?? "");
+  if (!fromDate || !toDate) return void res.status(400).json({ detail: "from_date va to_date la bat buoc" });
+
+  try {
+    res.json(await cachedJson(
+      `stats:tt48-nuoc-so-tai:${fromDate}:${toDate}`,
+      STATS_TTL_MS,
+      STATS_STALE_MS,
+      () => getTt48NuocSoTaiStats(fromDate, toDate)
     ));
   } catch (e: unknown) {
     res.status(500).json({ detail: String(e) });

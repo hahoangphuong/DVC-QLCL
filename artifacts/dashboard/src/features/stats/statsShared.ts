@@ -161,20 +161,53 @@ export interface MonthlyData {
   months: MonthData[];
 }
 
-export interface Tt48ReceivedMonthlyLoaiRow {
+export type Tt48MonthlyReceivedGroupBy = "loai_ho_so" | "hinh_thuc" | "submission_kind";
+
+export interface Tt48MonthlyReceivedCategory {
+  key: string;
+  label: string;
+  color: string;
+}
+
+export interface Tt48ReceivedMonthlyRow {
   label: string;
   year: number;
   month: number;
   total: number;
-  A: number;
-  B: number;
-  C: number;
-  D: number;
+  [key: string]: string | number;
 }
 
-export interface Tt48ReceivedMonthlyLoaiData {
+export interface Tt48ReceivedMonthlyData {
   thu_tuc: 48;
-  months: Tt48ReceivedMonthlyLoaiRow[];
+  group_by: Tt48MonthlyReceivedGroupBy;
+  categories: Tt48MonthlyReceivedCategory[];
+  months: Tt48ReceivedMonthlyRow[];
+}
+
+export interface NuocSoTaiRow {
+  ten_nuoc: string;
+  ton_truoc: number;
+  da_nhan: number;
+  gq_tong: number;
+  can_bo_sung: number;
+  khong_dat: number;
+  hoan_thanh: number;
+  dung_han: number;
+  qua_han: number;
+  tg_tb: number | null;
+  pct_gq_dung_han: number;
+  pct_da_gq: number;
+  ton_sau_tong: number;
+  ton_sau_con_han: number;
+  ton_sau_qua_han: number;
+  treo: number;
+}
+
+export interface NuocSoTaiData {
+  thu_tuc: 48;
+  from_date: string;
+  to_date: string;
+  rows: NuocSoTaiRow[];
 }
 
 export const TT48_LOAI_LABELS: Record<string, string> = {
@@ -240,8 +273,17 @@ export async function fetchMonthly(thuTuc: number): Promise<MonthlyData> {
   return res.json();
 }
 
-export async function fetchTt48ReceivedMonthlyLoai(): Promise<Tt48ReceivedMonthlyLoaiData> {
-  const res = await fetch(`${API}/stats/tt48-monthly-received`);
+export async function fetchTt48ReceivedMonthlyBreakdown(
+  groupBy: Tt48MonthlyReceivedGroupBy,
+): Promise<Tt48ReceivedMonthlyData> {
+  const res = await fetch(`${API}/stats/tt48-monthly-received?group_by=${groupBy}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function fetchNuocSoTai(fromDate: string, toDate: string): Promise<NuocSoTaiData> {
+  const url = `${API}/stats/tt48-nuoc-so-tai?from_date=${fromDate}&to_date=${toDate}`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }

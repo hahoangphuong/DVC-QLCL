@@ -14,6 +14,7 @@ import { DangXuLyTab as PendingDangXuLyTab } from "../pending/PendingTabs";
 import type { PendingExpertsState } from "../pending/PendingTabs";
 import { ChuyenVienTable } from "../stats/ChuyenVienTable";
 import { MonthlyTrendChart } from "../stats/MonthlyTrendChart";
+import { NuocSoTaiTable } from "../stats/NuocSoTaiTable";
 import { OverviewTab } from "../stats/OverviewTab";
 import type { SupportedThuTuc } from "../stats/statsShared";
 import { ThongKeTab } from "../stats/ThongKeTab";
@@ -125,6 +126,9 @@ export function DashboardRuntimePanels({
         )}
         renderTt48LoaiHoSoMonthlyChart={(fromDate, toDate) => (
           <Tt48LoaiHoSoMonthlyChart fromDate={fromDate} toDate={toDate} />
+        )}
+        renderTt48NuocSoTaiTable={(fromDate, toDate) => (
+          <NuocSoTaiTable fromDate={fromDate} toDate={toDate} />
         )}
       />
     ),

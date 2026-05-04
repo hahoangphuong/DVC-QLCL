@@ -1746,4 +1746,188 @@ export async function getDaXuLyLookupMaterialized(filters: PendingLookupFilters)
   };
 }
 
+export async function getTt48NuocSoTaiStats(fromDate: string, toDate: string) {
+  const { fromDt, toDt } = toDateRange(fromDate, toDate);
+  const rows = await query<{
+    ten_nuoc: string;
+    ton_truoc: string;
+    da_nhan: string;
+    gq_tong: string;
+    can_bo_sung: string;
+    khong_dat: string;
+    hoan_thanh: string;
+    dung_han: string;
+    qua_han: string;
+    tg_tb: string | null;
+    ton_sau_tong: string;
+    ton_sau_con_han: string;
+    ton_sau_qua_han: string;
+    treo: string;
+  }>(
+    `WITH
+     ${buildCaseFactsCte("48")},
+     filtered_case_facts AS (
+       SELECT
+         ma_ho_so,
+         COALESCE(NULLIF(TRIM(country_alpha2), ''), 'UNKNOWN') AS ten_nuoc,
+         ngay_nhan,
+         nhan_hen_tra,
+         ngay_tra,
+         kq_hen_tra,
+         trang_thai,
+         is_active,
+         da_xu_ly_id
+       FROM case_facts
+       WHERE ngay_nhan IS NOT NULL
+         AND (is_active OR da_xu_ly_id IS NOT NULL)
+     ),
+     stats_by_country AS (
+       SELECT
+         ten_nuoc,
+         COUNT(*) FILTER (
+           WHERE ngay_nhan < $1
+             AND (ngay_tra IS NULL OR ngay_tra >= $1)
+         ) AS ton_truoc,
+         COUNT(*) FILTER (
+           WHERE ngay_nhan >= $1
+             AND ngay_nhan <= $2
+         ) AS da_nhan,
+         COUNT(*) FILTER (
+           WHERE ngay_tra >= $1
+             AND ngay_tra <= $2
+             AND trang_thai IN ('4', '6', '7')
+         ) AS gq_tong,
+         COUNT(*) FILTER (
+           WHERE ngay_tra >= $1
+             AND ngay_tra <= $2
+             AND trang_thai = '4'
+         ) AS can_bo_sung,
+         COUNT(*) FILTER (
+           WHERE ngay_tra >= $1
+             AND ngay_tra <= $2
+             AND trang_thai = '7'
+         ) AS khong_dat,
+         COUNT(*) FILTER (
+           WHERE ngay_tra >= $1
+             AND ngay_tra <= $2
+             AND trang_thai = '6'
+         ) AS hoan_thanh,
+         COUNT(*) FILTER (
+           WHERE ngay_tra >= $1
+             AND ngay_tra <= $2
+             AND trang_thai IN ('4', '6', '7')
+             AND kq_hen_tra IS NOT NULL
+             AND ngay_tra <= kq_hen_tra
+         ) AS dung_han,
+         COUNT(*) FILTER (
+           WHERE ngay_tra >= $1
+             AND ngay_tra <= $2
+             AND trang_thai IN ('4', '6', '7')
+             AND (kq_hen_tra IS NULL OR ngay_tra > kq_hen_tra)
+         ) AS qua_han,
+         ROUND(
+           AVG(EXTRACT(EPOCH FROM (ngay_tra - ngay_nhan)) / 86400.0) FILTER (
+             WHERE ngay_tra >= $1
+               AND ngay_tra <= $2
+               AND trang_thai IN ('4', '6', '7')
+           )
+         )::int AS tg_tb,
+         COUNT(*) FILTER (
+           WHERE ngay_nhan <= $2
+             AND (ngay_tra IS NULL OR ngay_tra > $2)
+         ) AS ton_sau_tong,
+         COUNT(*) FILTER (
+           WHERE ngay_nhan <= $2
+             AND (ngay_tra IS NULL OR ngay_tra > $2)
+             AND nhan_hen_tra IS NOT NULL
+             AND nhan_hen_tra > NOW()
+         ) AS ton_sau_con_han,
+         COUNT(*) FILTER (
+           WHERE ngay_nhan <= $2
+             AND (ngay_tra IS NULL OR ngay_tra > $2)
+             AND (nhan_hen_tra IS NULL OR nhan_hen_tra <= NOW())
+         ) AS ton_sau_qua_han
+       FROM filtered_case_facts
+       GROUP BY ten_nuoc
+     ),
+     latest_country_by_hoso AS (
+       SELECT DISTINCT ON (ma_ho_so)
+         ma_ho_so,
+         ten_nuoc
+       FROM filtered_case_facts
+       ORDER BY ma_ho_so, ngay_nhan DESC NULLS LAST
+     ),
+     latest_resolved_by_hoso AS (
+       SELECT DISTINCT ON (ma_ho_so)
+         ma_ho_so,
+         trang_thai,
+         ngay_tra
+       FROM filtered_case_facts
+       WHERE ngay_tra IS NOT NULL
+       ORDER BY ma_ho_so, ngay_tra DESC NULLS LAST
+     ),
+     treo_by_country AS (
+       SELECT
+         c.ten_nuoc,
+         COUNT(*)::bigint AS treo
+       FROM latest_resolved_by_hoso r
+       JOIN latest_country_by_hoso c
+         ON c.ma_ho_so = r.ma_ho_so
+       WHERE r.trang_thai = '4'
+         AND r.ngay_tra <= $2
+       GROUP BY c.ten_nuoc
+     )
+     SELECT
+       s.ten_nuoc,
+       s.ton_truoc,
+       s.da_nhan,
+       s.gq_tong,
+       s.can_bo_sung,
+       s.khong_dat,
+       s.hoan_thanh,
+       s.dung_han,
+       s.qua_han,
+       s.tg_tb,
+       s.ton_sau_tong,
+       s.ton_sau_con_han,
+       s.ton_sau_qua_han,
+       COALESCE(t.treo, 0) AS treo
+     FROM stats_by_country s
+     LEFT JOIN treo_by_country t
+       ON t.ten_nuoc = s.ten_nuoc
+     ORDER BY s.da_nhan DESC, s.ton_sau_tong DESC, s.ten_nuoc ASC`,
+    [fromDt, toDt]
+  );
+
+  return {
+    thu_tuc: 48 as const,
+    from_date: fromDate,
+    to_date: toDate,
+    rows: rows.map((row) => {
+      const tonTruoc = toCount(row.ton_truoc);
+      const daNhan = toCount(row.da_nhan);
+      const gqTong = toCount(row.gq_tong);
+      const dungHan = toCount(row.dung_han);
+      return {
+        ten_nuoc: row.ten_nuoc,
+        ton_truoc: tonTruoc,
+        da_nhan: daNhan,
+        gq_tong: gqTong,
+        can_bo_sung: toCount(row.can_bo_sung),
+        khong_dat: toCount(row.khong_dat),
+        hoan_thanh: toCount(row.hoan_thanh),
+        dung_han: dungHan,
+        qua_han: toCount(row.qua_han),
+        tg_tb: row.tg_tb != null ? toCount(row.tg_tb) : null,
+        pct_gq_dung_han: gqTong > 0 ? Math.round((dungHan / gqTong) * 100) : 0,
+        pct_da_gq: tonTruoc + daNhan > 0 ? Math.round((gqTong / (tonTruoc + daNhan)) * 100) : 0,
+        ton_sau_tong: toCount(row.ton_sau_tong),
+        ton_sau_con_han: toCount(row.ton_sau_con_han),
+        ton_sau_qua_han: toCount(row.ton_sau_qua_han),
+        treo: toCount(row.treo),
+      };
+    }),
+  };
+}
+
 

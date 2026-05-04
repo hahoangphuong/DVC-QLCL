@@ -273,51 +273,97 @@ export async function getMonthlyStats(thuTuc: number) {
   return { thu_tuc: thuTuc, months };
 }
 
-export async function getTt48ReceivedMonthlyByLoaiStats() {
-  const rows = await query<{ yr: string; mo: string; loai_ho_so: string; cnt: string }>(
-    `SELECT yr, mo, loai_ho_so, cnt
-     FROM mv_stats_tt48_received_by_loai_monthly
-     ORDER BY yr, mo, loai_ho_so`
+export async function getTt48ReceivedMonthlyBreakdownStats(
+  groupBy: "loai_ho_so" | "hinh_thuc" | "submission_kind",
+) {
+  const rows = await query<{ yr: string; mo: string; bucket_key: string; cnt: string }>(
+    `WITH filtered_case_facts AS (
+       SELECT
+         ngay_nhan,
+         loai_ho_so,
+         hinh_thuc_danh_gia,
+         submission_kind
+       FROM mv_stats_case_facts
+       WHERE thu_tuc = 48
+         AND ngay_nhan IS NOT NULL
+         AND (is_active OR da_xu_ly_id IS NOT NULL)
+     )
+     SELECT
+       EXTRACT(YEAR FROM ngay_nhan AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
+       EXTRACT(MONTH FROM ngay_nhan AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS mo,
+       CASE
+         WHEN $1 = 'loai_ho_so' THEN COALESCE(loai_ho_so, 'UNKNOWN')
+         WHEN $1 = 'hinh_thuc' THEN COALESCE(hinh_thuc_danh_gia::text, 'UNKNOWN')
+         ELSE COALESCE(submission_kind, 'UNKNOWN')
+       END AS bucket_key,
+       COUNT(*)::bigint AS cnt
+     FROM filtered_case_facts
+     GROUP BY 1, 2, 3
+     ORDER BY 1, 2, 3`,
+    [groupBy]
   );
 
-  const monthMap = new Map<number, {
-    year: number;
-    month: number;
-    label: string;
-    total: number;
-    A: number;
-    B: number;
-    C: number;
-    D: number;
-  }>();
+  const categoryMap =
+    groupBy === "loai_ho_so"
+      ? {
+          A: { key: "A", label: "Loại A", color: "#ec4899" },
+          B: { key: "B", label: "Loại B", color: "#3b82f6" },
+          C: { key: "C", label: "Loại C", color: "#22c55e" },
+          D: { key: "D", label: "Loại D", color: "#f59e0b" },
+        }
+      : groupBy === "hinh_thuc"
+        ? {
+            "1": { key: "1", label: "H.thức 1", color: "#0ea5e9" },
+            "2": { key: "2", label: "H.thức 2", color: "#8b5cf6" },
+          }
+        : {
+            first: { key: "first", label: "Lần đầu", color: "#14b8a6" },
+            supplement: { key: "supplement", label: "Lần bổ sung", color: "#f97316" },
+          };
+
+  const categories = Object.values(categoryMap);
+  const monthMap = new Map<number, Record<string, string | number>>();
 
   for (const row of rows) {
     const year = Number(row.yr);
     const month = Number(row.mo);
     const key = year * 100 + month;
     const cnt = toCount(row.cnt);
+    const bucketKey = row.bucket_key;
     const bucket = monthMap.get(key) ?? {
       year,
       month,
       label: `T${month}-${year}`,
       total: 0,
-      A: 0,
-      B: 0,
-      C: 0,
-      D: 0,
     };
 
-    const loai = row.loai_ho_so as "A" | "B" | "C" | "D";
-    if (["A", "B", "C", "D"].includes(loai)) bucket[loai] = cnt;
-    bucket.total += cnt;
-    monthMap.set(key, bucket);
+    if (bucketKey in categoryMap) {
+      bucket[bucketKey] = cnt;
+      bucket.total = Number(bucket.total ?? 0) + cnt;
+      monthMap.set(key, bucket);
+    }
   }
+
+  const months = Array.from(monthMap.values())
+    .map((bucket) => {
+      for (const category of categories) {
+        if (!(category.key in bucket)) {
+          bucket[category.key] = 0;
+        }
+      }
+      return bucket;
+    })
+    .sort((left, right) =>
+      Number(left.year) !== Number(right.year)
+        ? Number(left.year) - Number(right.year)
+        : Number(left.month) - Number(right.month)
+    );
 
   return {
     thu_tuc: 48 as const,
-    months: Array.from(monthMap.values()).sort((left, right) =>
-      left.year !== right.year ? left.year - right.year : left.month - right.month
-    ),
+    group_by: groupBy,
+    categories,
+    months,
   };
 }
 
