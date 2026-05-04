@@ -48,6 +48,7 @@ COUNTRY_NAME_PATTERNS = {
     "TH": ["%Thái Lan%", "%Thai Lan%", "%Thailand%"],
     "TR": ["%Thổ Nhĩ Kỳ%", "%Tho Nhi Ky%", "%Turkey%", "%Türkiye%"],
     "US": ["%Hoa Kỳ%", "%Hoa Ky%", "%Hiệp chủng quốc Hoa Kỳ%", "%Hiep chung quoc Hoa Ky%", "%Mỹ%", "%My%", "%Mỹ/Thụy sỹ%", "%My/Thuy sy%", "%United States%", "%USA%"],
+    "VN": ["%Viá»‡t Nam%", "%Viet Nam%", "%Vietnam%"],
 }
 
 
@@ -71,4 +72,3 @@ def build_nuoc_so_tai_expr(data_expr: str) -> str:
         f"END"
     )
     return f"COALESCE({json_don_hang}, {top_level})"
-

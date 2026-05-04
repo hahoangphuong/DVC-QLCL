@@ -1769,19 +1769,16 @@ export async function getTt48NuocSoTaiStats(fromDate: string, toDate: string) {
      filtered_case_facts AS (
        SELECT
          ma_ho_so,
-         NULLIF(TRIM(country_alpha2), '') AS ten_nuoc,
+         COALESCE(NULLIF(TRIM(country_alpha2), ''), 'UNKNOWN') AS ten_nuoc,
          ngay_nhan,
          nhan_hen_tra,
          ngay_tra,
          kq_hen_tra,
          trang_thai,
-         hinh_thuc_danh_gia,
          is_active,
          da_xu_ly_id
        FROM case_facts
        WHERE ngay_nhan IS NOT NULL
-         AND hinh_thuc_danh_gia = 2
-         AND NULLIF(TRIM(country_alpha2), '') IS NOT NULL
          AND (is_active OR da_xu_ly_id IS NOT NULL)
      ),
      stats_by_country AS (
