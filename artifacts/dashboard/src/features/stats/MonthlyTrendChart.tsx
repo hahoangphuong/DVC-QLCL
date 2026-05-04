@@ -163,8 +163,23 @@ export function MonthlyTrendChart({
                 dataKey="da_nhan"
                 content={(props: any) => {
                   const { x, y, width, height, value } = props;
-                  if (!value || height < 16) return null;
+                  if (!value) return null;
                   const cx = (x ?? 0) + (width ?? 0) / 2;
+                  if ((height ?? 0) < 16) {
+                    return (
+                      <text
+                        x={cx}
+                        y={(y ?? 0) - 4}
+                        textAnchor="middle"
+                        dominantBaseline="auto"
+                        fontSize={9}
+                        fill="#1e40af"
+                        fontWeight={600}
+                      >
+                        {value}
+                      </text>
+                    );
+                  }
                   const cy = (y ?? 0) + 13;
                   return (
                     <text
@@ -190,8 +205,23 @@ export function MonthlyTrendChart({
                 dataKey="da_giai_quyet"
                 content={(props: any) => {
                   const { x, y, width, height, value } = props;
-                  if (!value || height < 16) return null;
+                  if (!value) return null;
                   const cx = (x ?? 0) + (width ?? 0) / 2;
+                  if ((height ?? 0) < 16) {
+                    return (
+                      <text
+                        x={cx}
+                        y={(y ?? 0) - 4}
+                        textAnchor="middle"
+                        dominantBaseline="auto"
+                        fontSize={9}
+                        fill="#065f46"
+                        fontWeight={600}
+                      >
+                        {value}
+                      </text>
+                    );
+                  }
                   const cy = (y ?? 0) + 13;
                   return (
                     <text
