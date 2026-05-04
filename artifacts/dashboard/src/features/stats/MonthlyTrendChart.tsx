@@ -38,11 +38,12 @@ export function MonthlyTrendChart({
   const allMonths = data?.months ?? [];
   const [fy, fm] = fromDate ? [+fromDate.slice(0, 4), +fromDate.slice(5, 7)] : [0, 0];
   const [ty, tm] = toDate ? [+toDate.slice(0, 4), +toDate.slice(5, 7)] : [9999, 12];
-  const months = allMonths.filter((m) => {
+  const filteredMonths = allMonths.filter((m) => {
     const after = m.year > fy || (m.year === fy && m.month >= fm);
     const before = m.year < ty || (m.year === ty && m.month <= tm);
     return after && before;
   });
+  const months = thuTuc === 48 ? allMonths : filteredMonths;
   const chartData = useMemo(() => {
     if (viewMode === "month") return months;
 
