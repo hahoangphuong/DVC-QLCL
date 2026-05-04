@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Bar,
@@ -35,7 +35,19 @@ export function MonthlyTrendChart({
     staleTime: 5 * 60 * 1000,
   });
 
-  const months = data?.months ?? [];
+  const allMonths = data?.months ?? [];
+  const [fy, fm] = fromDate ? [+fromDate.slice(0, 4), +fromDate.slice(5, 7)] : [0, 0];
+  const [ty, tm] = toDate ? [+toDate.slice(0, 4), +toDate.slice(5, 7)] : [9999, 12];
+  const months = allMonths.filter((m) => {
+    const after = m.year > fy || (m.year === fy && m.month >= fm);
+    const before = m.year < ty || (m.year === ty && m.month <= tm);
+    return after && before;
+  });
+
+  useEffect(() => {
+    setViewMode(months.length > 30 ? "year" : "month");
+  }, [thuTuc, fromDate, toDate, months.length]);
+
   const chartData = useMemo(() => {
     if (viewMode === "month") return months;
 
@@ -180,6 +192,21 @@ export function MonthlyTrendChart({
                       </text>
                     );
                   }
+                  if ((width ?? 0) >= 18) {
+                    return (
+                      <text
+                        x={cx}
+                        y={(y ?? 0) + Math.max(12, (height ?? 0) / 2)}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fontSize={9}
+                        fill="#1e40af"
+                        fontWeight={600}
+                      >
+                        {value}
+                      </text>
+                    );
+                  }
                   const cy = (y ?? 0) + 13;
                   return (
                     <text
@@ -214,6 +241,21 @@ export function MonthlyTrendChart({
                         y={(y ?? 0) - 4}
                         textAnchor="middle"
                         dominantBaseline="auto"
+                        fontSize={9}
+                        fill="#065f46"
+                        fontWeight={600}
+                      >
+                        {value}
+                      </text>
+                    );
+                  }
+                  if ((width ?? 0) >= 18) {
+                    return (
+                      <text
+                        x={cx}
+                        y={(y ?? 0) + Math.max(12, (height ?? 0) / 2)}
+                        textAnchor="middle"
+                        dominantBaseline="central"
                         fontSize={9}
                         fill="#065f46"
                         fontWeight={600}
