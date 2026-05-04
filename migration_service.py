@@ -418,7 +418,7 @@ def migrate_stats_schema(engine):
                         UPPER(
                             SUBSTRING(
                                 REGEXP_REPLACE(COALESCE(t.data->>'idCongTy', ''), '<[^>]+>', '', 'g')
-                                FROM '^\\s*([A-Z]{{2}})'
+                                FROM '([A-Z]{{2}})-\\d{{3}}'
                             )
                         ),
                         ''
