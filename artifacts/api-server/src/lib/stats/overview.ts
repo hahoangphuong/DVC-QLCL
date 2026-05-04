@@ -181,11 +181,32 @@ export async function getTonSauStats(thuTuc: number, toDate: string) {
 export async function getMonthlyStats(thuTuc: number) {
   const [nhanRows, gqRows, tonRows] = await Promise.all([
     query<{ yr: string; mo: string; cnt: string }>(
-      buildMonthlyAggregateSql("mv_stats_received_monthly"),
+      `WITH filtered_case_facts AS (
+         SELECT ngay_nhan
+         FROM mv_stats_case_facts
+         WHERE thu_tuc = $1
+           AND ngay_nhan IS NOT NULL
+           AND (is_active OR da_xu_ly_id IS NOT NULL)
+       )
+       SELECT
+         EXTRACT(YEAR FROM ngay_nhan AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
+         EXTRACT(MONTH FROM ngay_nhan AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS mo,
+         COUNT(*)::bigint AS cnt
+       FROM filtered_case_facts
+       GROUP BY 1, 2
+       ORDER BY 1, 2`,
       [thuTuc]
     ),
     query<{ yr: string; mo: string; cnt: string }>(
-      buildMonthlyAggregateSql("mv_stats_resolved_monthly"),
+      `SELECT
+         EXTRACT(YEAR FROM ngay_tra AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS yr,
+         EXTRACT(MONTH FROM ngay_tra AT TIME ZONE 'Asia/Ho_Chi_Minh')::int AS mo,
+         COUNT(*)::bigint AS cnt
+       FROM mv_stats_resolved_facts
+       WHERE thu_tuc = $1
+         AND ngay_tra IS NOT NULL
+       GROUP BY 1, 2
+       ORDER BY 1, 2`,
       [thuTuc]
     ),
     query<{ yr: string; mo: string; cnt: string }>(
