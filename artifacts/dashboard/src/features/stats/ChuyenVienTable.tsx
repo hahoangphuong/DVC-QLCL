@@ -177,7 +177,8 @@ export function ChuyenVienTable({
           <colgroup>
             <col style={{ width: 36 }} />
             <col style={{ width: 160 }} />
-            <col /><col /><col /><col /><col />
+            <col /><col /><col />
+            {showResolvedSupplementColumn ? <col /> : null}
             <col /><col /><col /><col /><col />
             <col /><col /><col /><col /><col />
           </colgroup>

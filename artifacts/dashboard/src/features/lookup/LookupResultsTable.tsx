@@ -43,6 +43,7 @@ export function LookupResultsTable({
   onOpenDetail,
 }: LookupResultsTableProps) {
   const hideChuyenGiaColumn = selectedThuTuc === 46 || selectedThuTuc === 47;
+  const loaiHoSoWidth = hideChuyenGiaColumn ? 117 : 78;
   const totalColumns = hideChuyenGiaColumn ? 11 : 12;
 
   const renderCoSoCell = (row: TraCuuDangXuLyRow) => {
@@ -77,7 +78,7 @@ export function LookupResultsTable({
               <col style={{ width: 78 }} />
               <col style={{ width: 78 }} />
               <col style={{ width: 74 }} />
-              <col style={{ width: 78 }} />
+              <col style={{ width: loaiHoSoWidth }} />
               <col style={{ width: 156 }} />
               {!hideChuyenGiaColumn ? <col style={{ width: 156 }} /> : null}
               <col style={{ width: 84 }} />

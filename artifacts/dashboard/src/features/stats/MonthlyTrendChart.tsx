@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Bar,
@@ -26,6 +26,7 @@ export function MonthlyTrendChart({
   hideTitle?: boolean;
 }) {
   const [showLabels, setShowLabels] = useState(false);
+  const [viewMode, setViewMode] = useState<"month" | "year">("month");
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["monthly", thuTuc],
@@ -42,6 +43,29 @@ export function MonthlyTrendChart({
     const before = m.year < ty || (m.year === ty && m.month <= tm);
     return after && before;
   });
+  const chartData = useMemo(() => {
+    if (viewMode === "month") return months;
+
+    const byYear = new Map<number, { label: string; year: number; month: number; da_nhan: number; da_giai_quyet: number; ton_sau: number }>();
+    for (const item of months) {
+      const existing = byYear.get(item.year);
+      if (existing) {
+        existing.da_nhan += item.da_nhan;
+        existing.da_giai_quyet += item.da_giai_quyet;
+        existing.ton_sau += item.ton_sau;
+      } else {
+        byYear.set(item.year, {
+          label: String(item.year),
+          year: item.year,
+          month: 0,
+          da_nhan: item.da_nhan,
+          da_giai_quyet: item.da_giai_quyet,
+          ton_sau: item.ton_sau,
+        });
+      }
+    }
+    return Array.from(byYear.values()).sort((a, b) => a.year - b.year);
+  }, [months, viewMode]);
 
   if (isLoading) {
     return (
@@ -53,19 +77,45 @@ export function MonthlyTrendChart({
     );
   }
 
-  if (isError || months.length === 0) return null;
+  if (isError || chartData.length === 0) return null;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
       <div className="flex items-center justify-between mb-4">
         {!hideTitle ? (
           <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-            {"Xu h\u01b0\u1edbng theo th\u00e1ng \u2014 TT"}{thuTuc}
+            {"Bi\u1ec3u \u0111\u1ed3 xu h\u01b0\u1edbng"}
           </h3>
         ) : (
           <div />
         )}
         <div className="flex items-center gap-4 text-xs text-slate-500 font-medium">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setViewMode("month")}
+              className={[
+                "rounded-lg border px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-colors",
+                viewMode === "month"
+                  ? "border-blue-600 bg-blue-600 text-white"
+                  : "border-slate-300 bg-white text-slate-600 hover:bg-blue-50 hover:text-blue-700",
+              ].join(" ")}
+            >
+              {"Theo th\u00e1ng"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("year")}
+              className={[
+                "rounded-lg border px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-colors",
+                viewMode === "year"
+                  ? "border-blue-600 bg-blue-600 text-white"
+                  : "border-slate-300 bg-white text-slate-600 hover:bg-blue-50 hover:text-blue-700",
+              ].join(" ")}
+            >
+              {"Theo n\u0103m"}
+            </button>
+          </div>
           <span className="flex items-center gap-1">
             <span className="inline-block w-3 h-3 rounded-sm bg-[#60a5fa]" /> {"Ti\u1ebfp nh\u1eadn"}
           </span>
@@ -88,7 +138,7 @@ export function MonthlyTrendChart({
       </div>
       <ResponsiveContainer width="100%" height={280}>
         <ComposedChart
-          data={months}
+          data={chartData}
           margin={{ top: showLabels ? 10 : 20, right: 30, bottom: 5, left: 10 }}
           barGap={2}
         >
@@ -96,7 +146,7 @@ export function MonthlyTrendChart({
           <XAxis
             dataKey="label"
             tick={{ fontSize: 10, fill: "#64748b" }}
-            interval={months.length > 24 ? Math.floor(months.length / 24) : 0}
+            interval={chartData.length > 24 ? Math.floor(chartData.length / 24) : 0}
             angle={-35}
             textAnchor="end"
             height={50}
@@ -174,7 +224,7 @@ export function MonthlyTrendChart({
             dataKey="ton_sau"
             stroke="#f59e0b"
             strokeWidth={2}
-            dot={months.length <= 24}
+            dot={chartData.length <= 24}
             name="ton_sau"
             animationDuration={CHART_ANIMATION_MS}
           >
