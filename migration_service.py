@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from country_classification import (
     HT2_ALPHA2_CODES,
     build_country_name_to_alpha2_case,
+    build_dia_chi_co_so_san_xuat_expr,
     build_nuoc_so_tai_expr,
 )
 from stats_views import STATS_MATERIALIZED_VIEWS, STATS_SCHEMA_META_KEY, STATS_SCHEMA_VERSION
@@ -381,9 +382,17 @@ def migrate_stats_schema(engine):
                     THEN (t.data->>'ngayHenTra')::timestamptz
                     ELSE NULL
                 END AS nhan_hen_tra,
-                COALESCE(ctry.country_alpha2_id, ctry.country_alpha2_name) AS country_alpha2,
+                COALESCE(
+                    ctry.country_alpha2_id,
+                    ctry.country_alpha2_nuoc_so_tai,
+                    ctry.country_alpha2_dia_chi
+                ) AS country_alpha2,
                 CASE
-                    WHEN COALESCE(ctry.country_alpha2_id, ctry.country_alpha2_name) IN ({", ".join(f"'{code}'" for code in HT2_ALPHA2_CODES)})
+                    WHEN COALESCE(
+                        ctry.country_alpha2_id,
+                        ctry.country_alpha2_nuoc_so_tai,
+                        ctry.country_alpha2_dia_chi
+                    ) IN ({", ".join(f"'{code}'" for code in HT2_ALPHA2_CODES)})
                     THEN 2
                     ELSE 1
                 END AS hinh_thuc_danh_gia,
@@ -413,16 +422,23 @@ def migrate_stats_schema(engine):
              AND dcp.ma_ho_so = t.data->>'maHoSo'
             LEFT JOIN LATERAL (
                 SELECT
-                    {build_country_name_to_alpha2_case(build_nuoc_so_tai_expr("t.data"))} AS country_alpha2_name,
                     NULLIF(
                         UPPER(
-                            SUBSTRING(
-                                REGEXP_REPLACE(COALESCE(t.data->>'idCongTy', ''), '<[^>]+>', '', 'g')
-                                FROM '([A-Z]{{2}})-\\d{{3}}'
+                            COALESCE(
+                                SUBSTRING(
+                                    REGEXP_REPLACE(COALESCE(t.data->>'idCongTy', ''), '<[^>]+>', '', 'g')
+                                    FROM 'IDCT\\s*:\\s*([A-Z]{{2}})-\\d+'
+                                ),
+                                SUBSTRING(
+                                    REGEXP_REPLACE(COALESCE(t.data->>'idCongTy', ''), '<[^>]+>', '', 'g')
+                                    FROM '([A-Z]{{2}})-\\d+'
+                                )
                             )
                         ),
                         ''
-                    ) AS country_alpha2_id
+                    ) AS country_alpha2_id,
+                    {build_country_name_to_alpha2_case(build_nuoc_so_tai_expr("t.data"))} AS country_alpha2_nuoc_so_tai,
+                    {build_country_name_to_alpha2_case(build_dia_chi_co_so_san_xuat_expr("t.data"))} AS country_alpha2_dia_chi
             ) ctry ON TRUE
             WHERE NULLIF(t.data->>'thuTucId', '') IS NOT NULL
         """))
