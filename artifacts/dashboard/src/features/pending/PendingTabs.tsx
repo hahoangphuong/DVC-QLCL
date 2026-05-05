@@ -88,13 +88,20 @@ export function DangXuLyTab({
   // Aggregate TT48 buoc
   const tot48 = (key: keyof DangXuLyRow) =>
     allRows.reduce((s, r) => s + ((r[key] as number) || 0), 0) + ((cpc?.[key] as number) || 0);
+  const tot48Chart = (key: keyof DangXuLyRow) =>
+    allRows.reduce((s, r) => s + ((r[key] as number) || 0), 0);
 
   const catData = is48
-    ? CHO_COLORS_48.map(c => ({
+    ? [
+        ...(cpc && cpc.tong > 0
+          ? [{ name: "Ch\u1edd ph\u00e2n c\u00f4ng", value: cpc.tong, fill: "#6366f1" }]
+          : []),
+        ...CHO_COLORS_48.map(c => ({
         name:  c.label,
-        value: tot48(c.key as keyof DangXuLyRow),
+        value: tot48Chart(c.key as keyof DangXuLyRow),
         fill:  c.fill,
-      })).filter(d => d.value > 0)
+      })),
+      ].filter(d => d.value > 0)
     : [
         { name: "Ch\u1edd th\u1ea9m \u0111\u1ecbnh", value: totChoThamDinh, fill: "#3b82f6" },
         { name: "Ch\u1edd Quy\u1ebft \u0111\u1ecbnh", value: totChoQuyetDinh, fill: "#0ea5e9" },
