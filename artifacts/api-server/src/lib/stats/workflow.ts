@@ -1339,18 +1339,37 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
        SELECT DISTINCT chuyen_vien, chuyen_gia
        FROM ${hasPendingLookup ? "mv_stats_pending_lookup" : "pending_lookup_source"}
        WHERE ($1::int IS NULL OR thu_tuc = $1)
+         AND ($2::text IS NULL OR LOWER(ma_ho_so) LIKE '%' || LOWER($2) || '%')
        ORDER BY chuyen_vien NULLS LAST, chuyen_gia NULLS LAST`,
-      [thuTuc]
+      [thuTuc, maHoSo]
     ),
     query<PendingLookupRow>(
       `${hasPendingLookup ? "" : `${PENDING_LOOKUP_FALLBACK_CTE} `}
-       ${hasPendingLookup ? `WITH latest_tcc_roles AS (
+       ${hasPendingLookup ? `WITH filtered_base AS (
+         SELECT *
+         FROM mv_stats_pending_lookup
+         WHERE ($1::int IS NULL OR thu_tuc = $1)
+           AND ($2::text IS NULL OR chuyen_vien = $2)
+           AND ($3::text IS NULL OR chuyen_gia = $3)
+           AND ($4::text IS NULL OR LOWER(ma_ho_so) LIKE '%' || LOWER($4) || '%')
+           AND (
+             $5::text IS NULL
+             OR tinh_trang = $5
+             OR ($5::text = 'cho_chuyen_vien' AND tinh_trang IN ('cho_chuyen_vien', 'chua_xu_ly', 'bi_tra_lai', 'cho_tong_hop', 'cho_tham_dinh', 'cho_quyet_dinh'))
+             OR ($5::text = 'dang_tham_dinh' AND tinh_trang IN ('cho_tham_dinh', 'cho_quyet_dinh'))
+             OR ($5::text = 'dang_xu_ly' AND tinh_trang IN ('dang_xu_ly', 'cho_ke_hoach', 'cho_bao_cao'))
+           )
+       ),
+       latest_tcc_roles AS (
          SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
            (data->>'thuTucId')::int AS thu_tuc,
            data->>'maHoSo' AS ma_ho_so,
            co_so_dang_ky,
            co_so_san_xuat
          FROM tra_cuu_chung
+         JOIN (SELECT DISTINCT thu_tuc, ma_ho_so FROM filtered_base) fb
+           ON fb.thu_tuc = (data->>'thuTucId')::int
+          AND fb.ma_ho_so = data->>'maHoSo'
          WHERE ($1::int IS NULL OR (data->>'thuTucId')::int = $1)
            AND NULLIF(data->>'thuTucId', '') IS NOT NULL
          ORDER BY
@@ -1372,11 +1391,11 @@ export async function getDangXuLyLookup(filters: PendingLookupFilters) {
          roles.co_so_dang_ky,
          roles.co_so_san_xuat,
          base.thoi_gian_cho_ngay
-       FROM ${hasPendingLookup ? "mv_stats_pending_lookup" : "pending_lookup_source"} base
+       FROM ${hasPendingLookup ? "filtered_base" : "pending_lookup_source"} base
        LEFT JOIN latest_tcc_roles roles
          ON roles.thu_tuc = base.thu_tuc
         AND roles.ma_ho_so = base.ma_ho_so
-       WHERE ($1::int IS NULL OR base.thu_tuc = $1)
+       WHERE ${hasPendingLookup ? "TRUE" : "($1::int IS NULL OR base.thu_tuc = $1)"}
          AND ($2::text IS NULL OR base.chuyen_vien = $2)
          AND ($3::text IS NULL OR base.chuyen_gia = $3)
          AND ($4::text IS NULL OR LOWER(base.ma_ho_so) LIKE '%' || LOWER($4) || '%')
@@ -1659,17 +1678,30 @@ export async function getDaXuLyLookupMaterialized(filters: PendingLookupFilters)
       `SELECT DISTINCT chuyen_vien, chuyen_gia
        FROM mv_stats_resolved_lookup
        WHERE ($1::int IS NULL OR thu_tuc = $1)
+         AND ($2::text IS NULL OR LOWER(ma_ho_so) LIKE '%' || LOWER($2) || '%')
        ORDER BY chuyen_vien NULLS LAST, chuyen_gia NULLS LAST`,
-      [thuTuc]
+      [thuTuc, maHoSo]
     ),
     query<PendingLookupRow>(
-      `WITH latest_tcc_roles AS (
+      `WITH filtered_base AS (
+         SELECT *
+         FROM mv_stats_resolved_lookup
+         WHERE ($1::int IS NULL OR thu_tuc = $1)
+           AND ($2::text IS NULL OR chuyen_vien = $2)
+           AND ($3::text IS NULL OR chuyen_gia = $3)
+           AND ($4::text IS NULL OR tinh_trang = $4)
+           AND ($5::text IS NULL OR LOWER(ma_ho_so) LIKE '%' || LOWER($5) || '%')
+       ),
+       latest_tcc_roles AS (
          SELECT DISTINCT ON ((data->>'thuTucId')::int, data->>'maHoSo')
            (data->>'thuTucId')::int AS thu_tuc,
            data->>'maHoSo' AS ma_ho_so,
            co_so_dang_ky,
            co_so_san_xuat
          FROM tra_cuu_chung
+         JOIN (SELECT DISTINCT thu_tuc, ma_ho_so FROM filtered_base) fb
+           ON fb.thu_tuc = (data->>'thuTucId')::int
+          AND fb.ma_ho_so = data->>'maHoSo'
          WHERE ($1::int IS NULL OR (data->>'thuTucId')::int = $1)
            AND NULLIF(data->>'thuTucId', '') IS NOT NULL
          ORDER BY
@@ -1691,15 +1723,10 @@ export async function getDaXuLyLookupMaterialized(filters: PendingLookupFilters)
          roles.co_so_dang_ky,
          roles.co_so_san_xuat,
          base.thoi_gian_cho_ngay
-       FROM mv_stats_resolved_lookup base
+       FROM filtered_base base
        LEFT JOIN latest_tcc_roles roles
          ON roles.thu_tuc = base.thu_tuc
         AND roles.ma_ho_so = base.ma_ho_so
-       WHERE ($1::int IS NULL OR base.thu_tuc = $1)
-         AND ($2::text IS NULL OR base.chuyen_vien = $2)
-         AND ($3::text IS NULL OR base.chuyen_gia = $3)
-         AND ($4::text IS NULL OR base.tinh_trang = $4)
-         AND ($5::text IS NULL OR LOWER(base.ma_ho_so) LIKE '%' || LOWER($5) || '%')
        ORDER BY base.thu_tuc DESC, base.ngay_hen_tra DESC NULLS LAST, base.ma_ho_so ASC`,
       [thuTuc, chuyenVien, chuyenGia, tinhTrang, maHoSo]
     ),

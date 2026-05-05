@@ -217,6 +217,8 @@ def migrate_schema(engine):
 
 def migrate_stats_schema(engine):
     with engine.begin() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+
         for view_name in (
             STATS_MATERIALIZED_VIEWS["resolved_lookup"],
             STATS_MATERIALIZED_VIEWS["pending_lookup"],
@@ -732,6 +734,11 @@ def migrate_stats_schema(engine):
             f"CREATE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['pending_lookup']}_ma_ho_so "
             f"ON {STATS_MATERIALIZED_VIEWS['pending_lookup']} (thu_tuc, ma_ho_so)"
         ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['pending_lookup']}_ma_ho_so_trgm "
+            f"ON {STATS_MATERIALIZED_VIEWS['pending_lookup']} "
+            f"USING gin (LOWER(ma_ho_so) gin_trgm_ops)"
+        ))
 
         conn.execute(text(f"""
             CREATE MATERIALIZED VIEW {STATS_MATERIALIZED_VIEWS["resolved_lookup"]} AS
@@ -836,6 +843,11 @@ def migrate_stats_schema(engine):
         conn.execute(text(
             f"CREATE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['resolved_lookup']}_ma_ho_so "
             f"ON {STATS_MATERIALIZED_VIEWS['resolved_lookup']} (thu_tuc, ma_ho_so)"
+        ))
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS idx_{STATS_MATERIALIZED_VIEWS['resolved_lookup']}_ma_ho_so_trgm "
+            f"ON {STATS_MATERIALIZED_VIEWS['resolved_lookup']} "
+            f"USING gin (LOWER(ma_ho_so) gin_trgm_ops)"
         ))
 
         conn.execute(text(f"""

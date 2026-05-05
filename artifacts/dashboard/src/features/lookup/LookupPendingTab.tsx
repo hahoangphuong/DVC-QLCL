@@ -1,7 +1,7 @@
-import { useDeferredValue } from "react";
 import { LOOKUP_TEXT } from "../../uiText";
 import { LookupDetailModalMount } from "./LookupDetailModalMount";
 import { LookupFilterPanel } from "./LookupFilterPanel";
+import { useDebouncedValue } from "./useDebouncedValue";
 import { useLookupDetailModal } from "./useLookupDetailModal";
 import { useLookupExport } from "./useLookupExport";
 import { useLookupFilterControls } from "./useLookupFilterControls";
@@ -35,7 +35,7 @@ export function LookupPendingTab(props?: LookupTabProps) {
       tinhTrang: isPendingTinhTrangAllowed(value, prev.tinhTrang) ? prev.tinhTrang : "all",
     }));
   };
-  const deferredMaHoSo = useDeferredValue(maHoSo);
+  const debouncedMaHoSo = useDebouncedValue(maHoSo, 250);
   const { exporting, handleExportExcel } = useLookupExport(() =>
     downloadTraCuuDangXuLyExcel({
       thuTuc,
@@ -55,7 +55,7 @@ export function LookupPendingTab(props?: LookupTabProps) {
       chuyenVien,
       chuyenGia,
       tinhTrang,
-      maHoSo: deferredMaHoSo,
+      maHoSo: debouncedMaHoSo,
     },
     fetcher: fetchTraCuuDangXuLy,
     enabled: isActive,
