@@ -1,9 +1,14 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Num, Pct, sumNumericField } from "../pending/pendingDisplay";
-import { fetchNuocSoTai, TT48_SRA_ALPHA2_CODES, type NuocSoTaiRow } from "./statsShared";
+import {
+  fetchNuocSoTai,
+  TT48_ASEAN_MRA_ALPHA2_CODES,
+  TT48_SRA_ALPHA2_CODES,
+  type NuocSoTaiRow,
+} from "./statsShared";
 
-type CountryGroupFilter = "all" | "sra" | "non-sra";
+type CountryGroupFilter = "all" | "sra" | "asean-mra" | "other";
 
 export function NuocSoTaiTable({ fromDate, toDate }: { fromDate: string; toDate: string }) {
   const [groupFilter, setGroupFilter] = useState<CountryGroupFilter>("all");
@@ -18,8 +23,12 @@ export function NuocSoTaiTable({ fromDate, toDate }: { fromDate: string; toDate:
   const rows = useMemo(() => {
     if (groupFilter === "all") return rawRows;
     return rawRows.filter((row) => {
-      const isSra = TT48_SRA_ALPHA2_CODES.has((row.ten_nuoc ?? "").toUpperCase());
-      return groupFilter === "sra" ? isSra : !isSra;
+      const alpha2 = (row.ten_nuoc ?? "").toUpperCase();
+      const isSra = TT48_SRA_ALPHA2_CODES.has(alpha2);
+      const isAseanMra = TT48_ASEAN_MRA_ALPHA2_CODES.has(alpha2);
+      if (groupFilter === "sra") return isSra;
+      if (groupFilter === "asean-mra") return isAseanMra;
+      return !isSra && !isAseanMra;
     });
   }, [groupFilter, rawRows]);
 
@@ -160,7 +169,8 @@ export function NuocSoTaiTable({ fromDate, toDate }: { fromDate: string; toDate:
         <div className="flex items-center gap-2">
           <FilterButton value="all" label="Tất cả" />
           <FilterButton value="sra" label="SRA" />
-          <FilterButton value="non-sra" label="Non-SRA" />
+          <FilterButton value="asean-mra" label="ASEAN MRA" />
+          <FilterButton value="other" label="Còn lại" />
           {isLoading && <span className="text-xs font-medium text-blue-500 animate-pulse">Đang tải...</span>}
           {isError && <span className="text-xs font-medium text-red-500">Lỗi tải dữ liệu</span>}
         </div>

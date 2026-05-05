@@ -212,9 +212,12 @@ export interface NuocSoTaiData {
 
 export const TT48_SRA_ALPHA2_CODES = new Set([
   "AT", "AU", "BE", "BG", "CA", "CH", "CY", "CZ", "DE", "DK", "EE", "ES",
-  "FI", "FR", "GR", "HR", "HU", "ID", "IE", "IS", "IT", "JP", "LI", "LT",
-  "LU", "LV", "MT", "MY", "NL", "NO", "PH", "PL", "PT", "RO", "SE", "SG",
-  "SI", "SK", "TH", "US",
+  "FI", "FR", "GR", "HR", "HU", "IE", "IS", "IT", "JP", "LI", "LT", "LU",
+  "LV", "MT", "NL", "NO", "PL", "PT", "RO", "SE", "SI", "SK", "US",
+]);
+
+export const TT48_ASEAN_MRA_ALPHA2_CODES = new Set([
+  "ID", "MY", "PH", "SG", "TH",
 ]);
 
 export const TT48_LOAI_LABELS: Record<string, string> = {
