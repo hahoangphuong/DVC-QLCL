@@ -103,6 +103,9 @@ export function DangXuLyTab({
       })),
       ].filter(d => d.value > 0)
     : [
+        ...(cpc && cpc.tong > 0
+          ? [{ name: "Ch\u1edd ph\u00e2n c\u00f4ng", value: cpc.tong, fill: "#6366f1" }]
+          : []),
         { name: "Ch\u1edd th\u1ea9m \u0111\u1ecbnh", value: totChoThamDinh, fill: "#3b82f6" },
         { name: "Ch\u1edd Quy\u1ebft \u0111\u1ecbnh", value: totChoQuyetDinh, fill: "#0ea5e9" },
         ...(is46Or47 ? [
